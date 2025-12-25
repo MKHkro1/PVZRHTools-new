@@ -31,10 +31,11 @@ PVZRHTools 是《植物大战僵尸：融合版》的修改器工具，由 @Infi
 
 当前适配游戏版本：3.2.1
 
+已构建版本的链接位于 [夸克网盘分享](https://pan.quark.cn/s/958659c83f52)
+
 ---
 
 植物大战僵尸融合版修改器 by [@Infinite75](https://space.bilibili.com/672619350)  [@听雨夜荷](https://space.bilibili.com/3537110030092294)  [@梧萱梦汐X](https://space.bilibili.com/3493111820978227)
-已构建版本的链接位于 https://pan.quark.cn/s/958659c83f52
 
 模组部分基于[BepInEx](https://github.com/BepInEx/BepInEx)开发      
 内置了听雨夜荷的花园修改器[pvzRH-GardenEditor](https://github.com/CarefreeSongs712/pvzRH-GardenEditor)，并为其适配了动态id和贴图加载     
