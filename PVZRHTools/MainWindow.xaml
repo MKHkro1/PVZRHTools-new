@@ -1004,7 +1004,7 @@
                     </hc:ScrollViewer>
                 </Border>
             </TabItem>
-            <TabItem Header="">
+            <TabItem Header="{DynamicResource Tab8.Header}">
                 <Border Background="#00212125" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto">
                         <Grid>

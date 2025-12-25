@@ -10,6 +10,7 @@
     <s:String x:Key="Tab5.Header">Глобальные горячие клавиши</s:String>
     <s:String x:Key="Tab6.Header">Горячие клавиши в игре</s:String>
     <s:String x:Key="Tab7.Header">Разное</s:String>
+    <s:String x:Key="Tab8.Header">Настройка PvE</s:String>
     <s:String x:Key="Tab1.Page1.Header">Основные свойства</s:String>
     <s:String x:Key="Tab1.Page2.Header">Изменение подарков</s:String>
     <s:String x:Key="Tab1.Page3.Header">Изменение данных</s:String>

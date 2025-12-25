@@ -1851,6 +1851,11 @@ public class PatchMgr : MonoBehaviour
     public static int LockMoneyCount { get; set; } = 3000;
     public static int LockPresent { get; set; } = -1;
     public static int LockWheat { get; set; } = -1;
+    public static int LockPresent1 { get; set; } = -1;
+    public static int LockPresent2 { get; set; } = -1;
+    public static int LockPresent3 { get; set; } = -1;
+    public static int LockPresent4 { get; set; } = -1;
+    public static int LockPresent5 { get; set; } = -1;
     public static bool LockSun { get; set; } = false;
     public static int LockSunCount { get; set; } = 500;
     public static bool MineNoCD { get; set; } = false;

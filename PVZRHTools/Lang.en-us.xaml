@@ -11,6 +11,7 @@
     <s:String x:Key="Tab5.Header">GlobalHotkey</s:String>
     <s:String x:Key="Tab6.Header">InGameHotkey</s:String>
     <s:String x:Key="Tab7.Header">Miscs</s:String>
+    <s:String x:Key="Tab8.Header">PvE Setup</s:String>
     <s:String x:Key="Tab1.Page1.Header">BasicProperties</s:String>
     <s:String x:Key="Tab1.Page2.Header">PresentModify</s:String>
     <s:String x:Key="Tab1.Page3.Header">DataModify</s:String>

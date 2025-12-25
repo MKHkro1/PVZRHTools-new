@@ -194,6 +194,11 @@ public class DataProcessor : MonoBehaviour
             if (p1.PresentFastOpen is not null) PresentFastOpen = (bool)p1.PresentFastOpen;
             if (p1.LockPresent is not null) LockPresent = (int)p1.LockPresent;
             if (p1.LockWheat is not null) LockWheat = (int)p1.LockWheat;
+            if (p1.LockPresent1 is not null) LockPresent1 = (int)p1.LockPresent1;
+            if (p1.LockPresent2 is not null) LockPresent2 = (int)p1.LockPresent2;
+            if (p1.LockPresent3 is not null) LockPresent3 = (int)p1.LockPresent3;
+            if (p1.LockPresent4 is not null) LockPresent4 = (int)p1.LockPresent4;
+            if (p1.LockPresent5 is not null) LockPresent5 = (int)p1.LockPresent5;
             if (p1.FastShooting is not null) FastShooting = (bool)p1.FastShooting;
             if (p1.HardPlant is not null) HardPlant = (bool)p1.HardPlant;
             if (p1.NoHole is not null) NoHole = (bool)p1.NoHole;
@@ -1279,6 +1284,61 @@ all");
                 {
                     try { Destroy(prize.gameObject); } catch { }
                 }
+            }
+
+            // PvE 斗蛐蛐快速布阵功能
+            if (iga.PvE == true && Board.Instance != null)
+            {
+                // 放置5个礼盒，并设置礼盒内的植物类型
+                // 使用 PlantType.Present 而不是硬编码的 256
+                
+                // 第1个礼盒
+                var plant1 = CreatePlant.Instance.SetPlant(0, 2, PlantType.Present);
+                if (plant1 != null && LockPresent1 >= 0)
+                {
+                    var present1 = plant1.GetComponent<Present>();
+                    if (present1 != null) present1.thePlantType = (PlantType)LockPresent1;
+                }
+                
+                // 第2个礼盒
+                var plant2 = CreatePlant.Instance.SetPlant(1, 2, PlantType.Present);
+                if (plant2 != null && LockPresent2 >= 0)
+                {
+                    var present2 = plant2.GetComponent<Present>();
+                    if (present2 != null) present2.thePlantType = (PlantType)LockPresent2;
+                }
+                
+                // 第3个礼盒
+                var plant3 = CreatePlant.Instance.SetPlant(2, 2, PlantType.Present);
+                if (plant3 != null && LockPresent3 >= 0)
+                {
+                    var present3 = plant3.GetComponent<Present>();
+                    if (present3 != null) present3.thePlantType = (PlantType)LockPresent3;
+                }
+                
+                // 第4个礼盒
+                var plant4 = CreatePlant.Instance.SetPlant(3, 2, PlantType.Present);
+                if (plant4 != null && LockPresent4 >= 0)
+                {
+                    var present4 = plant4.GetComponent<Present>();
+                    if (present4 != null) present4.thePlantType = (PlantType)LockPresent4;
+                }
+                
+                // 第5个礼盒
+                var plant5 = CreatePlant.Instance.SetPlant(4, 2, PlantType.Present);
+                if (plant5 != null && LockPresent5 >= 0)
+                {
+                    var present5 = plant5.GetComponent<Present>();
+                    if (present5 != null) present5.thePlantType = (PlantType)LockPresent5;
+                }
+                
+                // 放置僵尸：1个巨人盲盒 + 1个钻石盲盒 + 4个黄金盲盒
+                CreateZombie.Instance.SetZombie(2, ZombieType.RandomGargantuar, 8);
+                CreateZombie.Instance.SetZombie(2, ZombieType.DiamondRandomZombie, 8);
+                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
+                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
+                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
+                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
             }
         }
 
