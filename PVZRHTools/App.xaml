@@ -1,0 +1,20 @@
+﻿<Application x:Class="PVZRHTools.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fh="clr-namespace:FastHotKeyForWPF;assembly=FastHotKeyForWPF"
+             StartupUri="MainWindow.xaml"
+             DispatcherUnhandledException="App_DispatcherUnhandledException">
+    <Application.Resources>
+
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/Theme.xaml" />
+                <ResourceDictionary Source="/Lang.zh-cn.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="{x:Type fh:HotKeyBox}">
+                <Setter Property="Foreground" Value="#FF333333" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

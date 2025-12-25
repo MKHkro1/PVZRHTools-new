@@ -1,0 +1,87 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+        <StartupObject>PVZRHTools.App</StartupObject>
+        <ApplicationIcon>PVZRHTools\icon.ico</ApplicationIcon>
+        <TransformOnBuild>true</TransformOnBuild>
+        <TransformOutOfDateOnly>false</TransformOutOfDateOnly>
+        <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+        <LangVersion>preview</LangVersion>
+        <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <DebugType>embedded</DebugType>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <DebugType>embedded</DebugType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Remove="PVZRHTools\icon.png"/>
+        <None Remove="RunGame.bat"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="Version.cs">
+            <DesignTime>True</DesignTime>
+            <AutoGen>True</AutoGen>
+            <DependentUpon>Version.tt</DependentUpon>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0"/>
+        <PackageReference Include="FastHotKeyForWPF" Version="2.4.0"/>
+        <PackageReference Include="HandyControl" Version="3.5.1"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.1"/>
+        <PackageReference Include="System.Management" Version="10.0.0-preview.7.25380.108" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\ToolModData\ToolModData.csproj"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions">
+            <HintPath>..\..\..\pvz\rhex\MelonLoader\net6\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+    <ItemGroup>
+        <Resource Include="PVZRHTools\icon.ico"/>
+        <Resource Include="PVZRHTools\icon.png"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Update="Lang.Designer.cs">
+            <DesignTime>True</DesignTime>
+            <AutoGen>True</AutoGen>
+            <DependentUpon>Lang.resx</DependentUpon>
+        </Compile>
+        <Compile Update="Version.cs">
+            <DependentUpon>Version.tt</DependentUpon>
+            <DesignTime>True</DesignTime>
+            <AutoGen>True</AutoGen>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Version.tt">
+            <LastGenOutput>Version.cs</LastGenOutput>
+            <Generator>TextTemplatingFileGenerator</Generator>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}"/>
+    </ItemGroup>
+    <ItemGroup>
+        <EmbeddedResource Update="Lang.resx">
+            <Generator>ResXFileCodeGenerator</Generator>
+            <LastGenOutput>Lang.Designer.cs</LastGenOutput>
+        </EmbeddedResource>
+    </ItemGroup>
+
+</Project>
