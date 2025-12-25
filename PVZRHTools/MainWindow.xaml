@@ -513,11 +513,6 @@
                                               Margin="127,35,0,0" VerticalAlignment="Top" Foreground="#FF333333"
                                               BorderThickness="2,2,2,2" HorizontalAlignment="Left"
                                               ToolTip="{DynamicResource Tab1.Page5.UnlimitedSunlight.Tooltip}" />
-                                    <CheckBox x:Name="MagnetNutUnlimited" IsChecked="{Binding MagnetNutUnlimited}"
-                                              Content="{DynamicResource Tab1.Page5.MagnetNutUnlimited}" Height="21"
-                                              Margin="127,60,0,0" VerticalAlignment="Top" Foreground="#FF333333"
-                                              BorderThickness="2,2,2,2" HorizontalAlignment="Left"
-                                              ToolTip="{DynamicResource Tab1.Page5.MagnetNutUnlimited.Tooltip}" />
                                     <CheckBox x:Name="ItemExistForever" IsChecked="{Binding ItemExistForever}"
                                               Content="{DynamicResource Tab1.Page5.ItemExistForever}" Height="21"
                                               Margin="127,10,0,0" VerticalAlignment="Top" Foreground="#FF333333"
@@ -574,6 +569,11 @@
                                                   Content="{DynamicResource Tab1.Page6.HyponoEmperorNoCD}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0" />
+                                        <CheckBox x:Name="MagnetNutUnlimited" IsChecked="{Binding MagnetNutUnlimited}"
+                                                  Content="{DynamicResource Tab1.Page6.MagnetNutUnlimited}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333"
+                                                  BorderThickness="2,2,2,2" HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6.MagnetNutUnlimited.Tooltip}" />
                                         <CheckBox x:Name="MineNoCD" IsChecked="{Binding MineNoCD}"
                                                   Content="{DynamicResource Tab1.Page6.MineNoCD}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"

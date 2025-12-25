@@ -57,8 +57,8 @@
     <s:String x:Key="Tab1.Page5.PotSmashingFix.Tooltip">Fix pot smashing issues: only smash one overlapping pot, Jackbox/Gargantuar/AOE won't break pots</s:String>
     <s:String x:Key="Tab1.Page5.UnlimitedSunlight">UnlimitedSunlight</s:String>
     <s:String x:Key="Tab1.Page5.UnlimitedSunlight.Tooltip">Remove 50000 sun storage limit</s:String>
-    <s:String x:Key="Tab1.Page5.MagnetNutUnlimited">MagnetNutUnlimited</s:String>
-    <s:String x:Key="Tab1.Page5.MagnetNutUnlimited.Tooltip">MagnetNut unlimited bullet attraction, remove 100 bullet limit, bullets won't disappear over time</s:String>
+    <s:String x:Key="Tab1.Page6.MagnetNutUnlimited">MagnetNutUnlimited</s:String>
+    <s:String x:Key="Tab1.Page6.MagnetNutUnlimited.Tooltip">MagnetNut unlimited bullet attraction, remove 100 bullet limit, bullets won't disappear over time</s:String>
     <s:String x:Key="Tab1.Page5.ItemExistForever">ItemExistForever</s:String>
     <s:String x:Key="Tab1.Page5.CardNoInit">CardNoInit</s:String>
     <s:String x:Key="Tab1.Page5.JackboxNotExplode">JackboxNotExplode</s:String>

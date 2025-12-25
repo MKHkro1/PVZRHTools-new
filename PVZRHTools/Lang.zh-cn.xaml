@@ -58,8 +58,8 @@
     <s:String x:Key="Tab1.Page5.PotSmashingFix.Tooltip">修复砸罐子关卡的问题：重叠罐子只砸一个、小丑/巨人/AOE不破坏罐子</s:String>
     <s:String x:Key="Tab1.Page5.UnlimitedSunlight">阳光无上限</s:String>
     <s:String x:Key="Tab1.Page5.UnlimitedSunlight.Tooltip">取消50000阳光存储上限限制</s:String>
-    <s:String x:Key="Tab1.Page5.MagnetNutUnlimited">磁力坚果无限</s:String>
-    <s:String x:Key="Tab1.Page5.MagnetNutUnlimited.Tooltip">磁力坚果无限吸引子弹，取消100个子弹存储限制，子弹不会因时间消失</s:String>
+    <s:String x:Key="Tab1.Page6.MagnetNutUnlimited">磁力坚果无限</s:String>
+    <s:String x:Key="Tab1.Page6.MagnetNutUnlimited.Tooltip">磁力坚果无限吸引子弹，取消100个子弹存储限制，子弹不会因时间消失</s:String>
     <s:String x:Key="Tab1.Page5.ItemExistForever">物品不消失</s:String>
     <s:String x:Key="Tab1.Page5.CardNoInit">卡槽无初始CD</s:String>
     <s:String x:Key="Tab1.Page5.JackboxNotExplode">小丑盒子不爆</s:String>
