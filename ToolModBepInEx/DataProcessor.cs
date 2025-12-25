@@ -664,21 +664,49 @@ all");
                 {
                     try
                     {
-                        ((Zombie)zombies[i]).TakeDamage(DmgType.MaxDamage,2147483647);
-                        ((Zombie)zombies[i]).BodyTakeDamage(2147483647);
-                        ((Zombie)zombies[i])?.Die();
+                        var zombie = (Zombie)zombies[i];
+                        if (zombie == null || !zombie) continue;
+                        
+                        // 对于会生成新僵尸的特殊僵尸，直接销毁而不是调用Die
+                        var zt = zombie.theZombieType;
+                        if (zt == ZombieType.DiamondRandomZombie ||
+                            zt == ZombieType.DollDiamond ||
+                            zt == ZombieType.DollGold ||
+                            zt == ZombieType.DollSilver)
+                        {
+                            Destroy(zombie.gameObject);
+                            continue;
+                        }
+                        
+                        zombie.TakeDamage(DmgType.MaxDamage, 2147483647);
+                        zombie.BodyTakeDamage(2147483647);
+                        zombie.Die();
                     }
                     catch 
                     {
                     }
                 }
 
-                for (var j = Board.Instance.zombieArray.Count; j >= 0; j--)
+                for (var j = Board.Instance.zombieArray.Count - 1; j >= 0; j--)
                     try
                     {
-                        Board.Instance.zombieArray[j]?.TakeDamage(DmgType.MaxDamage,2147483647);
-                        Board.Instance.zombieArray[j]?.BodyTakeDamage(2147483647);
-                        Board.Instance.zombieArray[j]?.Die();
+                        var zombie = Board.Instance.zombieArray[j];
+                        if (zombie == null || !zombie) continue;
+                        
+                        // 对于会生成新僵尸的特殊僵尸，直接销毁
+                        var zt = zombie.theZombieType;
+                        if (zt == ZombieType.DiamondRandomZombie ||
+                            zt == ZombieType.DollDiamond ||
+                            zt == ZombieType.DollGold ||
+                            zt == ZombieType.DollSilver)
+                        {
+                            Destroy(zombie.gameObject);
+                            continue;
+                        }
+                        
+                        zombie.TakeDamage(DmgType.MaxDamage, 2147483647);
+                        zombie.BodyTakeDamage(2147483647);
+                        zombie.Die();
                     }
                     catch
                     {
