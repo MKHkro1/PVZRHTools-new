@@ -221,6 +221,7 @@ public class DataProcessor : MonoBehaviour
             if (p1.DisableIceEffect is not null) DisableIceEffect = (bool)p1.DisableIceEffect;
             if (p1.PotSmashingFix is not null) PotSmashingFix = (bool)p1.PotSmashingFix;
             if (p1.UnlimitedSunlight is not null) UnlimitedSunlight = (bool)p1.UnlimitedSunlight;
+            if (p1.MagnetNutUnlimited is not null) MagnetNutUnlimited = (bool)p1.MagnetNutUnlimited;
             return;
         }
 

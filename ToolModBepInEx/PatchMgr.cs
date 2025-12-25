@@ -788,6 +788,96 @@ public static class UnlimitedSunlightPatches
 
 #endregion
 
+#region MagnetNutUnlimited - 磁力坚果无限吸引补丁
+
+/// <summary>
+/// 磁力坚果无限吸引补丁 - 取消100个子弹存储限制
+/// </summary>
+[HarmonyPatch(typeof(MagnetNut))]
+public static class MagnetNutUnlimitedPatches
+{
+    /// <summary>
+    /// 补丁 FixedUpdate 方法，取消子弹存储上限（100个限制）
+    /// </summary>
+    [HarmonyPrefix]
+    [HarmonyPatch("FixedUpdate")]
+    public static bool Prefix_FixedUpdate(MagnetNut __instance)
+    {
+        if (!MagnetNutUnlimited) return true;
+
+        try
+        {
+            if (__instance == null) return true;
+            // 强制调用 SearchBullet，无视100个子弹限制
+            __instance.SearchBullet();
+            return true;
+        }
+        catch { return true; }
+    }
+}
+
+/// <summary>
+/// 子弹死亡拦截补丁 - 阻止子弹因时间限制死亡
+/// </summary>
+[HarmonyPatch(typeof(Bullet))]
+public static class BulletMagnetPatches
+{
+    // 需要排除的子弹类型（这些子弹使用原始逻辑）
+    private static readonly HashSet<string> _excludedBulletNames = new HashSet<string>
+    {
+        "Bullet_star", "Bullet_cactusStar", "Bullet_superStar", "Bullet_ultimateStar",
+        "Bullet_lanternStar", "Bullet_seaStar", "Bullet_jackboxStar", "Bullet_pickaxeStar",
+        "Bullet_magnetStar", "Bullet_ironStar", "Bullet_threeSpike",
+        "Bullet_magicTrack", "Bullet_normalTrack", "Bullet_iceTrack", "Bullet_fireTrack",
+        "Bullet_doom", "Bullet_doom_throw", "Bullet_endoSun", "Bullet_extremeSnowPea",
+        "Bullet_iceSword", "Bullet_lourCactus", "Bullet_melonCannon",
+        "Bullet_shulkLeaf_ultimate", "Bullet_smallGoldCannon", "Bullet_smallSun",
+        "Bullet_springMelon", "Bullet_sunCabbage", "Bullet_ultimateSun"
+    };
+
+    private static bool ShouldExcludeBullet(Bullet bullet)
+    {
+        if (bullet == null) return true;
+        string className = bullet.GetType().Name;
+        if (_excludedBulletNames.Contains(className)) return true;
+        // 激进排除：包含特定关键词的子弹
+        return className.Contains("Star") || className.Contains("Spike") ||
+               className.Contains("Track") || className.Contains("Doom") ||
+               className.Contains("Extreme") || className.Contains("Melon") ||
+               className.Contains("Sun") || className.Contains("Cactus") ||
+               className.Contains("Sword") || className.Contains("Cannon") ||
+               className.Contains("Ultimate") || className.Contains("Super");
+    }
+
+    /// <summary>
+    /// 补丁 Bullet.Die 方法，阻止子弹因时间限制死亡
+    /// </summary>
+    [HarmonyPrefix]
+    [HarmonyPatch(nameof(Bullet.Die))]
+    public static bool Prefix_Die(Bullet __instance)
+    {
+        if (!MagnetNutUnlimited) return true;
+
+        try
+        {
+            if (__instance == null || ShouldExcludeBullet(__instance)) return true;
+
+            // 检查是否是因为时间限制要死亡
+            if (__instance.theExistTime > 20.0f || (__instance.theMovingWay == 3 && __instance.theExistTime > 0.75f))
+            {
+                // 重置状态，阻止死亡
+                __instance.theMovingWay = 10;
+                __instance.theExistTime = 0.0f;
+                return false; // 阻止死亡
+            }
+            return true;
+        }
+        catch { return true; }
+    }
+}
+
+#endregion
+
 [HarmonyPatch(typeof(DroppedCard), "Update")]
 public static class DroppedCardPatch
 {
@@ -1640,6 +1730,7 @@ public class PatchMgr : MonoBehaviour
     public static bool DisableIceEffect { get; set; } = false;
     public static bool PotSmashingFix { get; set; } = false;
     public static bool UnlimitedSunlight { get; set; } = false;
+    public static bool MagnetNutUnlimited { get; set; } = false;
 
     public void Update()
     {

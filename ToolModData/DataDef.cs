@@ -57,6 +57,7 @@ public struct BasicProperties : ISyncData
     public bool? DisableIceEffect { get; set; }
     public bool? PotSmashingFix { get; set; }
     public bool? UnlimitedSunlight { get; set; }
+    public bool? MagnetNutUnlimited { get; set; }
 }
 
 [Serializable]

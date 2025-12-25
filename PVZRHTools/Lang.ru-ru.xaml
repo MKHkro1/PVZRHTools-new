@@ -56,6 +56,8 @@
     <s:String x:Key="Tab1.Page5.PotSmashingFix.Tooltip">Исправление проблем с горшками: разбивается только один горшок, Джек/Гаргантюа/AOE не разбивают горшки</s:String>
     <s:String x:Key="Tab1.Page5.UnlimitedSunlight">Безлимитное солнце</s:String>
     <s:String x:Key="Tab1.Page5.UnlimitedSunlight.Tooltip">Снять лимит хранения солнца 50000</s:String>
+    <s:String x:Key="Tab1.Page5.MagnetNutUnlimited">Безлимитный магнит-орех</s:String>
+    <s:String x:Key="Tab1.Page5.MagnetNutUnlimited.Tooltip">Магнит-орех притягивает неограниченное количество пуль</s:String>
     <s:String x:Key="Tab1.Page5.ItemExistForever">Вещи вечны</s:String>
     <s:String x:Key="Tab1.Page5.CardNoInit">Карты вечны</s:String>
     <s:String x:Key="Tab1.Page5.JackboxNotExplode">Шут не взрывается</s:String>

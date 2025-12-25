@@ -1262,6 +1262,11 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new BasicProperties { UnlimitedSunlight = value });
     }
 
+    partial void OnMagnetNutUnlimitedChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { MagnetNutUnlimited = value });
+    }
+
     partial void OnPlantingNoCDChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { PlantingNoCD = value });
@@ -1618,6 +1623,8 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool PotSmashingFix { get; set; }
 
     [ObservableProperty] public partial bool UnlimitedSunlight { get; set; }
+
+    [ObservableProperty] public partial bool MagnetNutUnlimited { get; set; }
 
     [ObservableProperty] public partial bool PlantingNoCD { get; set; }
 
