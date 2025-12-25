@@ -585,6 +585,10 @@
                                                   Content="{DynamicResource Tab1.Page6.ChomperNoCD}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0" />
+                                        <CheckBox x:Name="CobCannonNoCD" IsChecked="{Binding CobCannonNoCD}"
+                                                  Content="{DynamicResource Tab1.Page6.CobCannonNoCD}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0" />
                                         <CheckBox x:Name="PlantUpgrade" IsChecked="{Binding PlantUpgrade}"
                                                   Content="{DynamicResource Tab1.Page6.PlantUpgrade}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"

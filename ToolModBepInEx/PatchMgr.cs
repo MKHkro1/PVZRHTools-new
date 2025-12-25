@@ -229,6 +229,171 @@ public static class ChomperPatch
 }
 */
 
+/// <summary>
+/// 加农炮无CD装填补丁 - CobCannon.AnimShoot
+/// 在加农炮发射后立即触发charge动画并重置冷却时间，实现无冷却装填
+/// </summary>
+[HarmonyPatch(typeof(CobCannon), "AnimShoot")]
+public static class CobCannonAnimShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(CobCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                // 重置冷却时间，使加农炮可以立即再次发射
+                __instance.attributeCountdown = 0.05f;
+                // 触发charge动画
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 火焰加农炮无CD装填补丁 - FireCannon.AnimShoot
+/// </summary>
+[HarmonyPatch(typeof(FireCannon), "AnimShoot")]
+public static class FireCannonAnimShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(FireCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                __instance.attributeCountdown = 0.05f;
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 寒冰加农炮无CD装填补丁 - IceCannon.AnimShoot
+/// </summary>
+[HarmonyPatch(typeof(IceCannon), "AnimShoot")]
+public static class IceCannonAnimShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(IceCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                __instance.attributeCountdown = 0.05f;
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 西瓜加农炮无CD装填补丁 - MelonCannon.AnimShoot
+/// </summary>
+[HarmonyPatch(typeof(MelonCannon), "AnimShoot")]
+public static class MelonCannonAnimShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(MelonCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                __instance.attributeCountdown = 0.05f;
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 究极加农炮无CD装填补丁 - UltimateCannon.AnimShoot
+/// </summary>
+[HarmonyPatch(typeof(UltimateCannon), "AnimShoot")]
+public static class UltimateCannonAnimShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(UltimateCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                __instance.attributeCountdown = 0.05f;
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 究极爆破加农炮无CD装填补丁 - UltimateExplodeCannon.AnimShoot
+/// </summary>
+[HarmonyPatch(typeof(UltimateExplodeCannon), "AnimShoot")]
+public static class UltimateExplodeCannonAnimShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(UltimateExplodeCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                __instance.attributeCountdown = 0.05f;
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 究极冷寂榴弹炮无CD装填补丁 - UltimateMelonCannon.StartShoot
+/// UltimateMelonCannon继承自MelonCannon，但有自己的StartShoot方法
+/// </summary>
+[HarmonyPatch(typeof(UltimateMelonCannon), "StartShoot")]
+public static class UltimateMelonCannonStartShootPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(UltimateMelonCannon __instance)
+    {
+        if (!CobCannonNoCD) return;
+        try
+        {
+            if (__instance != null)
+            {
+                __instance.attributeCountdown = 0.05f;
+                if (__instance.anim != null)
+                    __instance.anim.SetTrigger("charge");
+            }
+        }
+        catch { }
+    }
+}
+
 [HarmonyPatch(typeof(ConveyManager))]
 public static class ConveyManagerPatch
 {
