@@ -1,0 +1,163 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "PVZRHTools/1.0.0": {
+        "dependencies": {
+          "CommunityToolkit.Mvvm": "8.4.0",
+          "FastHotKeyForWPF": "2.4.0",
+          "HandyControl": "3.5.1",
+          "Microsoft.Extensions.DependencyInjection": "9.0.1",
+          "System.Management": "10.0.0-preview.7.25380.108",
+          "ToolModData": "1.0.0"
+        },
+        "runtime": {
+          "PVZRHTools.dll": {}
+        }
+      },
+      "CommunityToolkit.Mvvm/8.4.0": {
+        "runtime": {
+          "lib/net8.0/CommunityToolkit.Mvvm.dll": {
+            "assemblyVersion": "8.4.0.0",
+            "fileVersion": "8.4.0.1"
+          }
+        }
+      },
+      "FastHotKeyForWPF/2.4.0": {
+        "runtime": {
+          "lib/net8.0-windows7.0/FastHotKeyForWPF.dll": {
+            "assemblyVersion": "2.4.0.0",
+            "fileVersion": "2.4.0.0"
+          }
+        }
+      },
+      "HandyControl/3.5.1": {
+        "runtime": {
+          "lib/net8.0/HandyControl.dll": {
+            "assemblyVersion": "3.5.1.0",
+            "fileVersion": "3.5.1.0"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection/9.0.1": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.1"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.124.61010"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.1": {
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.124.61010"
+          }
+        }
+      },
+      "System.CodeDom/10.0.0-preview.7.25380.108": {
+        "runtime": {
+          "lib/net8.0/System.CodeDom.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.38108"
+          }
+        }
+      },
+      "System.Management/10.0.0-preview.7.25380.108": {
+        "dependencies": {
+          "System.CodeDom": "10.0.0-preview.7.25380.108"
+        },
+        "runtime": {
+          "lib/net8.0/System.Management.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.38108"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net8.0/System.Management.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.38108"
+          }
+        }
+      },
+      "ToolModData/1.0.0": {
+        "runtime": {
+          "ToolModData.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "PVZRHTools/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CommunityToolkit.Mvvm/8.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tqVU8yc/ADO9oiTRyTnwhFN68hCwvkliMierptWOudIAvWY1mWCh5VFh+guwHJmpMwfg0J0rY+yyd5Oy7ty9Uw==",
+      "path": "communitytoolkit.mvvm/8.4.0",
+      "hashPath": "communitytoolkit.mvvm.8.4.0.nupkg.sha512"
+    },
+    "FastHotKeyForWPF/2.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iiHsAY3/0FAKImgnIeJfIK1J4a/F90x25u5sP7Y13I5IB384Pkp6L7SJxyc7901CPM+8+89utcAIF0+q5u6H1A==",
+      "path": "fasthotkeyforwpf/2.4.0",
+      "hashPath": "fasthotkeyforwpf.2.4.0.nupkg.sha512"
+    },
+    "HandyControl/3.5.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-i2i0xrLev7F1MFnhf0DP1CNCdGw8hVJ0HJrI0kxRv02ZJgaAzLzDTgAXDPY8GAoD3aYnBLSgM74lBHZ844KQnQ==",
+      "path": "handycontrol/3.5.1",
+      "hashPath": "handycontrol.3.5.1.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection/9.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-qZI42ASAe3hr2zMSA6UjM92pO1LeDq5DcwkgSowXXPY8I56M76pEKrnmsKKbxagAf39AJxkH2DY4sb72ixyOrg==",
+      "path": "microsoft.extensions.dependencyinjection/9.0.1",
+      "hashPath": "microsoft.extensions.dependencyinjection.9.0.1.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Tr74eP0oQ3AyC24ch17N8PuEkrPbD0JqIfENCYqmgKYNOmL8wQKzLJu3ObxTUDrjnn4rHoR1qKa37/eQyHmCDA==",
+      "path": "microsoft.extensions.dependencyinjection.abstractions/9.0.1",
+      "hashPath": "microsoft.extensions.dependencyinjection.abstractions.9.0.1.nupkg.sha512"
+    },
+    "System.CodeDom/10.0.0-preview.7.25380.108": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HK+yaHE/PCFrwSCUvSTtZWLFJrZXj2IDvS4AvmJ+qyXlSezRznDxyDndWIZ585LgY8hiIZeaaY36/AKLpsaaPg==",
+      "path": "system.codedom/10.0.0-preview.7.25380.108",
+      "hashPath": "system.codedom.10.0.0-preview.7.25380.108.nupkg.sha512"
+    },
+    "System.Management/10.0.0-preview.7.25380.108": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-+va5TouyRhMINxIAtILk1QIQBZsgUcH6G9+N0BiqiR/2HQ9NgFoH5LJcghDa9TG3XN3jekIFhYgcs6l/LEfDVw==",
+      "path": "system.management/10.0.0-preview.7.25380.108",
+      "hashPath": "system.management.10.0.0-preview.7.25380.108.nupkg.sha512"
+    },
+    "ToolModData/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

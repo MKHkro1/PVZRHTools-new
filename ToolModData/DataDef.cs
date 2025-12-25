@@ -55,6 +55,7 @@ public struct BasicProperties : ISyncData
     public bool? UndeadBullet { get; set; }
     public bool? UnlockAllFusions { get; set; }
     public bool? DisableIceEffect { get; set; }
+    public bool? PotSmashingFix { get; set; }
 }
 
 [Serializable]

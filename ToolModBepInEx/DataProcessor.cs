@@ -219,6 +219,7 @@ public class DataProcessor : MonoBehaviour
             if (p1.PlantUpgrade is not null) PlantUpgrade = (bool)p1.PlantUpgrade;
             if (p1.PvPPotRange is not null) PvPPotRange = (bool)p1.PvPPotRange;
             if (p1.DisableIceEffect is not null) DisableIceEffect = (bool)p1.DisableIceEffect;
+            if (p1.PotSmashingFix is not null) PotSmashingFix = (bool)p1.PotSmashingFix;
             return;
         }
 

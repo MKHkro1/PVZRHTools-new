@@ -53,6 +53,8 @@
     <s:String x:Key="Tab1.Page4.ScaredyDream">ScaredyDream</s:String>
     <s:String x:Key="Tab1.Page5.NoIceRoad">NoIceRoad</s:String>
     <s:String x:Key="Tab1.Page5.DisableIceEffect">DisableIceEffect</s:String>
+    <s:String x:Key="Tab1.Page5.PotSmashingFix">PotSmashingFix</s:String>
+    <s:String x:Key="Tab1.Page5.PotSmashingFix.Tooltip">Fix pot smashing issues: only smash one overlapping pot, Jackbox/Gargantuar/AOE won't break pots</s:String>
     <s:String x:Key="Tab1.Page5.ItemExistForever">ItemExistForever</s:String>
     <s:String x:Key="Tab1.Page5.CardNoInit">CardNoInit</s:String>
     <s:String x:Key="Tab1.Page5.JackboxNotExplode">JackboxNotExplode</s:String>

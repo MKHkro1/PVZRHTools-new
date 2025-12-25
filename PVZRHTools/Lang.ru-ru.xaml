@@ -52,6 +52,8 @@
     <s:String x:Key="Tab1.Page4.ScaredyDream">Мечта Трусогриба</s:String>
     <s:String x:Key="Tab1.Page5.NoIceRoad">Без лед. дорог</s:String>
     <s:String x:Key="Tab1.Page5.DisableIceEffect">Откл. эффект льда</s:String>
+    <s:String x:Key="Tab1.Page5.PotSmashingFix">Исправление горшков</s:String>
+    <s:String x:Key="Tab1.Page5.PotSmashingFix.Tooltip">Исправление проблем с горшками: разбивается только один горшок, Джек/Гаргантюа/AOE не разбивают горшки</s:String>
     <s:String x:Key="Tab1.Page5.ItemExistForever">Вещи вечны</s:String>
     <s:String x:Key="Tab1.Page5.CardNoInit">Карты вечны</s:String>
     <s:String x:Key="Tab1.Page5.JackboxNotExplode">Шут не взрывается</s:String>
