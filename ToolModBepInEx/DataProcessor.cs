@@ -782,8 +782,34 @@ all");
                 }
 
             if (iga.ClearAllIceRoads is not null)
-                for (var i = 0; i < Board.Instance.iceRoads.Count; i++)
-                    Board.Instance.iceRoads[i].fadeTimer = 0;
+            {
+                try
+                {
+                    // 直接设置冰道位置，无视觉效果无伤害
+                    // IceRoad 字段: offset 0x30 = theX (当前位置), offset 0x34 = originalX (原始位置)
+                    for (var i = 0; i < Board.Instance.iceRoads.Count; i++)
+                    {
+                        try
+                        {
+                            var iceRoad = Board.Instance.iceRoads[i];
+                            if (iceRoad != null)
+                            {
+                                // 使用反射或直接字段访问将 theX 设为 originalX
+                                // IceRoad 的 theX 和 originalX 是 float 类型
+                                var ptr = iceRoad.Pointer;
+                                unsafe
+                                {
+                                    float* theXPtr = (float*)(ptr + 0x30);
+                                    float* originalXPtr = (float*)(ptr + 0x34);
+                                    *theXPtr = *originalXPtr;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
 
 
             if (iga.NextWave is not null) Board.Instance.newZombieWaveCountDown = 0;
