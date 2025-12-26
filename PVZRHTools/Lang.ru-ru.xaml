@@ -66,6 +66,8 @@
     <s:String x:Key="Tab1.Page5.ImpToBeThrown">Импы для броска</s:String>
     <s:String x:Key="Tab1.Page6.FastShooting">Быстрая стрельба</s:String>
     <s:String x:Key="Tab1.Page6.HardPlant">Бессмертные растения</s:String>
+    <s:String x:Key="Tab1.Page6.ImmuneForceDeduct">Иммунитет к поглощению</s:String>
+    <s:String x:Key="Tab1.Page6.ImmuneForceDeduct.Tooltip">Иммунитет к эффектам поглощения, которые напрямую изменяют здоровье растений (например, навык поглощения DoomFlagChomper)</s:String>
     <s:String x:Key="Tab1.Page6.NoHole">Без дыр</s:String>
     <s:String x:Key="Tab1.Page6.HyponoEmperorNoCD">Гипно император без перезарядки</s:String>
     <s:String x:Key="Tab1.Page6.MineNoCD">Мины без перезарядки</s:String>

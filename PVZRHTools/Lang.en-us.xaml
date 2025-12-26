@@ -67,6 +67,8 @@
     <s:String x:Key="Tab1.Page5.ImpToBeThrown">ImpToBeThrown</s:String>
     <s:String x:Key="Tab1.Page6.FastShooting">FastShooting</s:String>
     <s:String x:Key="Tab1.Page6.HardPlant">HardPlant</s:String>
+    <s:String x:Key="Tab1.Page6.ImmuneForceDeduct">ImmuneForceDeduct</s:String>
+    <s:String x:Key="Tab1.Page6.ImmuneForceDeduct.Tooltip">Immune to devour effects that directly modify plant health (e.g. DoomFlagChomper's devour skill)</s:String>
     <s:String x:Key="Tab1.Page6.NoHole">NoHole</s:String>
     <s:String x:Key="Tab1.Page6.HyponoEmperorNoCD">HyponoEmperorNoCD</s:String>
     <s:String x:Key="Tab1.Page6.MineNoCD">MineNoCD</s:String>

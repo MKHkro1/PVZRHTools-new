@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO.Compression;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -1329,6 +1330,99 @@ public static class PlantCrashedPatch
     }
 }
 
+/// <summary>
+/// 免疫强制扣血补丁 - 通过patch Plant.Die方法来阻止异常死亡
+/// 针对MorePolevaulterZombie等mod中的吞噬效果（直接修改thePlantHealth绕过TakeDamage）
+/// </summary>
+[HarmonyPatch(typeof(Plant), nameof(Plant.Die))]
+public static class PlantDiePatch
+{
+    // 记录每个植物上一帧的血量
+    private static readonly Dictionary<int, int> LastFrameHealth = new();
+    // 记录每个植物是否在本帧通过正常途径受到伤害
+    private static readonly HashSet<int> NormalDamageThisFrame = new();
+    
+    [HarmonyPrefix]
+    public static bool Prefix(Plant __instance)
+    {
+        if (!ImmuneForceDeduct) return true;
+        if (__instance == null) return true;
+        
+        try
+        {
+            var plantId = __instance.GetInstanceID();
+            
+            // 如果植物血量还大于0，不应该死亡
+            if (__instance.thePlantHealth > 0)
+            {
+                return true; // 正常死亡流程
+            }
+            
+            // 检查是否有缓存的血量
+            if (LastFrameHealth.TryGetValue(plantId, out var lastHealth))
+            {
+                // 如果上一帧血量很高，但现在突然死亡，可能是强制扣血
+                // 恢复血量并阻止死亡
+                if (lastHealth > __instance.thePlantMaxHealth * 0.3f)
+                {
+                    __instance.thePlantHealth = lastHealth;
+                    __instance.UpdateText();
+                    return false; // 阻止死亡
+                }
+            }
+        }
+        catch { }
+        
+        return true;
+    }
+    
+    /// <summary>
+    /// 更新植物血量缓存（在PatchMgr.Update中调用）
+    /// </summary>
+    public static void UpdateHealthCache()
+    {
+        if (!ImmuneForceDeduct)
+        {
+            if (LastFrameHealth.Count > 0)
+                LastFrameHealth.Clear();
+            return;
+        }
+        
+        try
+        {
+            var allPlants = Lawnf.GetAllPlants();
+            if (allPlants == null) return;
+            
+            // 收集当前存活植物的ID
+            var alivePlantIds = new HashSet<int>();
+            foreach (var p in allPlants)
+            {
+                if (p != null)
+                    alivePlantIds.Add(p.GetInstanceID());
+            }
+            
+            // 清理已死亡植物的缓存
+            var deadPlantIds = LastFrameHealth.Keys.Where(id => !alivePlantIds.Contains(id)).ToList();
+            foreach (var id in deadPlantIds)
+                LastFrameHealth.Remove(id);
+            
+            // 更新缓存
+            foreach (var plant in allPlants)
+            {
+                if (plant == null) continue;
+                var plantId = plant.GetInstanceID();
+                
+                // 只有当植物血量大于0时才更新缓存
+                if (plant.thePlantHealth > 0)
+                {
+                    LastFrameHealth[plantId] = plant.thePlantHealth;
+                }
+            }
+        }
+        catch { }
+    }
+}
+
 // 注释掉 PotatoMine.Update patch，改用 PatchMgr.Update 中的实现
 // 原因：Il2Cpp 对象池在高频 Harmony patch 中会导致栈溢出
 /*
@@ -1857,6 +1951,8 @@ public class PatchMgr : MonoBehaviour
     public static double HammerFullCD { get; set; } = 0;
     public static bool HammerNoCD { get; set; } = false;
     public static bool HardPlant { get; set; } = false;
+    public static bool ImmuneForceDeduct { get; set; } = false;
+    public static Dictionary<int, int> PlantHealthCache { get; set; } = [];
     public static Dictionary<Zombie.FirstArmorType, int> Health1st { get; set; } = [];
     public static Dictionary<Zombie.SecondArmorType, int> Health2nd { get; set; } = [];
     public static Dictionary<PlantType, int> HealthPlants { get; set; } = [];
@@ -2098,7 +2194,66 @@ public class PatchMgr : MonoBehaviour
             }
             catch { }
         }
-        
+
+        // 免疫强制扣血 - 通过缓存植物血量并在异常扣血时恢复来实现
+        if (ImmuneForceDeduct)
+        {
+            try
+            {
+                var allPlants = Lawnf.GetAllPlants();
+                if (allPlants != null)
+                {
+                    // 收集当前存活植物的ID
+                    var alivePlantIds = new HashSet<int>();
+                    foreach (var p in allPlants)
+                    {
+                        if (p != null)
+                            alivePlantIds.Add(p.GetInstanceID());
+                    }
+
+                    // 清理已死亡植物的缓存
+                    var deadPlantIds = PlantHealthCache.Keys.Where(id => !alivePlantIds.Contains(id)).ToList();
+                    foreach (var id in deadPlantIds)
+                        PlantHealthCache.Remove(id);
+
+                    foreach (var plant in allPlants)
+                    {
+                        if (plant == null) continue;
+                        var plantId = plant.GetInstanceID();
+
+                        if (PlantHealthCache.TryGetValue(plantId, out var cachedHealth))
+                        {
+                            // 检测异常扣血：血量突然大幅下降
+                            // 如果血量从正常值突然变成0或负数，或者扣血量超过5000（正常伤害很少这么高）
+                            var healthDrop = cachedHealth - plant.thePlantHealth;
+                            if (healthDrop > 0 && (plant.thePlantHealth <= 0 || healthDrop > 5000))
+                            {
+                                // 恢复血量（可能是强制扣血）
+                                plant.thePlantHealth = cachedHealth;
+                                plant.UpdateText();
+                            }
+                        }
+
+                        // 只有当植物血量大于0时才更新缓存
+                        if (plant.thePlantHealth > 0)
+                        {
+                            PlantHealthCache[plantId] = plant.thePlantHealth;
+                        }
+                    }
+                }
+                
+                // 同时更新Die补丁的缓存
+                PlantDiePatch.UpdateHealthCache();
+            }
+            catch { }
+        }
+        else
+        {
+            // 功能关闭时清空缓存
+            if (PlantHealthCache.Count > 0)
+                PlantHealthCache.Clear();
+        }
+
         if (RandomCard)
         {
             Il2CppSystem.Collections.Generic.List<PlantType> randomPlant = GameAPP.resourcesManager.allPlants;

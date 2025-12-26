@@ -68,6 +68,8 @@
     <s:String x:Key="Tab1.Page5.ImpToBeThrown">巨人扔出的僵尸类型：</s:String>
     <s:String x:Key="Tab1.Page6.FastShooting">植物攻击无间隔</s:String>
     <s:String x:Key="Tab1.Page6.HardPlant">植物无敌</s:String>
+    <s:String x:Key="Tab1.Page6.ImmuneForceDeduct">免疫强制扣血</s:String>
+    <s:String x:Key="Tab1.Page6.ImmuneForceDeduct.Tooltip">免疫吞噬效果等直接修改植物血量的攻击（如毁噬旗杆骑士的吞噬技能）</s:String>
     <s:String x:Key="Tab1.Page6.NoHole">不生成坑洞</s:String>
     <s:String x:Key="Tab1.Page6.HyponoEmperorNoCD">魅帝菇无CD</s:String>
     <s:String x:Key="Tab1.Page6.MineNoCD">地雷无CD</s:String>

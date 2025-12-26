@@ -260,6 +260,7 @@ public partial class ModifierViewModel : ObservableObject
         GloveNoCD = s.GloveNoCD;
         HammerNoCD = s.HammerNoCD;
         HardPlant = s.HardPlant;
+        ImmuneForceDeduct = s.ImmuneForceDeduct;
         HyponoEmperorNoCD = s.HyponoEmperorNoCD;
         IsMindCtrl = s.IsMindCtrl;
         ItemExistForever = s.ItemExistForever;
@@ -703,6 +704,7 @@ public partial class ModifierViewModel : ObservableObject
             GloveNoCD = GloveNoCD,
             HammerNoCD = HammerNoCD,
             HardPlant = HardPlant,
+            ImmuneForceDeduct = ImmuneForceDeduct,
             HyponoEmperorNoCD = HyponoEmperorNoCD,
             IsMindCtrl = IsMindCtrl,
             ItemExistForever = ItemExistForever,
@@ -857,6 +859,7 @@ public partial class ModifierViewModel : ObservableObject
                 GloveNoCD = GloveNoCD,
                 HammerNoCD = HammerNoCD,
                 HardPlant = HardPlant,
+                ImmuneForceDeduct = ImmuneForceDeduct,
                 HyponoEmperorNoCD = HyponoEmperorNoCD,
                 ItemExistForever = ItemExistForever,
                 JackboxNotExplode = JackboxNotExplode,
@@ -1167,6 +1170,11 @@ public partial class ModifierViewModel : ObservableObject
     partial void OnHardPlantChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { HardPlant = value });
+    }
+
+    partial void OnImmuneForceDeductChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ImmuneForceDeduct = value });
     }
 
     partial void OnHyponoEmperorNoCDChanged(bool value)
@@ -1556,6 +1564,8 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool HammerNoCD { get; set; }
 
     [ObservableProperty] public partial bool HardPlant { get; set; }
+
+    [ObservableProperty] public partial bool ImmuneForceDeduct { get; set; }
 
     [ObservableProperty] public partial int Health1stType { get; set; }
 
