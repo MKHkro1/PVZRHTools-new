@@ -71,6 +71,10 @@
     <s:String x:Key="Tab1.Page6.ImmuneForceDeduct.Tooltip">Immune to devour effects that directly modify plant health (e.g. DoomFlagChomper's devour skill)</s:String>
     <s:String x:Key="Tab1.Page6.CurseImmunity">CurseImmunity</s:String>
     <s:String x:Key="Tab1.Page6.CurseImmunity.Tooltip">Plants are immune to curse effects (e.g. UltimateHorse, SuperLadderZombie curse skills)</s:String>
+    <s:String x:Key="Tab1.Page6.CrushImmunity">CrushImmunity</s:String>
+    <s:String x:Key="Tab1.Page6.CrushImmunity.Tooltip">Plants are immune to crush attacks from Gargantuar zombies</s:String>
+    <s:String x:Key="Tab1.Page6.TrampleImmunity">TrampleImmunity</s:String>
+    <s:String x:Key="Tab1.Page6.TrampleImmunity.Tooltip">Plants are immune to trample damage from driver zombies like Zomboni</s:String>
     <s:String x:Key="Tab1.Page6.NoHole">NoHole</s:String>
     <s:String x:Key="Tab1.Page6.HyponoEmperorNoCD">HyponoEmperorNoCD</s:String>
     <s:String x:Key="Tab1.Page6.MineNoCD">MineNoCD</s:String>

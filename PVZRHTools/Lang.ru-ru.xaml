@@ -70,6 +70,10 @@
     <s:String x:Key="Tab1.Page6.ImmuneForceDeduct.Tooltip">Иммунитет к эффектам поглощения, которые напрямую изменяют здоровье растений (например, навык поглощения DoomFlagChomper)</s:String>
     <s:String x:Key="Tab1.Page6.CurseImmunity">Иммунитет к проклятию</s:String>
     <s:String x:Key="Tab1.Page6.CurseImmunity.Tooltip">Растения невосприимчивы к эффектам проклятия (например, навыки проклятия UltimateHorse, SuperLadderZombie)</s:String>
+    <s:String x:Key="Tab1.Page6.CrushImmunity">Иммунитет к раздавливанию</s:String>
+    <s:String x:Key="Tab1.Page6.CrushImmunity.Tooltip">Растения невосприимчивы к атакам раздавливания от зомби-гигантов</s:String>
+    <s:String x:Key="Tab1.Page6.TrampleImmunity">Иммунитет к затаптыванию</s:String>
+    <s:String x:Key="Tab1.Page6.TrampleImmunity.Tooltip">Растения невосприимчивы к урону от затаптывания зомби-водителей, таких как Зомбони</s:String>
     <s:String x:Key="Tab1.Page6.NoHole">Без дыр</s:String>
     <s:String x:Key="Tab1.Page6.HyponoEmperorNoCD">Гипно император без перезарядки</s:String>
     <s:String x:Key="Tab1.Page6.MineNoCD">Мины без перезарядки</s:String>

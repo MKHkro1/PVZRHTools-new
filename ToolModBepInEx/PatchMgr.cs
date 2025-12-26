@@ -1320,10 +1320,20 @@ public static class PlantGetDamagePatch
 public static class PlantCrashedPatch
 {
     [HarmonyPrefix]
-    public static bool Prefix(Plant __instance)
+    public static bool Prefix(Plant __instance, int level, int soundID, Zombie zombie)
     {
-        if (HardPlant)
+        // 植物无敌、植物免疫碾压或踩踏免疫时，阻止碾压
+        if (HardPlant || CrushImmunity || TrampleImmunity)
         {
+            // 踩踏免疫时，可选对僵尸进行击退
+            if (TrampleImmunity && zombie != null)
+            {
+                try
+                {
+                    zombie.KnockBack(2.0f, Zombie.KnockBackReason.ByJalapeno);
+                }
+                catch { }
+            }
             return false;
         }
         return true;
@@ -1511,26 +1521,41 @@ public static class ZombieTakeDamageCursePatch
 
 /// <summary>
 /// 诅咒免疫补丁 - Board.Update
-/// 定期清除植物的诅咒视觉效果
+/// 定期清除植物的诅咒视觉效果，并设置踩踏免疫属性
 /// </summary>
 [HarmonyPatch(typeof(Board), nameof(Board.Update))]
 public static class BoardUpdateCursePatch
 {
     private static float _curseClearTimer = 0f;
     private const float _curseClearInterval = 1f;
+    private static float _trampleImmunityTimer = 0f;
+    private const float _trampleImmunityInterval = 0.1f;
     
     [HarmonyPostfix]
     public static void Postfix()
     {
-        if (!CurseImmunity) return;
-        
         try
         {
-            _curseClearTimer += Time.deltaTime;
-            if (_curseClearTimer >= _curseClearInterval)
+            // 处理诅咒免疫
+            if (CurseImmunity)
             {
-                _curseClearTimer = 0f;
-                ClearAllPlantsCurseVisual();
+                _curseClearTimer += Time.deltaTime;
+                if (_curseClearTimer >= _curseClearInterval)
+                {
+                    _curseClearTimer = 0f;
+                    ClearAllPlantsCurseVisual();
+                }
+            }
+            
+            // 处理踩踏免疫 - 通过设置 canBeCrashed 属性
+            if (TrampleImmunity)
+            {
+                _trampleImmunityTimer += Time.deltaTime;
+                if (_trampleImmunityTimer >= _trampleImmunityInterval)
+                {
+                    _trampleImmunityTimer = 0f;
+                    SetAllPlantsCanBeCrashed(false);
+                }
             }
         }
         catch { }
@@ -1576,6 +1601,108 @@ public static class BoardUpdateCursePatch
             }
         }
         catch { }
+    }
+    
+    /// <summary>
+    /// 设置所有植物的 canBeCrashed 属性
+    /// 参考 SuperMachinePotComponent.cs 的实现
+    /// </summary>
+    private static void SetAllPlantsCanBeCrashed(bool value)
+    {
+        try
+        {
+            if (Board.Instance == null) return;
+            
+            var allPlants = Lawnf.GetAllPlants();
+            if (allPlants == null) return;
+            
+            foreach (var plant in allPlants)
+            {
+                if (plant != null && plant.thePlantHealth > 0)
+                {
+                    try
+                    {
+                        var plantType = plant.GetType();
+                        var crashedProp = plantType.GetProperty("canBeCrashed");
+                        
+                        if (crashedProp != null && crashedProp.CanWrite)
+                            crashedProp.SetValue(plant, value);
+                    }
+                    catch { }
+                }
+            }
+        }
+        catch { }
+    }
+}
+
+#endregion
+
+#region TrampleImmunity - 踩踏免疫补丁
+
+/// <summary>
+/// 踩踏免疫补丁 - TypeMgr.UncrashablePlant
+/// 这是游戏判断植物是否免疫碾压的核心方法
+/// Boss类领袖等僵尸会调用此方法来判断是否可以碾压植物
+/// 参考 SuperMachinePot 的 TypeMgrUncrashablePlantPatch 实现
+/// </summary>
+[HarmonyPatch(typeof(TypeMgr), "UncrashablePlant")]
+public static class TypeMgrUncrashablePlantPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(ref Plant plant, ref bool __result)
+    {
+        if (!TrampleImmunity) return true;
+        
+        try
+        {
+            if (plant == null)
+                return true;
+
+            // 当踩踏免疫开启时，所有植物都免疫碾压
+            __result = true;
+            return false; // 不执行原方法
+        }
+        catch { }
+        
+        return true;
+    }
+}
+
+/// <summary>
+/// 踩踏免疫补丁 - Zombie.OnTriggerStay2D
+/// 作为备用保护，阻止驾驶类僵尸（如冰车）对植物的踩踏伤害
+/// 主要保护逻辑在 TypeMgrUncrashablePlantPatch 中实现
+/// </summary>
+[HarmonyPatch(typeof(Zombie), nameof(Zombie.OnTriggerStay2D))]
+public static class ZombieOnTriggerStay2DTramplePatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(Collider2D collision, Zombie __instance)
+    {
+        if (!TrampleImmunity) return true;
+        
+        try
+        {
+            if (__instance == null || collision == null)
+                return true;
+            
+            // 获取碰撞的植物
+            Plant plant = collision.GetComponent<Plant>();
+            if (plant == null)
+                return true;
+            
+            // 检查是否是驾驶类僵尸或巨人僵尸
+            if (plant.thePlantRow == __instance.theZombieRow && 
+                (TypeMgr.IsDriverZombie(__instance.theZombieType) || TypeMgr.IsGargantuar(__instance.theZombieType)))
+            {
+                // 阻止踩踏伤害，但让僵尸继续移动
+                return false;
+            }
+        }
+        catch { }
+        
+        return true;
     }
 }
 
@@ -2111,6 +2238,8 @@ public class PatchMgr : MonoBehaviour
     public static bool HardPlant { get; set; } = false;
     public static bool ImmuneForceDeduct { get; set; } = false;
     public static bool CurseImmunity { get; set; } = false;
+    public static bool CrushImmunity { get; set; } = false;
+    public static bool TrampleImmunity { get; set; } = false;
     public static Dictionary<int, int> PlantHealthCache { get; set; } = [];
     public static Dictionary<Zombie.FirstArmorType, int> Health1st { get; set; } = [];
     public static Dictionary<Zombie.SecondArmorType, int> Health2nd { get; set; } = [];

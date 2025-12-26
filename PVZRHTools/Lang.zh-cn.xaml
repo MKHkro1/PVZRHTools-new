@@ -72,6 +72,10 @@
     <s:String x:Key="Tab1.Page6.ImmuneForceDeduct.Tooltip">免疫吞噬效果等直接修改植物血量的攻击（如毁噬旗杆骑士的吞噬技能）</s:String>
     <s:String x:Key="Tab1.Page6.CurseImmunity">植物免疫诅咒</s:String>
     <s:String x:Key="Tab1.Page6.CurseImmunity.Tooltip">植物免疫诅咒效果（如终极马僵尸、超级梯子僵尸的诅咒技能）</s:String>
+    <s:String x:Key="Tab1.Page6.CrushImmunity">植物免疫碾压</s:String>
+    <s:String x:Key="Tab1.Page6.CrushImmunity.Tooltip">植物免疫巨人僵尸等的碾压攻击</s:String>
+    <s:String x:Key="Tab1.Page6.TrampleImmunity">植物免疫踩踏</s:String>
+    <s:String x:Key="Tab1.Page6.TrampleImmunity.Tooltip">植物免疫冰车等驾驶类僵尸的踩踏伤害</s:String>
     <s:String x:Key="Tab1.Page6.NoHole">不生成坑洞</s:String>
     <s:String x:Key="Tab1.Page6.HyponoEmperorNoCD">魅帝菇无CD</s:String>
     <s:String x:Key="Tab1.Page6.MineNoCD">地雷无CD</s:String>

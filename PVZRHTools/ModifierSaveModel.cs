@@ -38,6 +38,8 @@ public struct ModifierSaveModel
     public bool HardPlant { get; set; }
     public bool ImmuneForceDeduct { get; set; }
     public bool CurseImmunity { get; set; }
+    public bool CrushImmunity { get; set; }
+    public bool TrampleImmunity { get; set; }
     public List<HotkeyUIVM> Hotkeys { get; set; }
     public bool HyponoEmperorNoCD { get; set; }
     public bool IsMindCtrl { get; set; }

@@ -262,6 +262,8 @@ public partial class ModifierViewModel : ObservableObject
         HardPlant = s.HardPlant;
         ImmuneForceDeduct = s.ImmuneForceDeduct;
         CurseImmunity = s.CurseImmunity;
+        CrushImmunity = s.CrushImmunity;
+        TrampleImmunity = s.TrampleImmunity;
         HyponoEmperorNoCD = s.HyponoEmperorNoCD;
         IsMindCtrl = s.IsMindCtrl;
         ItemExistForever = s.ItemExistForever;
@@ -707,6 +709,8 @@ public partial class ModifierViewModel : ObservableObject
             HardPlant = HardPlant,
             ImmuneForceDeduct = ImmuneForceDeduct,
             CurseImmunity = CurseImmunity,
+            CrushImmunity = CrushImmunity,
+            TrampleImmunity = TrampleImmunity,
             HyponoEmperorNoCD = HyponoEmperorNoCD,
             IsMindCtrl = IsMindCtrl,
             ItemExistForever = ItemExistForever,
@@ -863,6 +867,8 @@ public partial class ModifierViewModel : ObservableObject
                 HardPlant = HardPlant,
                 ImmuneForceDeduct = ImmuneForceDeduct,
                 CurseImmunity = CurseImmunity,
+                CrushImmunity = CrushImmunity,
+                TrampleImmunity = TrampleImmunity,
                 HyponoEmperorNoCD = HyponoEmperorNoCD,
                 ItemExistForever = ItemExistForever,
                 JackboxNotExplode = JackboxNotExplode,
@@ -1183,6 +1189,16 @@ public partial class ModifierViewModel : ObservableObject
     partial void OnCurseImmunityChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { CurseImmunity = value });
+    }
+
+    partial void OnCrushImmunityChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { CrushImmunity = value });
+    }
+
+    partial void OnTrampleImmunityChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { TrampleImmunity = value });
     }
 
     partial void OnHyponoEmperorNoCDChanged(bool value)
@@ -1576,6 +1592,10 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool ImmuneForceDeduct { get; set; }
 
     [ObservableProperty] public partial bool CurseImmunity { get; set; }
+
+    [ObservableProperty] public partial bool CrushImmunity { get; set; }
+
+    [ObservableProperty] public partial bool TrampleImmunity { get; set; }
 
     [ObservableProperty] public partial int Health1stType { get; set; }
 

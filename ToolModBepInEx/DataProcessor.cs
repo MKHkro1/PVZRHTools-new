@@ -203,6 +203,8 @@ public class DataProcessor : MonoBehaviour
             if (p1.HardPlant is not null) HardPlant = (bool)p1.HardPlant;
             if (p1.ImmuneForceDeduct is not null) ImmuneForceDeduct = (bool)p1.ImmuneForceDeduct;
             if (p1.CurseImmunity is not null) CurseImmunity = (bool)p1.CurseImmunity;
+            if (p1.CrushImmunity is not null) CrushImmunity = (bool)p1.CrushImmunity;
+            if (p1.TrampleImmunity is not null) TrampleImmunity = (bool)p1.TrampleImmunity;
             if (p1.NoHole is not null) NoHole = (bool)p1.NoHole;
             if (p1.HyponoEmperorNoCD is not null) HyponoEmperorNoCD = (bool)p1.HyponoEmperorNoCD;
             if (p1.MineNoCD is not null) MineNoCD = (bool)p1.MineNoCD;

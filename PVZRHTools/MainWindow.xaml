@@ -556,6 +556,16 @@
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0"
                                                   ToolTip="{DynamicResource Tab1.Page6.CurseImmunity.Tooltip}" />
+                                        <CheckBox x:Name="CrushImmunity" IsChecked="{Binding CrushImmunity}"
+                                                  Content="{DynamicResource Tab1.Page6.CrushImmunity}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6.CrushImmunity.Tooltip}" />
+                                        <CheckBox x:Name="TrampleImmunity" IsChecked="{Binding TrampleImmunity}"
+                                                  Content="{DynamicResource Tab1.Page6.TrampleImmunity}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6.TrampleImmunity.Tooltip}" />
                                         <CheckBox x:Name="NoHole" IsChecked="{Binding NoHole}"
                                                   Content="{DynamicResource Tab1.Page6.NoHole}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
