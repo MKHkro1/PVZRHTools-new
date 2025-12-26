@@ -18,8 +18,9 @@
     <s:String x:Key="Tab1.Page5.Header">Свойства уровня</s:String>
     <s:String x:Key="Tab1.Page6.Header">Свойства растений</s:String>
     <s:String x:Key="Tab1.Page6_5.Header">Свойства зомби</s:String>
-    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200">Лимит урона 100</s:String>
-    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200.Tooltip">Зомби могут получать максимум 100 урона за удар</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200">Лимит урона зомби</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200.Tooltip">При включении зомби получают не более указанного урона за удар</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimitValue.Tooltip">Максимальный урон за удар</s:String>
     <s:String x:Key="Tab1.Page7.Header">Другие свойства</s:String>
     <s:String x:Key="Tab1.Description">Модификатор полностью бесплатен и имеет открытый исходный код на Github. Все платные версии являются пиратскими. Все английские тексты здесь переведены мной лично, а не машинным переводом, и я извиняюсь за то, что мой английский очень плох.</s:String>
     <s:String x:Key="Tab1.Page1.DevMode">Разработчик</s:String>

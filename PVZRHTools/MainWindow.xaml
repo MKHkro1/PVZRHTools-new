@@ -650,6 +650,10 @@
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0"
                                                   ToolTip="{DynamicResource Tab1.Page6_5.ZombieDamageLimit200.Tooltip}" />
+                                        <hc:NumericUpDown x:Name="ZombieDamageLimitValue" Value="{Binding ZombieDamageLimitValue}"
+                                                          Minimum="1" Maximum="99999" Width="100" Height="25"
+                                                          VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                          ToolTip="{DynamicResource Tab1.Page6_5.ZombieDamageLimitValue.Tooltip}" />
                                     </StackPanel>
                                 </Grid>
                             </Expander>

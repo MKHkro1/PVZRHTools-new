@@ -19,8 +19,9 @@
     <s:String x:Key="Tab1.Page5.Header">LevelProperties</s:String>
     <s:String x:Key="Tab1.Page6.Header">PlantProperties</s:String>
     <s:String x:Key="Tab1.Page6_5.Header">ZombieProperties</s:String>
-    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200">ZombieDamageLimit100</s:String>
-    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200.Tooltip">Zombies can only take up to 100 damage per hit</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200">Zombie Damage Limit</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200.Tooltip">When enabled, zombies take no more than the specified damage per hit</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieDamageLimitValue.Tooltip">Maximum damage zombies can take per hit</s:String>
     <s:String x:Key="Tab1.Page7.Header">OtherProperties</s:String>
     <s:String x:Key="Tab1.Description">The modifier is completely free and is open sourced on Github. All the paid versions are pirated. All the English texts here are translated by myself instead of translating by machine and I'm sorry that my English is extremely poor.</s:String>
     <s:String x:Key="Tab1.Page1.DevMode">DevMode</s:String>
