@@ -1315,6 +1315,16 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new BasicProperties { ZombieDamageLimitValue = value });
     }
 
+    partial void OnZombieSpeedModifyEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieSpeedModifyEnabled = value });
+    }
+
+    partial void OnZombieSpeedMultiplierChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieSpeedMultiplier = value });
+    }
+
     partial void OnPlantingNoCDChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { PlantingNoCD = value });
@@ -1685,6 +1695,10 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool ZombieDamageLimit200 { get; set; }
 
     [ObservableProperty] public partial int ZombieDamageLimitValue { get; set; } = 100;
+
+    [ObservableProperty] public partial bool ZombieSpeedModifyEnabled { get; set; }
+
+    [ObservableProperty] public partial float ZombieSpeedMultiplier { get; set; } = 1.0f;
 
     [ObservableProperty] public partial bool PlantingNoCD { get; set; }
 

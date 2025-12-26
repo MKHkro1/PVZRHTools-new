@@ -656,6 +656,17 @@
                                                           VerticalAlignment="Top" HorizontalAlignment="Left"
                                                           ToolTip="{DynamicResource Tab1.Page6_5.ZombieDamageLimitValue.Tooltip}" />
                                     </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,28,0,0">
+                                        <CheckBox x:Name="ZombieSpeedModifyEnabled" IsChecked="{Binding ZombieSpeedModifyEnabled}"
+                                                  Content="{DynamicResource Tab1.Page6_5.ZombieSpeedModify}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6_5.ZombieSpeedModify.Tooltip}" />
+                                        <hc:NumericUpDown x:Name="ZombieSpeedMultiplier" Value="{Binding ZombieSpeedMultiplier}"
+                                                          Minimum="0.1" Maximum="10" Width="100" Height="25" DecimalPlaces="2" Increment="0.1"
+                                                          VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                          ToolTip="{DynamicResource Tab1.Page6_5.ZombieSpeedMultiplier.Tooltip}" />
+                                    </StackPanel>
                                 </Grid>
                             </Expander>
                             <Expander Header="{DynamicResource Tab1.Page7.Header}"

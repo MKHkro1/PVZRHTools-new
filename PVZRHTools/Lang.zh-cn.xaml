@@ -22,6 +22,9 @@
     <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200">僵尸限伤</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200.Tooltip">启用后僵尸每次受到的伤害不超过右侧设定值</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieDamageLimitValue.Tooltip">僵尸每次受到的最大伤害值</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieSpeedModify">僵尸速度倍率</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieSpeedModify.Tooltip">启用后全场僵尸的移动速度将乘以右侧设定的倍率值</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieSpeedMultiplier.Tooltip">僵尸移动速度倍率（0.1-10倍）</s:String>
     <s:String x:Key="Tab1.Page7.Header">其他特性</s:String>
     <s:String x:Key="Tab1.Description">此修改器完全免费且已在github开源。若有付费/要求三连+关注/私信发链接的情况，说明你被骗了，请注意隐私和财产安全！</s:String>
     <s:String x:Key="Tab1.Page1.DevMode">开发者模式</s:String>

@@ -1596,6 +1596,69 @@ public static class ZombieJalaedExplodeLimitPatch
 }
 
 /// <summary>
+/// 僵尸速度修改补丁 - Zombie.Update
+/// 通过在Update的Prefix中修改僵尸的速度属性来实现全局速度倍率调整
+/// 需要同时修改theSpeed、theOriginSpeed和动画速度才能生效
+/// </summary>
+[HarmonyPatch(typeof(Zombie), nameof(Zombie.Update))]
+public static class ZombieSpeedModifyPatch
+{
+    // 用于存储每个僵尸的原始速度，避免重复乘以倍率
+    private static readonly Dictionary<int, float> _originalSpeeds = new Dictionary<int, float>();
+    
+    [HarmonyPrefix]
+    public static void Prefix(Zombie __instance)
+    {
+        if (!ZombieSpeedModifyEnabled || ZombieSpeedMultiplier == 1.0f) return;
+        try
+        {
+            if (__instance == null) return;
+            
+            int instanceId = __instance.GetInstanceID();
+            
+            // 如果是第一次处理这个僵尸，记录其原始速度
+            if (!_originalSpeeds.ContainsKey(instanceId))
+            {
+                _originalSpeeds[instanceId] = __instance.theOriginSpeed;
+            }
+            
+            float originalSpeed = _originalSpeeds[instanceId];
+            float newSpeed = originalSpeed * ZombieSpeedMultiplier;
+            
+            // 修改僵尸的速度属性
+            __instance.theSpeed = newSpeed;
+            __instance.theOriginSpeed = newSpeed;
+            
+            // 修改动画速度以匹配移动速度
+            if (__instance.anim != null)
+            {
+                __instance.anim.SetFloat("Speed", newSpeed);
+            }
+        }
+        catch { }
+    }
+    
+    // 清理已死亡僵尸的记录，避免内存泄漏
+    public static void CleanupDeadZombies()
+    {
+        try
+        {
+            var keysToRemove = new List<int>();
+            foreach (var kvp in _originalSpeeds)
+            {
+                // 简单的清理逻辑：当字典过大时清空
+                if (_originalSpeeds.Count > 1000)
+                {
+                    _originalSpeeds.Clear();
+                    break;
+                }
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
 /// 诅咒免疫补丁 - Board.Update
 /// 定期清除植物的诅咒视觉效果，并设置踩踏免疫属性
 /// </summary>
@@ -2386,6 +2449,8 @@ public class PatchMgr : MonoBehaviour
     public static bool MagnetNutUnlimited { get; set; } = false;
     public static bool ZombieDamageLimit200 { get; set; } = false;
     public static int ZombieDamageLimitValue { get; set; } = 100;
+    public static bool ZombieSpeedModifyEnabled { get; set; } = false;
+    public static float ZombieSpeedMultiplier { get; set; } = 1.0f;
 
     public void Update()
     {

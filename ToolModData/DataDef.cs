@@ -64,6 +64,8 @@ public struct BasicProperties : ISyncData
     public bool? MagnetNutUnlimited { get; set; }
     public bool? ZombieDamageLimit200 { get; set; }
     public int? ZombieDamageLimitValue { get; set; }
+    public bool? ZombieSpeedModifyEnabled { get; set; }
+    public float? ZombieSpeedMultiplier { get; set; }
 }
 
 [Serializable]

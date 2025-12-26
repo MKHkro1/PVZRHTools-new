@@ -22,6 +22,9 @@
     <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200">Zombie Damage Limit</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieDamageLimit200.Tooltip">When enabled, zombies take no more than the specified damage per hit</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieDamageLimitValue.Tooltip">Maximum damage zombies can take per hit</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieSpeedModify">Zombie Speed Multiplier</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieSpeedModify.Tooltip">When enabled, all zombies' movement speed will be multiplied by the specified value</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieSpeedMultiplier.Tooltip">Zombie movement speed multiplier (0.1-10x)</s:String>
     <s:String x:Key="Tab1.Page7.Header">OtherProperties</s:String>
     <s:String x:Key="Tab1.Description">The modifier is completely free and is open sourced on Github. All the paid versions are pirated. All the English texts here are translated by myself instead of translating by machine and I'm sorry that my English is extremely poor.</s:String>
     <s:String x:Key="Tab1.Page1.DevMode">DevMode</s:String>
