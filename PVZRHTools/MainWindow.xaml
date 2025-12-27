@@ -44,7 +44,6 @@
         <Grid x:Name="TitleBar" Grid.Row="0" PreviewMouseDown="TitleBar_PreviewMouseDown">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="48"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Image x:Name="inf75" Grid.Column="0" Source="/PVZRHTools/icon.png" Stretch="Uniform" 
@@ -52,7 +51,6 @@
             <Label x:Name="WindowTitle" Grid.Column="1" Content="" HorizontalAlignment="Left" Height="44" 
                    VerticalAlignment="Center" Foreground="#FFFF69B4" FontSize="30"
                    Style="{DynamicResource LabelBaseStyle}" />
-            <Rectangle Grid.Column="2" Height="2" Fill="#FFFF69B4" VerticalAlignment="Center" Margin="10,0,10,0"/>
         </Grid>
         <TabControl Grid.Row="1" TabStripPlacement="Left" BorderBrush="#FFFFFFFF" Background="#80FFFFFF"
                     BorderThickness="0,0,0,0">
