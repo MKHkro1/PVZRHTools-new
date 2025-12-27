@@ -238,6 +238,8 @@ public class DataProcessor : MonoBehaviour
             if (p1.ZombieAttackMultiplierEnabled is not null) ZombieAttackMultiplierEnabled = (bool)p1.ZombieAttackMultiplierEnabled;
             if (p1.ZombieAttackMultiplier is not null) ZombieAttackMultiplier = (float)p1.ZombieAttackMultiplier;
             if (p1.PickaxeImmunity is not null) PickaxeImmunity = (bool)p1.PickaxeImmunity;
+            if (p1.ZombieBulletReflectEnabled is not null) ZombieBulletReflectEnabled = (bool)p1.ZombieBulletReflectEnabled;
+            if (p1.ZombieBulletReflectChance is not null) ZombieBulletReflectChance = (float)p1.ZombieBulletReflectChance;
             return;
         }
 

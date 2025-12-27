@@ -69,6 +69,8 @@ public struct BasicProperties : ISyncData
     public bool? ZombieAttackMultiplierEnabled { get; set; }
     public float? ZombieAttackMultiplier { get; set; }
     public bool? PickaxeImmunity { get; set; }
+    public bool? ZombieBulletReflectEnabled { get; set; }
+    public float? ZombieBulletReflectChance { get; set; }
 }
 
 [Serializable]

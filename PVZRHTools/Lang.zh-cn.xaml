@@ -28,6 +28,9 @@
     <s:String x:Key="Tab1.Page6_5.ZombieAttackMultiplier">僵尸攻击力倍率</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieAttackMultiplier.Tooltip">启用后全场僵尸的攻击伤害将乘以右侧设定的倍率值</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieAttackMultiplierValue.Tooltip">僵尸攻击伤害倍率（0.1-100倍）</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect">僵尸概率反弹子弹</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect.Tooltip">启用后僵尸受到子弹攻击时有一定概率将子弹反弹回去</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieBulletReflectChance.Tooltip">僵尸反弹子弹的概率（0-100%）</s:String>
     <s:String x:Key="Tab1.Page7.Header">其他特性</s:String>
     <s:String x:Key="Tab1.Description">此修改器完全免费且已在github开源。若有付费/要求三连+关注/私信发链接的情况，说明你被骗了，请注意隐私和财产安全！</s:String>
     <s:String x:Key="Tab1.Page1.DevMode">开发者模式</s:String>

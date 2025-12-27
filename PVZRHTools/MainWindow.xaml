@@ -697,6 +697,18 @@
                                                           VerticalAlignment="Top" HorizontalAlignment="Left"
                                                           ToolTip="{DynamicResource Tab1.Page6_5.ZombieAttackMultiplierValue.Tooltip}" />
                                     </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                        <CheckBox x:Name="ZombieBulletReflectEnabled" IsChecked="{Binding ZombieBulletReflectEnabled}"
+                                                  Content="{DynamicResource Tab1.Page6_5.ZombieBulletReflect}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6_5.ZombieBulletReflect.Tooltip}" />
+                                        <hc:NumericUpDown x:Name="ZombieBulletReflectChance" Value="{Binding ZombieBulletReflectChance}"
+                                                          Minimum="0" Maximum="100" Width="100" Height="25" DecimalPlaces="1" Increment="5"
+                                                          VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                          ToolTip="{DynamicResource Tab1.Page6_5.ZombieBulletReflectChance.Tooltip}" />
+                                        <Label Content="%" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </WrapPanel>
                                 </StackPanel>
                             </Expander>
                             <Expander Header="{DynamicResource Tab1.Page7.Header}"

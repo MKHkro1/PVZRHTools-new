@@ -172,6 +172,97 @@ public static class BulletPatchB
     }
 }
 
+/// <summary>
+/// 僵尸概率反弹子弹补丁 - Bullet.OnTriggerEnter2D
+/// 当子弹击中僵尸时，有一定概率创建一个铁豆子弹反弹回去攻击植物
+/// 如果反弹成功，僵尸不受伤害
+/// </summary>
+[HarmonyPatch(typeof(Bullet), nameof(Bullet.OnTriggerEnter2D))]
+public static class ZombieBulletReflectPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(Bullet __instance, Collider2D collision)
+    {
+        if (!ZombieBulletReflectEnabled || ZombieBulletReflectChance <= 0) return true;
+        
+        try
+        {
+            // 只处理植物发射的子弹（非僵尸子弹）
+            if (__instance == null || __instance.fromZombie) return true;
+            
+            // 检查子弹是否已经命中过
+            if (__instance.hit) return true;
+            
+            // 检查碰撞对象是否是僵尸
+            if (collision == null) return true;
+            var zombie = collision.GetComponent<Zombie>();
+            if (zombie == null) return true;
+            
+            // 跳过魅惑僵尸（友方单位）
+            if (zombie.isMindControlled) return true;
+            
+            // 跳过已死亡的僵尸
+            if (zombie.theHealth <= 0) return true;
+            
+            // 概率判断
+            float randomValue = Random.Range(0f, 100f);
+            if (randomValue >= ZombieBulletReflectChance) return true;
+            
+            // 标记子弹已命中，防止后续处理
+            __instance.hit = true;
+            
+            // 创建反弹的铁豆子弹
+            CreateReflectedBullet(__instance, zombie);
+            
+            // 直接销毁子弹对象，不调用Die()方法（Die可能会触发伤害）
+            Object.Destroy(__instance.gameObject);
+            
+            // 阻止原始的碰撞处理，僵尸不受伤
+            return false;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+    
+    /// <summary>
+    /// 创建反弹的铁豆子弹
+    /// </summary>
+    private static void CreateReflectedBullet(Bullet originalBullet, Zombie zombie)
+    {
+        try
+        {
+            if (CreateBullet.Instance == null) return;
+            
+            // 获取原子弹的位置和行
+            Vector3 pos = originalBullet.transform.position;
+            int row = originalBullet.theBulletRow;
+            
+            // 创建一个铁豆子弹，向左飞行
+            // fromEnermy/isZombieBullet = true 表示这是僵尸子弹，可以伤害植物
+            var newBullet = CreateBullet.Instance.SetBullet(
+                pos.x, 
+                pos.y, 
+                row, 
+                BulletType.Bullet_ironPea, 
+                BulletMoveWay.Left, // 向左飞行
+                true // 这是僵尸子弹
+            );
+            
+            if (newBullet != null)
+            {
+                // 设置子弹伤害（使用原子弹的伤害）
+                newBullet.Damage = originalBullet.Damage;
+            }
+        }
+        catch
+        {
+            // 忽略错误
+        }
+    }
+}
+
 [HarmonyPatch(typeof(CardUI))]
 public static class CardUIPatch
 {
@@ -2554,6 +2645,8 @@ public class PatchMgr : MonoBehaviour
     public static bool ZombieAttackMultiplierEnabled { get; set; } = false;
     public static float ZombieAttackMultiplier { get; set; } = 1.0f;
     public static bool PickaxeImmunity { get; set; } = false;
+    public static bool ZombieBulletReflectEnabled { get; set; } = false;
+    public static float ZombieBulletReflectChance { get; set; } = 10.0f;
 
     public void Update()
     {

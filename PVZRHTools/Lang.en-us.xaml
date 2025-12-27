@@ -28,6 +28,9 @@
     <s:String x:Key="Tab1.Page6_5.ZombieAttackMultiplier">Zombie Attack Multiplier</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieAttackMultiplier.Tooltip">When enabled, all zombies' attack damage will be multiplied by the specified value</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieAttackMultiplierValue.Tooltip">Zombie attack damage multiplier (0.1-100x)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect">Zombie Bullet Reflect</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect.Tooltip">When enabled, zombies have a chance to reflect bullets back</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieBulletReflectChance.Tooltip">Chance for zombies to reflect bullets (0-100%)</s:String>
     <s:String x:Key="Tab1.Page7.Header">OtherProperties</s:String>
     <s:String x:Key="Tab1.Description">The modifier is completely free and is open sourced on Github. All the paid versions are pirated. All the English texts here are translated by myself instead of translating by machine and I'm sorry that my English is extremely poor.</s:String>
     <s:String x:Key="Tab1.Page1.DevMode">DevMode</s:String>
