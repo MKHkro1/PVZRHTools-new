@@ -48,9 +48,11 @@
             </Grid.ColumnDefinitions>
             <Image x:Name="inf75" Grid.Column="0" Source="/PVZRHTools/icon.png" Stretch="Uniform" 
                    Width="44" Height="44" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0"/>
-            <Label x:Name="WindowTitle" Grid.Column="1" Content="" HorizontalAlignment="Left" Height="44" 
-                   VerticalAlignment="Center" Foreground="#FFFF69B4" FontSize="30"
-                   Style="{DynamicResource LabelBaseStyle}" />
+            <Border Grid.Column="1" Background="#FFFFFFFF" Height="44" VerticalAlignment="Center" Margin="0,0,0,0">
+                <Label x:Name="WindowTitle" Content="" HorizontalAlignment="Left" Height="44" 
+                       VerticalAlignment="Center" Foreground="#FFFF69B4" FontSize="30"
+                       Style="{DynamicResource LabelBaseStyle}" />
+            </Border>
         </Grid>
         <TabControl Grid.Row="1" TabStripPlacement="Left" BorderBrush="#FFFFFFFF" Background="#80FFFFFF"
                     BorderThickness="0,0,0,0">
@@ -77,7 +79,7 @@
                                         <ComboBoxItem Content="Русский" />
                                     </hc:ComboBox>
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal">
+                                <WrapPanel Orientation="Horizontal">
                                     <CheckBox x:Name="DeveloperMode" Content="{DynamicResource Tab1.Page1.DevMode}"
                                               Height="21" Margin="10,0,0,0" VerticalAlignment="Top" Foreground="#FF333333"
                                               IsChecked="{Binding DeveloperMode}" BorderThickness="2,2,2,2"
@@ -102,8 +104,8 @@
                                               Content="{DynamicResource Tab1.Page1.UnlockAllFusions}" Height="21"
                                               Margin="10,0,0,0" VerticalAlignment="Top" Foreground="#FF333333"
                                               BorderThickness="2,2,2,2" HorizontalAlignment="Left" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                </WrapPanel>
+                                <WrapPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <CheckBox x:Name="GloveFullCDEnabled" Height="21" Margin="10,0,0,0"
                                               VerticalAlignment="Top" Foreground="#FF333333"
                                               IsChecked="{Binding GloveFullCDEnabled}" BorderThickness="2,2,2,2"
@@ -138,7 +140,7 @@
                                               Height="21" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                               IsChecked="{Binding ScaredyDream}" Margin="10,0,0,0"
                                               VerticalAlignment="Top" />
-                                </StackPanel>
+                                </WrapPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                     <hc:NumericUpDown hc:TitleElement.TitlePlacement="Left"
                                                       hc:TitleElement.Title="{DynamicResource Tab1.Page1.NextWaveCD}"
@@ -396,7 +398,7 @@
 
             <TabItem Header="{DynamicResource Tab1.Header}" Height="28" VerticalAlignment="Bottom">
                 <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <Expander Header="{DynamicResource Tab1.Page2.Header}"
                                       Style="{DynamicResource Expander.Small}" MinWidth="28" MinHeight="28">
@@ -547,8 +549,8 @@
                             </Expander>
                             <Expander Header="{DynamicResource Tab1.Page6.Header}"
                                       Style="{DynamicResource Expander.Small}" MinWidth="28" MinHeight="28">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,28">
+                                <StackPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="FastShooting" IsChecked="{Binding FastShooting}"
                                                   Content="{DynamicResource Tab1.Page6.FastShooting}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -572,6 +574,8 @@
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0"
                                                   ToolTip="{DynamicResource Tab1.Page6.CrushImmunity.Tooltip}" />
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="TrampleImmunity" IsChecked="{Binding TrampleImmunity}"
                                                   Content="{DynamicResource Tab1.Page6.TrampleImmunity}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -601,9 +605,9 @@
                                                   IsChecked="{Binding UltimateSuperGatling}"
                                                   Content="{DynamicResource Tab1.Page6.UltimateSuperGatling}"
                                                   Height="21" VerticalAlignment="Top" Foreground="#FF333333"
-                                                  BorderThickness="2,2,2,2" HorizontalAlignment="Left" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,32,0,28">
+                                                  BorderThickness="2,2,2,2" HorizontalAlignment="Left" Margin="0,0,10,0" />
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="HyponoEmperorNoCD" IsChecked="{Binding HyponoEmperorNoCD}"
                                                   Content="{DynamicResource Tab1.Page6.HyponoEmperorNoCD}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -638,8 +642,8 @@
                                                 </TransformGroup>
                                             </CheckBox.RenderTransform>
                                         </CheckBox>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,59,0,28">
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="SuperStarNoCD" IsChecked="{Binding SuperStarNoCD}"
                                                   Content="{DynamicResource Tab1.Page6.SuperStarNoCD}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -654,13 +658,13 @@
                                                   ItemsSource="{Binding Plants}"
                                                   Style="{DynamicResource ComboBoxExtend}"
                                                   SelectionChanged="LockWheatPlant_SelectionChanged" />
-                                    </StackPanel>
-                                </Grid>
+                                    </WrapPanel>
+                                </StackPanel>
                             </Expander>
                             <Expander Header="{DynamicResource Tab1.Page6_5.Header}"
                                       Style="{DynamicResource Expander.Small}" MinWidth="28" MinHeight="28">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,28">
+                                <StackPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="ZombieDamageLimit200" IsChecked="{Binding ZombieDamageLimit200}"
                                                   Content="{DynamicResource Tab1.Page6_5.ZombieDamageLimit200}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -670,8 +674,8 @@
                                                           Minimum="1" Maximum="99999" Width="100" Height="25"
                                                           VerticalAlignment="Top" HorizontalAlignment="Left"
                                                           ToolTip="{DynamicResource Tab1.Page6_5.ZombieDamageLimitValue.Tooltip}" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,28,0,0">
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="ZombieSpeedModifyEnabled" IsChecked="{Binding ZombieSpeedModifyEnabled}"
                                                   Content="{DynamicResource Tab1.Page6_5.ZombieSpeedModify}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -681,8 +685,8 @@
                                                           Minimum="0.1" Maximum="10" Width="100" Height="25" DecimalPlaces="2" Increment="0.1"
                                                           VerticalAlignment="Top" HorizontalAlignment="Left"
                                                           ToolTip="{DynamicResource Tab1.Page6_5.ZombieSpeedMultiplier.Tooltip}" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,51,0,0">
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="ZombieAttackMultiplierEnabled" IsChecked="{Binding ZombieAttackMultiplierEnabled}"
                                                   Content="{DynamicResource Tab1.Page6_5.ZombieAttackMultiplier}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -692,13 +696,13 @@
                                                           Minimum="0.1" Maximum="100" Width="100" Height="25" DecimalPlaces="2" Increment="0.5"
                                                           VerticalAlignment="Top" HorizontalAlignment="Left"
                                                           ToolTip="{DynamicResource Tab1.Page6_5.ZombieAttackMultiplierValue.Tooltip}" />
-                                    </StackPanel>
-                                </Grid>
+                                    </WrapPanel>
+                                </StackPanel>
                             </Expander>
                             <Expander Header="{DynamicResource Tab1.Page7.Header}"
                                       Style="{DynamicResource Expander.Small}" MinWidth="28" MinHeight="28">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,28">
+                                <StackPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="AutoCutFruit" IsChecked="{Binding AutoCutFruit}"
                                                   Content="{DynamicResource Tab1.Page7.AutoCutFruit}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -711,8 +715,8 @@
                                                   Content="{DynamicResource Tab1.Page7.ColumnGlove}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0" />
-                                    </StackPanel>
-                                </Grid>
+                                    </WrapPanel>
+                                </StackPanel>
                             </Expander>
                         </StackPanel>
                     </ScrollViewer>
@@ -720,7 +724,7 @@
             </TabItem>
             <TabItem Header="{DynamicResource Tab2.Header}">
                 <Border Background="#00212125" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid>
                             <Label Content="{DynamicResource Tab2.Page1.LineupMode}" HorizontalAlignment="Left"
                                    VerticalAlignment="Top" Height="30" Width="89" Margin="400,2,0,0" />
@@ -847,7 +851,7 @@
             </TabItem>
             <TabItem Header="{DynamicResource Tab3.Header}" Height="28" VerticalAlignment="Bottom">
                 <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" Height="385"
+                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
                         <StackPanel>
                             <Expander Header="{DynamicResource Tab3.Page1.Header}">
@@ -982,7 +986,7 @@
             </TabItem>
             <TabItem Header="{DynamicResource Tab5.Header}">
                 <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" Height="385"
+                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
                         <StackPanel>
                             <TextBlock TextWrapping="Wrap" Foreground="Cyan" Text="{DynamicResource Tab5.Description1}" />
@@ -1029,7 +1033,7 @@
             </TabItem>
             <TabItem Header="{DynamicResource Tab6.Header}">
                 <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" Height="385"
+                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
                         <StackPanel>
                             <TextBlock TextWrapping="Wrap" Foreground="Cyan" Height="19"
@@ -1058,7 +1062,7 @@
             </TabItem>
             <TabItem Header="{DynamicResource Tab7.Header}">
                 <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto">
+                    <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <CheckBox x:Name="SaveAndResume" Content="{DynamicResource Tab7.SaveAndResume}"
                                       IsChecked="{Binding NeedSave}" Height="21" VerticalAlignment="Top"
@@ -1080,7 +1084,7 @@
             </TabItem>
             <TabItem Header="{DynamicResource Tab8.Header}">
                 <Border Background="#00212125" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid>
                             <ComboBox SelectedValue="{Binding LockPresent1}"
                                                  hc:TitleElement.TitlePlacement="Left"
