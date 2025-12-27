@@ -14,6 +14,8 @@ PVZRHTools 是《植物大战僵尸：融合版》的修改器工具，
 
 已构建版本的链接位于 [夸克网盘分享](https://pan.quark.cn/s/958659c83f52)
 
+[安装教程](https://www.bilibili.com/video/BV1WwBCBsEcY)
+
 ---
 
 植物大战僵尸融合版修改器 by [@Infinite75](https://space.bilibili.com/672619350)  [@听雨夜荷](https://space.bilibili.com/3537110030092294)  [@梧萱梦汐X](https://space.bilibili.com/3493111820978227)
