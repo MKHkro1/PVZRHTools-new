@@ -36,7 +36,7 @@ namespace PVZRHTools
         private const int HTBOTTOMLEFT = 16;
         private const int HTBOTTOMRIGHT = 17;
         private const int HTCLIENT = 1;
-        private const int BORDER_WIDTH = 10;
+        private const int BORDER_WIDTH = 15;
 
         public MainWindow()
         {
