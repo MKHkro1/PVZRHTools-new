@@ -12,6 +12,11 @@
     <s:String x:Key="Tab6.Header">游戏内按键绑定</s:String>
     <s:String x:Key="Tab7.Header">杂项</s:String>
     <s:String x:Key="Tab8.Header">斗蛐蛐布阵</s:String>
+    <s:String x:Key="Tab9.Header">词条专区</s:String>
+    <s:String x:Key="Tab9.PlantEntry.Header">植物词条</s:String>
+    <s:String x:Key="Tab9.PlantEntry.Placeholder">植物词条功能待添加...</s:String>
+    <s:String x:Key="Tab9.ZombieEntry.Header">僵尸词条</s:String>
+    <s:String x:Key="Tab9.ZombieEntry.Placeholder">僵尸词条功能待添加...</s:String>
     <s:String x:Key="Tab1.Page1.Header">基本特性</s:String>
     <s:String x:Key="Tab1.Page2.Header">礼盒修改</s:String>
     <s:String x:Key="Tab1.Page3.Header">数值修改</s:String>

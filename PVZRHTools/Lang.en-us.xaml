@@ -12,6 +12,11 @@
     <s:String x:Key="Tab6.Header">InGameHotkey</s:String>
     <s:String x:Key="Tab7.Header">Miscs</s:String>
     <s:String x:Key="Tab8.Header">PvE Setup</s:String>
+    <s:String x:Key="Tab9.Header">Entry Zone</s:String>
+    <s:String x:Key="Tab9.PlantEntry.Header">Plant Entries</s:String>
+    <s:String x:Key="Tab9.PlantEntry.Placeholder">Plant entry features to be added...</s:String>
+    <s:String x:Key="Tab9.ZombieEntry.Header">Zombie Entries</s:String>
+    <s:String x:Key="Tab9.ZombieEntry.Placeholder">Zombie entry features to be added...</s:String>
     <s:String x:Key="Tab1.Page1.Header">BasicProperties</s:String>
     <s:String x:Key="Tab1.Page2.Header">PresentModify</s:String>
     <s:String x:Key="Tab1.Page3.Header">DataModify</s:String>
