@@ -99,6 +99,8 @@
     <s:String x:Key="Tab1.Page6.UndeadBullet">UndeadBullet</s:String>
     <s:String x:Key="Tab1.Page6.DevLour">DevLour</s:String>
     <s:String x:Key="Tab1.Page6.DevLour.Tooltip">Squalour in developer mode. Creating too much plants may cause bugs. The setting is just for fun.</s:String>
+    <s:String x:Key="Tab1.Page7.UnlimitedCardSlots">UnlimitedCards</s:String>
+    <s:String x:Key="Tab1.Page7.UnlimitedCardSlots.Tooltip">When enabled, you can select unlimited number of cards without slot limit</s:String>
     <s:String x:Key="Tab2.Page1.Header">Lineup</s:String>
     <s:String x:Key="Tab2.Page1.Description">Row/Col 0 => whole Col/Row</s:String>
     <s:String x:Key="Tab2.Page1.Row">Row</s:String>

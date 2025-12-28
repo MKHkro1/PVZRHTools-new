@@ -727,6 +727,11 @@
                                                   Content="{DynamicResource Tab1.Page7.ColumnGlove}" Height="21"
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0" />
+                                        <CheckBox x:Name="UnlimitedCardSlots" IsChecked="{Binding UnlimitedCardSlots}"
+                                                  Content="{DynamicResource Tab1.Page7.UnlimitedCardSlots}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page7.UnlimitedCardSlots.Tooltip}" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Expander>

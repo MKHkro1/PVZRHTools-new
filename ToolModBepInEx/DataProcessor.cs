@@ -240,6 +240,7 @@ public class DataProcessor : MonoBehaviour
             if (p1.PickaxeImmunity is not null) PickaxeImmunity = (bool)p1.PickaxeImmunity;
             if (p1.ZombieBulletReflectEnabled is not null) ZombieBulletReflectEnabled = (bool)p1.ZombieBulletReflectEnabled;
             if (p1.ZombieBulletReflectChance is not null) ZombieBulletReflectChance = (float)p1.ZombieBulletReflectChance;
+            if (p1.UnlimitedCardSlots is not null) UnlimitedCardSlots = (bool)p1.UnlimitedCardSlots;
             return;
         }
 

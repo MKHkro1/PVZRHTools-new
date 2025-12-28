@@ -227,8 +227,8 @@ public static class ZombieBulletReflectPatch
     }
     
     /// <summary>
-    /// 创建反弹的铁豆子弹
-    /// </summary>
+/// 创建反弹的铁豆子弹
+/// </summary>
     private static void CreateReflectedBullet(Bullet originalBullet, Zombie zombie)
     {
         try
@@ -263,6 +263,161 @@ public static class ZombieBulletReflectPatch
     }
 }
 
+/// <summary>
+/// 卡片无限制补丁 - PresentCard.Start
+/// 当启用时，阻止PresentCard.Start()方法执行，取消礼盒卡片的数量限制
+/// 参考：AllPresentCard插件
+/// </summary>
+[HarmonyPatch(typeof(PresentCard), "Start")]
+public static class UnlimitedPresentCardPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(PresentCard __instance)
+    {
+        // 当启用卡片无限制时，阻止Start方法执行，取消卡片数量限制
+        // 注意：这里直接销毁PresentCard组件，而不是阻止Start方法执行
+        // 这样可以确保在任何时候启用"卡片无限制"功能都能生效
+        if (UnlimitedCardSlots)
+        {
+            Object.Destroy(__instance);
+            return false;
+        }
+        return true;
+    }
+}
+
+/// <summary>
+/// 卡片无限制补丁 - TreasureData.GetCardLevel
+/// 当启用时，将所有卡片的等级返回为White（最低等级），取消普通卡片"只能带两张"的限制
+/// 卡片等级决定了选卡界面中同类型卡片的数量限制：
+/// - White(0): 无限制
+/// - Green(1) ~ Red(5): 有不同程度的限制
+/// </summary>
+[HarmonyPatch(typeof(TreasureData), nameof(TreasureData.GetCardLevel))]
+public static class UnlimitedCardLevelPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(ref CardLevel __result)
+    {
+        // 当启用卡片无限制时，将所有卡片等级设为White（无限制）
+        if (UnlimitedCardSlots)
+        {
+            __result = CardLevel.White;
+        }
+    }
+}
+
+/// <summary>
+/// 卡片无限制补丁 - CardUI.LevelLim
+/// 当启用时，阻止LevelLim方法执行，取消卡片选取数量限制
+/// LevelLim方法是在CardUI.Start中被调用来设置卡片的选取限制
+/// </summary>
+[HarmonyPatch(typeof(CardUI), "LevelLim")]
+public static class UnlimitedCardLevelLimPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix()
+    {
+        // 当启用卡片无限制时，阻止LevelLim方法执行
+        if (UnlimitedCardSlots)
+        {
+            return false;
+        }
+        return true;
+    }
+}
+
+/// <summary>
+/// 卡片无限制补丁 - CardUI.Start Prefix
+/// 参考GoldImitater.BepInEx的实现方式，在CardUI.Start的Prefix中复制卡片
+/// 这样复制的卡片会绑过选卡限制
+/// </summary>
+[HarmonyPatch(typeof(CardUI), nameof(CardUI.Start))]
+public static class UnlimitedCardStartPatch
+{
+    // 记录每种植物类型已复制的次数，防止无限复制
+    private static Dictionary<int, int> _cardCopyCount = new Dictionary<int, int>();
+    // 每种卡片最多复制的次数（额外复制14张，加上原来的1张共15张）
+    private const int MaxCopyCount = 14;
+
+    [HarmonyPrefix]
+    public static void Prefix(CardUI __instance)
+    {
+        if (!UnlimitedCardSlots) return;
+
+        try
+        {
+            // 获取植物类型ID
+            int plantTypeId = (int)__instance.thePlantType;
+            
+            // 检查是否已经复制过足够次数
+            if (!_cardCopyCount.TryGetValue(plantTypeId, out int count))
+            {
+                count = 0;
+            }
+
+            if (count < MaxCopyCount)
+            {
+                // 复制卡片对象
+                GameObject go = GameObject.Instantiate(__instance.gameObject, __instance.transform.parent);
+                go.transform.position = __instance.transform.position;
+                
+                // 设置CD
+                __instance.CD = __instance.fullCD;
+                var newCard = go.GetComponent<CardUI>();
+                if (newCard != null)
+                {
+                    newCard.CD = newCard.fullCD;
+                }
+
+                // 增加复制计数
+                _cardCopyCount[plantTypeId] = count + 1;
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// 重置复制计数（在Board.Start时调用）
+    /// </summary>
+    public static void ResetCopyCount()
+    {
+        _cardCopyCount.Clear();
+    }
+}
+
+/// <summary>
+/// 卡片无限制补丁 - Board.Start
+/// 在Board.Start时重置卡片复制计数
+/// </summary>
+[HarmonyPatch(typeof(Board), nameof(Board.Start))]
+public static class UnlimitedCardBoardStartPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix()
+    {
+        UnlimitedCardStartPatch.ResetCopyCount();
+    }
+}
+
+/// <summary>
+/// 卡片无限制补丁 - CardUI.Awake
+/// 当启用时，将maxUsedTimes设置为一个很大的值，取消卡片使用次数限制
+/// </summary>
+[HarmonyPatch(typeof(CardUI), "Awake")]
+public static class UnlimitedCardAwakePatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(CardUI __instance)
+    {
+        // 卡片无限制：将maxUsedTimes设置为一个很大的值
+        if (UnlimitedCardSlots)
+        {
+            __instance.maxUsedTimes = 9999;
+        }
+    }
+}
+
 [HarmonyPatch(typeof(CardUI))]
 public static class CardUIPatch
 {
@@ -277,6 +432,12 @@ public static class CardUIPatch
         obj.transform.SetParent(__instance.transform);
         obj.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
         obj.transform.localPosition = new Vector3(39f, 0, 0);
+
+        // 卡片无限制：将maxUsedTimes设置为一个很大的值
+        if (UnlimitedCardSlots)
+        {
+            __instance.maxUsedTimes = 9999;
+        }
     }
 
     [HarmonyPostfix]
@@ -286,6 +447,13 @@ public static class CardUIPatch
         try
         {
             if (__instance == null) return;
+
+            // 卡片无限制：动态检查并设置maxUsedTimes
+            if (UnlimitedCardSlots && __instance.maxUsedTimes < 9999)
+            {
+                __instance.maxUsedTimes = 9999;
+            }
+
             var child = __instance.transform.FindChild("ModifierCardCD");
             if (child == null) return;
             if (__instance.isAvailable || !ShowGameInfo)
@@ -2647,6 +2815,7 @@ public class PatchMgr : MonoBehaviour
     public static bool PickaxeImmunity { get; set; } = false;
     public static bool ZombieBulletReflectEnabled { get; set; } = false;
     public static float ZombieBulletReflectChance { get; set; } = 10.0f;
+    public static bool UnlimitedCardSlots { get; set; } = false;
 
     public void Update()
     {
