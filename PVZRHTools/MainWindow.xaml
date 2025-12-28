@@ -1180,20 +1180,12 @@
                                 <Label Content="鱼丸" Foreground="#FFFF69B4" FontWeight="Bold" 
                                        VerticalAlignment="Center" Margin="0,0,10,0" />
                                 <Border BorderBrush="#FFFF69B4" BorderThickness="1" CornerRadius="4" Padding="8,4">
-                                    <StackPanel Orientation="Horizontal">
-                                        <CheckBox x:Name="MNEntryIndestructible" 
-                                                  Content="{DynamicResource Tab9.PlantEntry.MNEntryIndestructible}"
-                                                  IsChecked="{Binding MNEntryIndestructible}"
-                                                  Height="21" Margin="0,0,15,0" VerticalAlignment="Center" 
-                                                  Foreground="#FF333333" BorderThickness="2,2,2,2"
-                                                  ToolTip="{DynamicResource Tab9.PlantEntry.MNEntryIndestructible.Tooltip}" />
-                                        <CheckBox x:Name="MNEntryAdvancedLogistics" 
-                                                  Content="{DynamicResource Tab9.PlantEntry.MNEntryAdvancedLogistics}"
-                                                  IsChecked="{Binding MNEntryAdvancedLogistics}"
-                                                  Height="21" Margin="0,0,0,0" VerticalAlignment="Center" 
-                                                  Foreground="#FF333333" BorderThickness="2,2,2,2"
-                                                  ToolTip="{DynamicResource Tab9.PlantEntry.MNEntryAdvancedLogistics.Tooltip}" />
-                                    </StackPanel>
+                                    <CheckBox x:Name="MNEntryEnabled" 
+                                              Content="{DynamicResource Tab9.PlantEntry.MNEntry}"
+                                              IsChecked="{Binding MNEntryEnabled}"
+                                              Height="21" VerticalAlignment="Center" 
+                                              Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                              ToolTip="{DynamicResource Tab9.PlantEntry.MNEntry.Tooltip}" />
                                 </Border>
                             </StackPanel>
                             

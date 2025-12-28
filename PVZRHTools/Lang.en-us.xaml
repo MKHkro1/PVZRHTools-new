@@ -15,10 +15,8 @@
     <s:String x:Key="Tab9.Header">Entry Zone</s:String>
     <s:String x:Key="Tab9.PlantEntry.Header">Plant Entries</s:String>
     <s:String x:Key="Tab9.PlantEntry.Placeholder">Plant entry features to be added...</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryIndestructible">Indestructible</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryIndestructible.Tooltip">SuperMachineNut takes at most 200 damage per hit</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryAdvancedLogistics">Advanced Logistics</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryAdvancedLogistics.Tooltip">SuperMachineNut recovers double health, SunMagnetShroom cooldown greatly reduced</s:String>
+    <s:String x:Key="Tab9.PlantEntry.MNEntry">Indestructible(Max 200 dmg) + Advanced Logistics(2x heal, reduced CD)</s:String>
+    <s:String x:Key="Tab9.PlantEntry.MNEntry.Tooltip">Indestructible: SuperMachineNut takes at most 200 damage per hit&#x0a;Advanced Logistics: SuperMachineNut recovers double health, SunMagnetShroom cooldown greatly reduced</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Header">Zombie Entries</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Placeholder">Zombie entry features to be added...</s:String>
     <s:String x:Key="Tab1.Page1.Header">BasicProperties</s:String>

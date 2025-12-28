@@ -78,14 +78,9 @@ public struct BasicProperties : ISyncData
     public bool? ZombieStatusCoexist { get; set; }
     
     /// <summary>
-    /// 鱼丸坚不可摧 - 鱼丸受到的伤害最多为200
+    /// 鱼丸词条 - 坚不可摧(伤害最多200) + 高级后勤(双倍恢复, 阳光磁力菇CD减少)
     /// </summary>
-    public bool? MNEntryIndestructible { get; set; }
-    
-    /// <summary>
-    /// 鱼丸高级后勤 - 鱼丸恢复血量时恢复双倍血量, 阳光磁力菇冷却时间大幅减少
-    /// </summary>
-    public bool? MNEntryAdvancedLogistics { get; set; }
+    public bool? MNEntryEnabled { get; set; }
 }
 
 [Serializable]

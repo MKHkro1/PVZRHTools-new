@@ -251,8 +251,7 @@ public class DataProcessor : MonoBehaviour
                 UnlimitedCardSlots = newValue;
             }
             if (p1.ZombieStatusCoexist is not null) ZombieStatusCoexist = (bool)p1.ZombieStatusCoexist;
-            if (p1.MNEntryIndestructible is not null) MNEntryIndestructible = (bool)p1.MNEntryIndestructible;
-            if (p1.MNEntryAdvancedLogistics is not null) MNEntryAdvancedLogistics = (bool)p1.MNEntryAdvancedLogistics;
+            if (p1.MNEntryEnabled is not null) MNEntryEnabled = (bool)p1.MNEntryEnabled;
             return;
         }
 

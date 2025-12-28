@@ -3164,14 +3164,9 @@ public class PatchMgr : MonoBehaviour
     public static Dictionary<int, (bool hadCold, float coldTimer, float freezeTimer, int freezeLevel)> ZombieStatusCoexistData = new Dictionary<int, (bool, float, float, int)>();
 
     /// <summary>
-    /// 鱼丸坚不可摧 - 鱼丸受到的伤害最多为200
+    /// 鱼丸词条 - 坚不可摧(伤害最多200) + 高级后勤(双倍恢复, 阳光磁力菇CD减少)
     /// </summary>
-    public static bool MNEntryIndestructible { get; set; } = false;
-    
-    /// <summary>
-    /// 鱼丸高级后勤 - 鱼丸恢复血量时恢复双倍血量, 阳光磁力菇冷却时间大幅减少
-    /// </summary>
-    public static bool MNEntryAdvancedLogistics { get; set; } = false;
+    public static bool MNEntryEnabled { get; set; } = false;
 
     public void Update()
     {
@@ -3639,7 +3634,7 @@ public class PatchMgr : MonoBehaviour
 
 /// <summary>
 /// MNEntry词条注册 - 将词条注册到游戏的旅行词条系统中
-/// 只有当修改器中对应开关开启时，才会注册词条到游戏中
+/// 只有当修改器中开关开启时，才会注册词条到游戏中
 /// </summary>
 [HarmonyPatch(typeof(TravelMgr))]
 public static class MNEntryTravelMgrPatch
@@ -3674,34 +3669,24 @@ public static class MNEntryTravelMgrPatch
             TravelId1 = -1;
             TravelId2 = -1;
 
-            int registeredCount = 0;
+            // 只有开启时才注册两个词条
+            if (!PatchMgr.MNEntryEnabled) return;
+
             int baseId = TravelMgr.advancedBuffs.Count;
 
-            // 只有当修改器开关开启时才注册词条1
-            if (PatchMgr.MNEntryIndestructible)
-            {
-                TravelId1 = baseId + registeredCount;
-                TravelMgr.advancedBuffs[TravelId1] = BuffText1;
-                registeredCount++;
-                MLogger.LogInfo($"MNEntry词条[坚不可摧]注册成功，ID: {TravelId1}");
-            }
+            // 注册两个词条
+            TravelId1 = baseId;
+            TravelId2 = baseId + 1;
 
-            // 只有当修改器开关开启时才注册词条2
-            if (PatchMgr.MNEntryAdvancedLogistics)
-            {
-                TravelId2 = baseId + registeredCount;
-                TravelMgr.advancedBuffs[TravelId2] = BuffText2;
-                registeredCount++;
-                MLogger.LogInfo($"MNEntry词条[高级后勤]注册成功，ID: {TravelId2}");
-            }
+            // 扩展数组
+            bool[] newUpgrades = new bool[__instance.advancedUpgrades.Count + 2];
+            Array.Copy(__instance.advancedUpgrades.ToArray(), newUpgrades, __instance.advancedUpgrades.Count);
+            __instance.advancedUpgrades = newUpgrades;
 
-            // 如果有词条需要注册，扩展数组
-            if (registeredCount > 0)
-            {
-                bool[] newUpgrades = new bool[__instance.advancedUpgrades.Count + registeredCount];
-                Array.Copy(__instance.advancedUpgrades.ToArray(), newUpgrades, __instance.advancedUpgrades.Count);
-                __instance.advancedUpgrades = newUpgrades;
-            }
+            // 注册词条文本
+            TravelMgr.advancedBuffs[TravelId1] = BuffText1;
+            TravelMgr.advancedBuffs[TravelId2] = BuffText2;
+            MLogger.LogInfo($"MNEntry词条注册成功，ID1: {TravelId1}, ID2: {TravelId2}");
         }
         catch (Exception ex)
         {
@@ -3726,7 +3711,7 @@ public static class MNEntryTravelMgrPatch
 }
 
 /// <summary>
-/// MNEntry词条效果 - 通过检查游戏内词条状态来触发效果
+/// MNEntry词条效果 - 坚不可摧：鱼丸受到的伤害最多为200
 /// </summary>
 [HarmonyPatch(typeof(SuperMachineNut), nameof(SuperMachineNut.TakeDamage))]
 public static class SuperMachineNutTakeDamageGameBuffPatch
@@ -3734,8 +3719,8 @@ public static class SuperMachineNutTakeDamageGameBuffPatch
     [HarmonyPrefix]
     public static bool Prefix(ref int damage)
     {
-        // 检查修改器开关
-        if (PatchMgr.MNEntryIndestructible)
+        // 检查修改器开关（开启时两个效果都生效）
+        if (PatchMgr.MNEntryEnabled)
         {
             if (damage > 200) damage = 200;
             return true;
@@ -3761,8 +3746,8 @@ public static class PlantRecoverGameBuffPatch
     {
         if (__instance.thePlantType != (PlantType)1151) return true;
 
-        // 检查修改器开关
-        if (PatchMgr.MNEntryAdvancedLogistics)
+        // 检查修改器开关（MNEntryEnabled 同时控制坚不可摧和高级后勤两个效果）
+        if (PatchMgr.MNEntryEnabled)
         {
             health *= 2f;
             return true;
@@ -3786,8 +3771,8 @@ public static class SunMagnetShroomGameBuffPatch
     [HarmonyPostfix]
     public static void Postfix(SunMagnetShroom __instance)
     {
-        // 检查修改器开关
-        if (PatchMgr.MNEntryAdvancedLogistics)
+        // 检查修改器开关（MNEntryEnabled 同时控制坚不可摧和高级后勤两个效果）
+        if (PatchMgr.MNEntryEnabled)
         {
             if (__instance.attributeCountdown > 5f)
                 __instance.attributeCountdown = 4.5f;

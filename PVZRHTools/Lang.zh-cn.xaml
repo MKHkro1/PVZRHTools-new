@@ -15,10 +15,8 @@
     <s:String x:Key="Tab9.Header">词条专区</s:String>
     <s:String x:Key="Tab9.PlantEntry.Header">植物词条</s:String>
     <s:String x:Key="Tab9.PlantEntry.Placeholder">植物词条功能待添加...</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryIndestructible">坚不可摧</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryIndestructible.Tooltip">鱼丸受到的伤害最多为200</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryAdvancedLogistics">高级后勤</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryAdvancedLogistics.Tooltip">鱼丸恢复血量时恢复双倍血量，阳光磁力菇冷却时间大幅减少</s:String>
+    <s:String x:Key="Tab9.PlantEntry.MNEntry">坚不可摧(鱼丸限伤200) + 高级后勤(双倍恢复, 阳光磁力菇CD减少)</s:String>
+    <s:String x:Key="Tab9.PlantEntry.MNEntry.Tooltip">坚不可摧: 鱼丸受到的伤害最多为200&#x0a;高级后勤: 鱼丸恢复血量时恢复双倍血量，阳光磁力菇冷却时间大幅减少</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Header">僵尸词条</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Placeholder">僵尸词条功能待添加...</s:String>
     <s:String x:Key="Tab1.Page1.Header">基本特性</s:String>

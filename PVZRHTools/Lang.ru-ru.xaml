@@ -14,10 +14,8 @@
     <s:String x:Key="Tab9.Header">Зона записей</s:String>
     <s:String x:Key="Tab9.PlantEntry.Header">Записи растений</s:String>
     <s:String x:Key="Tab9.PlantEntry.Placeholder">Функции записей растений будут добавлены...</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryIndestructible">Несокрушимый</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryIndestructible.Tooltip">СуперМашинныйОрех получает максимум 200 урона за удар</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryAdvancedLogistics">Продвинутая логистика</s:String>
-    <s:String x:Key="Tab9.PlantEntry.MNEntryAdvancedLogistics.Tooltip">СуперМашинныйОрех восстанавливает двойное здоровье, перезарядка СолнечногоМагнитаГриба значительно уменьшена</s:String>
+    <s:String x:Key="Tab9.PlantEntry.MNEntry">Несокрушимый(макс 200 урона) + Продвинутая логистика(2x лечение, меньше CD)</s:String>
+    <s:String x:Key="Tab9.PlantEntry.MNEntry.Tooltip">Несокрушимый: СуперМашинныйОрех получает максимум 200 урона за удар&#x0a;Продвинутая логистика: СуперМашинныйОрех восстанавливает двойное здоровье, перезарядка СолнечногоМагнитаГриба значительно уменьшена</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Header">Записи зомби</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Placeholder">Функции записей зомби будут добавлены...</s:String>
     <s:String x:Key="Tab1.Page1.Header">Основные свойства</s:String>
