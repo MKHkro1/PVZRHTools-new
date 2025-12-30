@@ -1839,8 +1839,6 @@ public partial class ModifierViewModel : ObservableObject
 
     [ObservableProperty] public partial int ZombieType { get; set; }
 
-    [ObservableProperty] public partial bool IsDarkTheme { get; set; }
-
     #endregion Properties
 }
 

@@ -188,7 +188,6 @@
     <s:String x:Key="Tab4.Clear">清空</s:String>
     <s:String x:Key="Tab7.SaveAndResume">关闭时保存现有设置（数值修改与游戏内词条修改除外）</s:String>
     <s:String x:Key="Tab7.TopMostSprite">悬浮窗，双击使修改窗口前置，推荐全屏时使用</s:String>
-    <s:String x:Key="Tab7.DarkTheme">深色主题</s:String>
     <s:String x:Key="Tab7.License">本项目及所使用开源库许可协议(LICENSE)</s:String>
     <s:String x:Key="Tab5.Description1">请不要设置单键，部分功能需提前填好数据，游戏运行时其他软件中下列键位均失效，可能导致冲突</s:String>
     <s:String x:Key="Tab5.Description2">设置方法：调节为英文输入法，将鼠标指针放在对应条目的框上，先设置Ctrl/Shift/Alt，再设置要组合的键位</s:String>

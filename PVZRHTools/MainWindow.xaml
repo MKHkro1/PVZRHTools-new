@@ -1106,10 +1106,6 @@
                             <CheckBox x:Name="TopMostSprite" IsChecked="{Binding TopMostSprite}"
                                       Content="{DynamicResource Tab7.TopMostSprite}" Height="21"
                                       VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2" />
-                            <CheckBox x:Name="DarkThemeToggle" IsChecked="{Binding IsDarkTheme}"
-                                      Content="{DynamicResource Tab7.DarkTheme}" Height="21"
-                                      VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
-                                      Checked="DarkThemeToggle_Changed" Unchecked="DarkThemeToggle_Changed" />
                             <Label Height="152" Width="684" Foreground="#FF333333">
                                 <TextBlock FontSize="16" Foreground="#FF80C8FF" Height="129" Width="659"
                                            Text="{DynamicResource Tab1.Description}" TextWrapping="Wrap" />
