@@ -3846,7 +3846,11 @@ public class PatchMgr : MonoBehaviour
             _ = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>()).All(b =>
             {
                 var zombie = b?.TryCast<Zombie>();
-                zombie?.StartCoroutine_Auto(zombie?.DeLayGarliced(0.1f, false, false));
+                if (zombie != null)
+                {
+                    var coroutine = zombie.DeLayGarliced(0.1f, false, false);
+                    if (coroutine != null) zombie.StartCoroutine_Auto(coroutine);
+                }
                 return true;
             });
         }
