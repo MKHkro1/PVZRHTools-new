@@ -43,6 +43,9 @@ namespace PVZRHTools
         private const int HTBOTTOMRIGHT = 17;
         private const int HTCLIENT = 1;
         private const int BORDER_WIDTH = 15;
+        
+        // 用于跟踪是否是首次激活（避免启动时重复播放动画）
+        private bool _isFirstActivation = true;
 
         public MainWindow()
         {
@@ -73,6 +76,22 @@ namespace PVZRHTools
             
             // 窗口加载完成后播放启动动画
             Loaded += MainWindow_Loaded;
+            
+            // 窗口激活时播放过渡动画（从后台切回前台）
+            Activated += MainWindow_Activated;
+        }
+        
+        private void MainWindow_Activated(object? sender, EventArgs e)
+        {
+            // 跳过首次激活（启动时已有启动动画）
+            if (_isFirstActivation)
+            {
+                _isFirstActivation = false;
+                return;
+            }
+            
+            // 播放激活过渡动画
+            WindowAnimations.PlayActivationAnimation(this);
         }
         
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)

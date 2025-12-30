@@ -84,6 +84,71 @@ namespace PVZRHTools.Animations
         }
 
         /// <summary>
+        /// 窗口激活动画 - 从后台切回前台时播放
+        /// 更慢、幅度更大、更有弹性的版本
+        /// </summary>
+        public static void PlayActivationAnimation(Window window)
+        {
+            if (window.Content is not FrameworkElement content)
+                return;
+
+            // 确保内容有变换
+            if (content.RenderTransform is not TransformGroup)
+            {
+                var transformGroup = new TransformGroup();
+                transformGroup.Children.Add(new ScaleTransform(1, 1));
+                transformGroup.Children.Add(new TranslateTransform(0, 0));
+                content.RenderTransform = transformGroup;
+                content.RenderTransformOrigin = new Point(0.5, 0.5);
+            }
+
+            var storyboard = new Storyboard();
+
+            // 弹性缩放效果 - 更大幅度、更有弹性
+            var elasticEase = new ElasticEase 
+            { 
+                EasingMode = EasingMode.EaseOut, 
+                Oscillations = 2,  // 弹跳次数
+                Springiness = 5    // 弹性强度
+            };
+
+            var scaleX = new DoubleAnimationUsingKeyFrames();
+            scaleX.KeyFrames.Add(new EasingDoubleKeyFrame(0.92, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            scaleX.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(500)), elasticEase));
+            Storyboard.SetTarget(scaleX, content);
+            Storyboard.SetTargetProperty(scaleX, new PropertyPath("RenderTransform.Children[0].ScaleX"));
+
+            var scaleY = new DoubleAnimationUsingKeyFrames();
+            scaleY.KeyFrames.Add(new EasingDoubleKeyFrame(0.92, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            scaleY.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(500)), elasticEase));
+            Storyboard.SetTarget(scaleY, content);
+            Storyboard.SetTargetProperty(scaleY, new PropertyPath("RenderTransform.Children[0].ScaleY"));
+
+            // 透明度渐变 - 更明显
+            var opacity = new DoubleAnimationUsingKeyFrames();
+            opacity.KeyFrames.Add(new EasingDoubleKeyFrame(0.7, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            opacity.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(350)), 
+                new CubicEase { EasingMode = EasingMode.EaseOut }));
+            Storyboard.SetTarget(opacity, window);
+            Storyboard.SetTargetProperty(opacity, new PropertyPath(UIElement.OpacityProperty));
+
+            // 轻微上移效果
+            var translateY = new DoubleAnimationUsingKeyFrames();
+            translateY.KeyFrames.Add(new EasingDoubleKeyFrame(8, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            translateY.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(400)), 
+                new CubicEase { EasingMode = EasingMode.EaseOut }));
+            Storyboard.SetTarget(translateY, content);
+            Storyboard.SetTargetProperty(translateY, new PropertyPath("RenderTransform.Children[1].Y"));
+
+            storyboard.Children.Add(scaleX);
+            storyboard.Children.Add(scaleY);
+            storyboard.Children.Add(opacity);
+            storyboard.Children.Add(translateY);
+
+            storyboard.Begin();
+        }
+
+        /// <summary>
         /// 窗口关闭动画
         /// </summary>
         public static async Task PlayCloseAnimation(Window window)

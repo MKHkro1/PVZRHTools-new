@@ -3,6 +3,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using HandyControl.Controls;
+using PVZRHTools.Animations;
 
 namespace PVZRHTools;
 
@@ -20,6 +21,9 @@ public partial class ModifierSprite : SimplePanel
     {
         MainWindow.Instance!.Topmost = true;
         MainWindow.Instance!.Topmost = false;
+        
+        // 从悬浮窗打开主窗口时播放激活动画
+        WindowAnimations.PlayActivationAnimation(MainWindow.Instance!);
     }
 
     private void ContentControl_MouseEnter(object sender, MouseEventArgs e)
