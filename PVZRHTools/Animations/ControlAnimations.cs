@@ -298,6 +298,135 @@ namespace PVZRHTools.Animations
             };
         }
 
+        /// <summary>
+        /// 为 Expander 添加展开/折叠动画和悬停效果
+        /// </summary>
+        public static void AddExpanderAnimation(Expander expander)
+        {
+            // 设置变换
+            expander.RenderTransformOrigin = new Point(0.5, 0);
+            expander.RenderTransform = new ScaleTransform(1, 1);
+
+            // 悬停动画 - 轻微放大
+            expander.MouseEnter += (s, e) =>
+            {
+                var scale = (ScaleTransform)expander.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(1.008, 150));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.008, 150));
+            };
+
+            expander.MouseLeave += (s, e) =>
+            {
+                var scale = (ScaleTransform)expander.RenderTransform;
+                var animX = CreateQuickAnimation(1, 150);
+                var animY = CreateQuickAnimation(1, 150);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            };
+
+            // 展开时整体动画 - 从顶部展开效果
+            expander.Expanded += (s, e) =>
+            {
+                // 对整个 Expander 做一个弹性缩放动画
+                var scale = (ScaleTransform)expander.RenderTransform;
+                
+                var bounceY = new DoubleAnimationUsingKeyFrames
+                {
+                    Duration = TimeSpan.FromMilliseconds(350)
+                };
+                bounceY.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(0)));
+                bounceY.KeyFrames.Add(new EasingDoubleKeyFrame(1.02, KeyTime.FromPercent(0.3), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                bounceY.KeyFrames.Add(new EasingDoubleKeyFrame(0.99, KeyTime.FromPercent(0.6), new CubicEase { EasingMode = EasingMode.EaseInOut }));
+                bounceY.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                bounceY.FillBehavior = FillBehavior.Stop;
+                bounceY.Completed += (_, _) => scale.ScaleY = 1;
+                
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, bounceY);
+
+                // 内容淡入动画
+                if (expander.Content is FrameworkElement content)
+                {
+                    content.Opacity = 0;
+                    var transformGroup = new TransformGroup();
+                    transformGroup.Children.Add(new ScaleTransform(1, 0.8));
+                    transformGroup.Children.Add(new TranslateTransform(0, -15));
+                    content.RenderTransform = transformGroup;
+                    content.RenderTransformOrigin = new Point(0.5, 0);
+
+                    var fadeIn = new DoubleAnimation
+                    {
+                        From = 0,
+                        To = 1,
+                        Duration = TimeSpan.FromMilliseconds(300),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var scaleYAnim = new DoubleAnimation
+                    {
+                        From = 0.8,
+                        To = 1,
+                        Duration = TimeSpan.FromMilliseconds(350),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var slideDown = new DoubleAnimation
+                    {
+                        From = -15,
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(350),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    content.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                    ((ScaleTransform)((TransformGroup)content.RenderTransform).Children[0]).BeginAnimation(ScaleTransform.ScaleYProperty, scaleYAnim);
+                    ((TranslateTransform)((TransformGroup)content.RenderTransform).Children[1]).BeginAnimation(TranslateTransform.YProperty, slideDown);
+                }
+            };
+
+            // 折叠时动画
+            expander.Collapsed += (s, e) =>
+            {
+                var scale = (ScaleTransform)expander.RenderTransform;
+                
+                var shrink = new DoubleAnimationUsingKeyFrames
+                {
+                    Duration = TimeSpan.FromMilliseconds(200)
+                };
+                shrink.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(0)));
+                shrink.KeyFrames.Add(new EasingDoubleKeyFrame(0.98, KeyTime.FromPercent(0.5), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                shrink.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                shrink.FillBehavior = FillBehavior.Stop;
+                shrink.Completed += (_, _) => scale.ScaleY = 1;
+                
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrink);
+            };
+
+            // 点击头部时的反馈动画
+            expander.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                var scale = (ScaleTransform)expander.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(0.985, 80));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(0.985, 80));
+            };
+
+            expander.PreviewMouseLeftButtonUp += (s, e) =>
+            {
+                var scale = (ScaleTransform)expander.RenderTransform;
+                var animX = CreateQuickAnimation(1, 150);
+                var animY = CreateQuickAnimation(1, 150);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            };
+        }
+
         private static DoubleAnimation CreateQuickAnimation(double to, int durationMs)
         {
             return new DoubleAnimation

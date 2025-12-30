@@ -13,6 +13,7 @@ using Window = System.Windows.Window;
 using Button = System.Windows.Controls.Button;
 using TabControl = System.Windows.Controls.TabControl;
 using TabItem = System.Windows.Controls.TabItem;
+using Expander = System.Windows.Controls.Expander;
 using System.Management;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
@@ -120,6 +121,12 @@ namespace PVZRHTools
                             ControlAnimations.AddTabItemAnimation(tabItem);
                         }
                     }
+                }
+                
+                // 为 Expander 添加动画（礼盒修改、数值修改、场地特性等）
+                if (child is Expander expander)
+                {
+                    ControlAnimations.AddExpanderAnimation(expander);
                 }
                 
                 // 递归处理子元素
