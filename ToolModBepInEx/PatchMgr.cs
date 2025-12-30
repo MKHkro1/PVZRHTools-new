@@ -3038,14 +3038,12 @@ public static class MousePatch
 /// <summary>
 /// 究极剑仙杨桃(AbyssSwordStar)补丁 - 取消红卡种植限制
 /// 在Awake方法前临时修改GameStatus，在Start方法前临时修改BoardType为神秘模式(7)
-/// 使用HarmonyPriority.Low确保在其他修改器（如Modified-Plus）之后执行，避免状态恢复冲突
 /// </summary>
 [HarmonyPatch(typeof(AbyssSwordStar))]
 public static class AbyssSwordStarUnlockPatch
 {
     [HarmonyPrefix]
     [HarmonyPatch("Awake")]
-    [HarmonyPriority(Priority.Low)]
     public static void PreAwake(ref GameStatus __state)
     {
         __state = GameAPP.theGameStatus;
@@ -3057,7 +3055,6 @@ public static class AbyssSwordStarUnlockPatch
 
     [HarmonyPostfix]
     [HarmonyPatch("Awake")]
-    [HarmonyPriority(Priority.Low)]
     public static void PostAwake(ref GameStatus __state)
     {
         GameAPP.theGameStatus = __state;
@@ -3065,7 +3062,6 @@ public static class AbyssSwordStarUnlockPatch
 
     [HarmonyPrefix]
     [HarmonyPatch("Start")]
-    [HarmonyPriority(Priority.Low)]
     public static void PreStart(ref LevelType __state)
     {
         __state = GameAPP.theBoardType;
@@ -3077,7 +3073,6 @@ public static class AbyssSwordStarUnlockPatch
 
     [HarmonyPostfix]
     [HarmonyPatch("Start")]
-    [HarmonyPriority(Priority.Low)]
     public static void PostStart(ref LevelType __state)
     {
         GameAPP.theBoardType = __state;
@@ -3087,14 +3082,12 @@ public static class AbyssSwordStarUnlockPatch
 /// <summary>
 /// 究极速射樱桃射手(UltimateMinigun)补丁 - 取消红卡种植限制
 /// 在Start方法前临时修改BoardTag.isTreasure为true
-/// 使用HarmonyPriority.Low确保在其他修改器（如Modified-Plus）之后执行，避免状态恢复冲突
 /// </summary>
 [HarmonyPatch(typeof(UltimateMinigun))]
 public static class UltimateMinigunUnlockPatch
 {
     [HarmonyPrefix]
     [HarmonyPatch("Start")]
-    [HarmonyPriority(Priority.Low)]
     public static void PreStart(ref Board.BoardTag __state)
     {
         __state = Board.Instance.boardTag;
@@ -3108,7 +3101,6 @@ public static class UltimateMinigunUnlockPatch
 
     [HarmonyPostfix]
     [HarmonyPatch("Start")]
-    [HarmonyPriority(Priority.Low)]
     public static void PostStart(ref Board.BoardTag __state)
     {
         Board.Instance.boardTag = __state;
@@ -3118,14 +3110,12 @@ public static class UltimateMinigunUnlockPatch
 /// <summary>
 /// 究极炽阳向日葵(SolarSunflower)补丁 - 取消红卡种植限制
 /// 在Start方法前临时修改BoardTag.isTreasure为true
-/// 使用HarmonyPriority.Low确保在其他修改器（如Modified-Plus）之后执行，避免状态恢复冲突
 /// </summary>
 [HarmonyPatch(typeof(SolarSunflower))]
 public static class SolarSunflowerUnlockPatch
 {
     [HarmonyPrefix]
     [HarmonyPatch("Start")]
-    [HarmonyPriority(Priority.Low)]
     public static void PreStart(ref Board.BoardTag __state)
     {
         __state = Board.Instance.boardTag;
@@ -3139,7 +3129,6 @@ public static class SolarSunflowerUnlockPatch
 
     [HarmonyPostfix]
     [HarmonyPatch("Start")]
-    [HarmonyPriority(Priority.Low)]
     public static void PostStart(ref Board.BoardTag __state)
     {
         Board.Instance.boardTag = __state;
