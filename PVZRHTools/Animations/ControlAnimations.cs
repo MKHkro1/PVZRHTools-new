@@ -204,6 +204,100 @@ namespace PVZRHTools.Animations
             translate.BeginAnimation(TranslateTransform.XProperty, shake);
         }
 
+        /// <summary>
+        /// 为 TabItem 添加悬停和选中动画
+        /// </summary>
+        public static void AddTabItemAnimation(TabItem tabItem)
+        {
+            // 只使用缩放变换，不使用位移，避免位置偏移
+            tabItem.RenderTransformOrigin = new Point(0.5, 0.5);
+            tabItem.RenderTransform = new ScaleTransform(1, 1);
+
+            // 悬停动画 - 只缩放，不位移
+            tabItem.MouseEnter += (s, e) =>
+            {
+                if (!tabItem.IsSelected)
+                {
+                    var scale = (ScaleTransform)tabItem.RenderTransform;
+                    scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(1.03, 150));
+                    scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.03, 150));
+                }
+            };
+
+            tabItem.MouseLeave += (s, e) =>
+            {
+                var scale = (ScaleTransform)tabItem.RenderTransform;
+                // 使用 FillBehavior.Stop 确保动画结束后回到原始值
+                var animX = CreateQuickAnimation(1, 150);
+                var animY = CreateQuickAnimation(1, 150);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            };
+
+            // 点击动画
+            tabItem.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                var scale = (ScaleTransform)tabItem.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(0.95, 80));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(0.95, 80));
+            };
+
+            tabItem.PreviewMouseLeftButtonUp += (s, e) =>
+            {
+                var scale = (ScaleTransform)tabItem.RenderTransform;
+                // 点击释放后确保回到原位
+                var animX = CreateQuickAnimation(1, 150);
+                var animY = CreateQuickAnimation(1, 150);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            };
+        }
+
+        /// <summary>
+        /// 为 TabControl 添加内容切换动画
+        /// </summary>
+        public static void AddTabControlAnimation(TabControl tabControl)
+        {
+            tabControl.SelectionChanged += (s, e) =>
+            {
+                if (e.Source == tabControl && tabControl.SelectedContent is FrameworkElement content)
+                {
+                    // 内容淡入 + 滑入动画
+                    content.Opacity = 0;
+                    content.RenderTransformOrigin = new Point(0, 0.5);
+                    var translate = new TranslateTransform(25, 0);
+                    content.RenderTransform = translate;
+
+                    var fadeIn = new DoubleAnimation
+                    {
+                        From = 0,
+                        To = 1,
+                        Duration = TimeSpan.FromMilliseconds(250),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var slideIn = new DoubleAnimation
+                    {
+                        From = 25,
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(300),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    content.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                    translate.BeginAnimation(TranslateTransform.XProperty, slideIn);
+                }
+            };
+        }
+
         private static DoubleAnimation CreateQuickAnimation(double to, int durationMs)
         {
             return new DoubleAnimation

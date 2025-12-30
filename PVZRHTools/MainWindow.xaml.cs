@@ -11,6 +11,8 @@ using ComboBox = HandyControl.Controls.ComboBox;
 using ScrollViewer = HandyControl.Controls.ScrollViewer;
 using Window = System.Windows.Window;
 using Button = System.Windows.Controls.Button;
+using TabControl = System.Windows.Controls.TabControl;
+using TabItem = System.Windows.Controls.TabItem;
 using System.Management;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
@@ -103,6 +105,21 @@ namespace PVZRHTools
                 {
                     ControlAnimations.AddButtonPressAnimation(button);
                     ControlAnimations.AddHoverGlow(button, Color.FromRgb(255, 105, 180)); // 粉色发光
+                }
+                
+                // 为 TabControl 添加内容切换动画
+                if (child is TabControl tabControl)
+                {
+                    ControlAnimations.AddTabControlAnimation(tabControl);
+                    
+                    // 为每个 TabItem 添加动画
+                    foreach (var item in tabControl.Items)
+                    {
+                        if (item is TabItem tabItem)
+                        {
+                            ControlAnimations.AddTabItemAnimation(tabItem);
+                        }
+                    }
                 }
                 
                 // 递归处理子元素
