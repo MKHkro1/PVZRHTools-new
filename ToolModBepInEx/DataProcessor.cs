@@ -1341,11 +1341,11 @@ all");
 
             if (InGame())
             {
-                var t = Board.Instance.boardTag;
+                var t = Board.Instance!.boardTag;
                 t.isScaredyDream = PatchMgr.GameModes.ScaredyDream;
                 t.isColumn = PatchMgr.GameModes.ColumnPlanting;
                 t.isSeedRain = PatchMgr.GameModes.SeedRain;
-                Board.Instance.boardTag = t;
+                Board.Instance!.boardTag = t;
             }
         }
     }

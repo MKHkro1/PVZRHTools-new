@@ -386,12 +386,12 @@ public static class UnlimitedCardOnMouseDownPatch
                     if (cardUI == null || !cardUI.isSelected)
                     {
                         Object.Destroy(card);
-                        toRemove.Add(card);
+                        toRemove.Add(card!);
                     }
                 }
                 else
                 {
-                    toRemove.Add(card);
+                    toRemove.Add(card!);
                 }
             }
             // 从列表中移除已销毁的卡片
@@ -1797,7 +1797,7 @@ public static class SuperLadderZombieGetDamagePatch
 [HarmonyPatch(typeof(Zombie), nameof(Zombie.TakeDamage), new Type[] { typeof(DmgType), typeof(int), typeof(PlantType), typeof(bool) })]
 public static class ZombieTakeDamageCursePatch
 {
-    private static System.Reflection.FieldInfo _cachedCursedPlantsField = null;
+    private static System.Reflection.FieldInfo? _cachedCursedPlantsField = null;
     
     [HarmonyPrefix]
     public static bool Prefix(Zombie __instance, DmgType theDamageType, ref int theDamage, PlantType reportType, bool fix)
@@ -2969,7 +2969,7 @@ public static class ZombiePatch
 [HarmonyPatch(typeof(Mouse), nameof(Mouse.TryToSetPlantByGlove))]
 public static class MousePatch
 {
-    private static Plant aa = null;
+    private static Plant? aa = null;
     
     [HarmonyPrefix]
     public static bool Prefix(Mouse __instance)
@@ -3171,7 +3171,7 @@ public static class ZombieDieKillUpgradePatch
             if (allPlants == null) return;
 
             // 找到同行且距离最近的该类型植物
-            Plant targetPlant = null;
+            Plant? targetPlant = null;
             float minDistance = float.MaxValue;
             int zombieRow = __instance.theZombieRow;
             float zombieX = __instance.transform.position.x;
@@ -3823,18 +3823,18 @@ public class PatchMgr : MonoBehaviour
         }
 
         if (!InGame()) return;
-        if (LockSun) Board.Instance.theSun = LockSunCount;
-        if (LockMoney) Board.Instance.theMoney = LockMoneyCount;
-        if (StopSummon) Board.Instance.iceDoomFreezeTime = 1;
+        if (LockSun) Board.Instance!.theSun = LockSunCount;
+        if (LockMoney) Board.Instance!.theMoney = LockMoneyCount;
+        if (StopSummon) Board.Instance!.iceDoomFreezeTime = 1;
         if (ZombieSea)
             if (++seaTime >= ZombieSeaCD &&
-                Board.Instance.theWave is not 0 && Board.Instance.theWave < Board.Instance.theMaxWave &&
+                Board.Instance!.theWave is not 0 && Board.Instance!.theWave < Board.Instance!.theMaxWave &&
                 GameAPP.theGameStatus == (int)GameStatus.InGame)
             {
                 foreach (var j in SeaTypes)
                 {
                     if (j < 0) continue;
-                    for (var i = 0; i < Board.Instance.rowNum; i++) CreateZombie.Instance.SetZombie(i, (ZombieType)j, 11f);
+                    for (var i = 0; i < Board.Instance!.rowNum; i++) CreateZombie.Instance.SetZombie(i, (ZombieType)j, 11f);
                 }
 
                 seaTime = 0;
@@ -3963,7 +3963,7 @@ public class PatchMgr : MonoBehaviour
                         card.theSeedCost = 0;
                         card.fullCD = 0;
                     }
-                    catch (Exception e) { }
+                    catch { }
                 }
             }
         }
