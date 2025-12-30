@@ -150,21 +150,30 @@ namespace PVZRHTools.Themes
             var secondaryFg = isDark ? DarkTheme.SecondaryForeground : LightTheme.SecondaryForeground;
             var accent = isDark ? DarkTheme.Accent : LightTheme.Accent;
 
-            // Border 背景 - 更宽松的匹配
+            // Border 背景 - 强制应用（除了粉色边框）
             if (element is Border border)
             {
                 // 检查是否有背景色需要切换
                 if (border.Background is SolidColorBrush bgBrush)
                 {
                     var color = bgBrush.Color;
+                    // 跳过透明背景
+                    if (color.A < 10) { }
                     // 白色/浅色背景（包括半透明）
-                    bool isLight = color.R > 180 && color.G > 180 && color.B > 180 && color.A > 50;
-                    // 深色背景
-                    bool isDarkBg = color.R < 100 && color.G < 100 && color.B < 100 && color.A > 50;
-                    if (isLight || isDarkBg)
+                    else if (color.R > 180 && color.G > 180 && color.B > 180)
                     {
                         AnimateBrushProperty(border, Border.BackgroundProperty, cardBg, duration, easing);
                     }
+                    // 深色背景
+                    else if (color.R < 100 && color.G < 100 && color.B < 100)
+                    {
+                        AnimateBrushProperty(border, Border.BackgroundProperty, cardBg, duration, easing);
+                    }
+                }
+                else if (border.Background == null && isDark)
+                {
+                    // 没有背景的 Border 在深色模式下也设置背景
+                    border.Background = new SolidColorBrush(cardBg);
                 }
             }
 
@@ -212,18 +221,24 @@ namespace PVZRHTools.Themes
                 }
             }
 
-            // Label 前景色
+            // Label 前景色 - 强制应用（除了粉色和蓝色）
             if (element is Label label)
             {
-                if (IsAccentColor(label.Foreground))
+                if (label.Foreground is SolidColorBrush labelBrush)
                 {
-                    // 粉色标签保持粉色，只调整深浅
-                    AnimateBrushProperty(label, Control.ForegroundProperty, accent, duration, easing);
+                    var color = labelBrush.Color;
+                    // 粉色系保持不变
+                    bool isPink = color.R > 200 && color.G < 150 && color.B > 150;
+                    // 淡蓝色保持不变
+                    bool isBlue = color.B > 200 && color.G > 150 && color.R < 150;
+                    if (!isPink && !isBlue)
+                    {
+                        label.Foreground = new SolidColorBrush(fg);
+                    }
                 }
                 else
                 {
-                    // 其他标签应用主题前景色
-                    AnimateBrushProperty(label, Control.ForegroundProperty, fg, duration, easing);
+                    label.Foreground = new SolidColorBrush(fg);
                 }
             }
 
@@ -237,166 +252,215 @@ namespace PVZRHTools.Themes
                     bool isPink = color.R > 200 && color.G < 150 && color.B > 150;
                     // 淡蓝色保持不变 (#80C8FF 等蓝色系)
                     bool isBlue = color.B > 200 && color.G > 150 && color.R < 150;
-                    if (!isPink && !isBlue)
+                    // 青色保持不变
+                    bool isCyan = color.G > 200 && color.B > 200 && color.R < 150;
+                    if (!isPink && !isBlue && !isCyan)
                     {
-                        AnimateBrushProperty(textBlock, TextBlock.ForegroundProperty, fg, duration, easing);
+                        textBlock.Foreground = new SolidColorBrush(fg);
                     }
                 }
+                else
+                {
+                    textBlock.Foreground = new SolidColorBrush(fg);
+                }
             }
 
-            // CheckBox 前景色 - 强制应用
+            // CheckBox 前景色 - 强制应用（不检查当前颜色）
             if (element is CheckBox checkBox)
             {
-                AnimateBrushProperty(checkBox, Control.ForegroundProperty, fg, duration, easing);
+                // 直接设置新颜色，不使用动画（确保覆盖 XAML 中的硬编码值）
+                checkBox.Foreground = new SolidColorBrush(fg);
             }
 
-            // RadioButton 前景色
+            // RadioButton 前景色 - 强制应用
             if (element is RadioButton radioButton)
             {
-                if (IsThemeableForeground(radioButton.Foreground))
-                {
-                    AnimateBrushProperty(radioButton, Control.ForegroundProperty, fg, duration, easing);
-                }
+                radioButton.Foreground = new SolidColorBrush(fg);
             }
 
             // Expander - 强制应用前景色和背景色
             if (element is Expander expander)
             {
                 // 强制设置前景色
-                AnimateBrushProperty(expander, Control.ForegroundProperty, fg, duration, easing);
+                expander.Foreground = new SolidColorBrush(fg);
                 // 如果有背景，也设置背景
-                if (IsThemeableBackground(expander.Background))
+                if (expander.Background is SolidColorBrush expanderBg)
                 {
-                    AnimateBrushProperty(expander, Control.BackgroundProperty, cardBg, duration, easing);
+                    var color = expanderBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        expander.Background = new SolidColorBrush(cardBg);
+                    }
                 }
             }
 
-            // GroupBox
+            // GroupBox - 强制应用前景色
             if (element is GroupBox groupBox)
             {
-                if (IsThemeableForeground(groupBox.Foreground))
-                {
-                    AnimateBrushProperty(groupBox, Control.ForegroundProperty, fg, duration, easing);
-                }
+                groupBox.Foreground = new SolidColorBrush(fg);
             }
 
-            // DataGrid
+            // DataGrid - 强制应用背景和前景
             if (element is DataGrid dataGrid)
             {
-                if (IsThemeableBackground(dataGrid.Background))
-                {
-                    AnimateBrushProperty(dataGrid, Control.BackgroundProperty, cardBg, duration, easing);
-                }
-                if (IsThemeableForeground(dataGrid.Foreground))
-                {
-                    AnimateBrushProperty(dataGrid, Control.ForegroundProperty, fg, duration, easing);
-                }
+                // 背景色
+                dataGrid.Background = new SolidColorBrush(cardBg);
+                // 前景色
+                dataGrid.Foreground = new SolidColorBrush(fg);
+                // 行背景
+                dataGrid.RowBackground = new SolidColorBrush(cardBg);
+                // 交替行背景
+                var altBg = isDark ? Color.FromRgb(0x35, 0x35, 0x45) : Color.FromRgb(0xF5, 0xF5, 0xF5);
+                dataGrid.AlternatingRowBackground = new SolidColorBrush(altBg);
             }
 
-            // ListBox
+            // DataGridRow
+            if (element is DataGridRow dataGridRow)
+            {
+                dataGridRow.Background = new SolidColorBrush(cardBg);
+                dataGridRow.Foreground = new SolidColorBrush(fg);
+            }
+
+            // DataGridCell
+            if (element is DataGridCell dataGridCell)
+            {
+                dataGridCell.Background = new SolidColorBrush(cardBg);
+                dataGridCell.Foreground = new SolidColorBrush(fg);
+            }
+
+            // ListBox - 强制应用
             if (element is ListBox listBox)
             {
-                if (IsThemeableBackground(listBox.Background))
+                if (listBox.Background is SolidColorBrush listBg)
                 {
-                    AnimateBrushProperty(listBox, Control.BackgroundProperty, cardBg, duration, easing);
+                    var color = listBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        listBox.Background = new SolidColorBrush(cardBg);
+                    }
                 }
+                listBox.Foreground = new SolidColorBrush(fg);
             }
 
-            // ComboBox
+            // ComboBox - 强制应用前景色
             if (element is ComboBox comboBox)
             {
-                if (IsThemeableForeground(comboBox.Foreground))
-                {
-                    AnimateBrushProperty(comboBox, Control.ForegroundProperty, fg, duration, easing);
-                }
+                comboBox.Foreground = new SolidColorBrush(fg);
             }
 
-            // TextBox
+            // TextBox - 强制应用
             if (element is TextBox textBox)
             {
-                if (IsThemeableBackground(textBox.Background))
+                if (textBox.Background is SolidColorBrush textBg)
                 {
-                    AnimateBrushProperty(textBox, Control.BackgroundProperty, cardBg, duration, easing);
+                    var color = textBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        textBox.Background = new SolidColorBrush(cardBg);
+                    }
                 }
-                if (IsThemeableForeground(textBox.Foreground))
-                {
-                    AnimateBrushProperty(textBox, Control.ForegroundProperty, fg, duration, easing);
-                }
+                textBox.Foreground = new SolidColorBrush(fg);
             }
 
-            // ScrollViewer
+            // ScrollViewer - 透明背景
             if (element is ScrollViewer scrollViewer)
             {
-                if (IsThemeableBackground(scrollViewer.Background))
-                {
-                    AnimateBrushProperty(scrollViewer, Control.BackgroundProperty,
-                        isDark ? Color.FromArgb(0x00, 0x00, 0x00, 0x00) : Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF),
-                        duration, easing);
-                }
+                scrollViewer.Background = new SolidColorBrush(Colors.Transparent);
             }
 
-            // Grid 背景（如果有）
+            // Grid 背景（如果有）- 强制应用
             if (element is Grid grid && grid.Background != null)
             {
-                if (IsThemeableBackground(grid.Background))
+                if (grid.Background is SolidColorBrush gridBg)
                 {
-                    AnimateBrushProperty(grid, Panel.BackgroundProperty, cardBg, duration, easing);
+                    var color = gridBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        grid.Background = new SolidColorBrush(cardBg);
+                    }
                 }
             }
 
-            // StackPanel 背景（如果有）
+            // StackPanel 背景（如果有）- 强制应用
             if (element is StackPanel stackPanel && stackPanel.Background != null)
             {
-                if (IsThemeableBackground(stackPanel.Background))
+                if (stackPanel.Background is SolidColorBrush stackBg)
                 {
-                    AnimateBrushProperty(stackPanel, Panel.BackgroundProperty, cardBg, duration, easing);
+                    var color = stackBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        stackPanel.Background = new SolidColorBrush(cardBg);
+                    }
                 }
             }
 
-            // Rectangle (用于分隔线)
+            // WrapPanel 背景（如果有）- 强制应用
+            if (element is WrapPanel wrapPanel && wrapPanel.Background != null)
+            {
+                if (wrapPanel.Background is SolidColorBrush wrapBg)
+                {
+                    var color = wrapBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        wrapPanel.Background = new SolidColorBrush(cardBg);
+                    }
+                }
+            }
+
+            // Rectangle (用于分隔线) - 保持粉色
             if (element is System.Windows.Shapes.Rectangle rect)
             {
-                if (IsAccentColor(rect.Fill))
-                {
-                    AnimateBrushProperty(rect, System.Windows.Shapes.Shape.FillProperty, accent, duration, easing);
-                }
+                // 粉色分隔线保持不变
             }
 
             // HeaderedContentControl 基类（包括 Expander, GroupBox 等）
-            if (element is HeaderedContentControl headered && !(element is TabItem))
+            if (element is HeaderedContentControl headered && !(element is TabItem) && !(element is Expander) && !(element is GroupBox))
             {
-                if (IsThemeableForeground(headered.Foreground))
-                {
-                    AnimateBrushProperty(headered, Control.ForegroundProperty, fg, duration, easing);
-                }
+                headered.Foreground = new SolidColorBrush(fg);
             }
 
             // Button - 强制应用前景色和背景色
             if (element is Button button)
             {
                 // 前景色
-                AnimateBrushProperty(button, Control.ForegroundProperty, fg, duration, easing);
+                button.Foreground = new SolidColorBrush(fg);
                 // 背景色
-                if (IsThemeableBackground(button.Background))
+                if (button.Background is SolidColorBrush btnBg)
                 {
-                    AnimateBrushProperty(button, Control.BackgroundProperty, cardBg, duration, easing);
+                    var color = btnBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        button.Background = new SolidColorBrush(cardBg);
+                    }
                 }
             }
 
             // ToggleButton (包括 CheckBox 的内部按钮)
             if (element is ToggleButton toggleButton && !(element is CheckBox) && !(element is RadioButton))
             {
-                AnimateBrushProperty(toggleButton, Control.ForegroundProperty, fg, duration, easing);
-                if (IsThemeableBackground(toggleButton.Background))
+                toggleButton.Foreground = new SolidColorBrush(fg);
+                if (toggleButton.Background is SolidColorBrush toggleBg)
                 {
-                    AnimateBrushProperty(toggleButton, Control.BackgroundProperty, cardBg, duration, easing);
+                    var color = toggleBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        toggleButton.Background = new SolidColorBrush(cardBg);
+                    }
                 }
             }
 
             // RepeatButton
             if (element is RepeatButton repeatButton)
             {
-                AnimateBrushProperty(repeatButton, Control.ForegroundProperty, fg, duration, easing);
+                repeatButton.Foreground = new SolidColorBrush(fg);
             }
 
             // 通用 Control 处理 - 捕获其他未处理的控件
@@ -413,17 +477,21 @@ namespace PVZRHTools.Themes
                 !(element is ListBox) &&
                 !(element is DataGrid) &&
                 !(element is ScrollViewer) &&
-                !(element is GroupBox))
+                !(element is GroupBox) &&
+                !(element is ToggleButton) &&
+                !(element is RepeatButton))
             {
                 // 前景色
-                if (IsThemeableForeground(control.Foreground))
-                {
-                    AnimateBrushProperty(control, Control.ForegroundProperty, fg, duration, easing);
-                }
+                control.Foreground = new SolidColorBrush(fg);
                 // 背景色
-                if (IsThemeableBackground(control.Background))
+                if (control.Background is SolidColorBrush ctrlBg)
                 {
-                    AnimateBrushProperty(control, Control.BackgroundProperty, cardBg, duration, easing);
+                    var color = ctrlBg.Color;
+                    if (color.A > 10 && ((color.R > 180 && color.G > 180 && color.B > 180) || 
+                                         (color.R < 100 && color.G < 100 && color.B < 100)))
+                    {
+                        control.Background = new SolidColorBrush(cardBg);
+                    }
                 }
             }
         }
