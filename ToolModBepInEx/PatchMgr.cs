@@ -3025,7 +3025,7 @@ public static class MousePatch
     {
         if (ColumnGlove)
         {
-            if (Board.Instance.boardTag.isColumn)
+            if (Board.Instance.boardTag.isColumn && aa != null)
             {
                 CreatePlant.Instance.SetPlant(aa.thePlantColumn, aa.thePlantRow, aa.thePlantType);
             }
@@ -3845,7 +3845,8 @@ public class PatchMgr : MonoBehaviour
             garlicDayTime = 0;
             _ = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>()).All(b =>
             {
-                b?.TryCast<Zombie>()?.StartCoroutine_Auto(b?.TryCast<Zombie>()?.DeLayGarliced(0.1f, false, false));
+                var zombie = b?.TryCast<Zombie>();
+                zombie?.StartCoroutine_Auto(zombie?.DeLayGarliced(0.1f, false, false));
                 return true;
             });
         }
@@ -3973,7 +3974,7 @@ public class PatchMgr : MonoBehaviour
         {
             try
             {
-                foreach (var zombie in Board.Instance.zombieArray)
+                foreach (var zombie in Board.Instance!.zombieArray)
                 {
                     if (zombie == null) continue;
                     
