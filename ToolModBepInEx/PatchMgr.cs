@@ -123,6 +123,23 @@ public static class BoardPatchB
     }
 }
 
+/// <summary>
+/// 禁用游戏内置的 WASD 操控植物功能（当随机升级模式开启时）
+/// </summary>
+[HarmonyPatch(typeof(Board), nameof(Board.ControledPlantUpdate))]
+public static class BoardControledPlantUpdatePatch
+{
+    public static bool Prefix()
+    {
+        // 当随机升级模式开启时，禁用游戏内置的 WASD 操控
+        if (RandomUpgradeMode)
+        {
+            return false; // 跳过原方法
+        }
+        return true; // 执行原方法
+    }
+}
+
 [HarmonyPatch(typeof(Bucket), "Update")]
 public static class BucketPatch
 {
@@ -3834,7 +3851,7 @@ public class PatchMgr : MonoBehaviour
                     if (Board.Instance.controledPlant != null)
                     {
                         // 使用游戏内置的 MoveControlPlant 方法
-                        // index: 0=上, 1=右, 2=下, 3=左
+                        // index: 0=上, 1=左, 2=下, 3=右
                         if (Input.GetKeyDown(KeyCode.UpArrow))
                         {
                             Board.Instance.MoveControlPlant(0);
@@ -3845,11 +3862,11 @@ public class PatchMgr : MonoBehaviour
                         }
                         if (Input.GetKeyDown(KeyCode.LeftArrow))
                         {
-                            Board.Instance.MoveControlPlant(3);
+                            Board.Instance.MoveControlPlant(1);
                         }
                         if (Input.GetKeyDown(KeyCode.RightArrow))
                         {
-                            Board.Instance.MoveControlPlant(1);
+                            Board.Instance.MoveControlPlant(3);
                         }
                     }
                 }
