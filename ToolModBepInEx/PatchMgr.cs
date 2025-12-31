@@ -2276,8 +2276,16 @@ public static class ZombieOnTriggerStay2DTramplePatch
 
 /// <summary>
 /// 僵尸状态并存补丁 - Zombie.Warm
-/// 当启用状态并存时，只有在僵尸同时有红温和寒冷状态时才阻止Warm方法
-/// 这样可以保护并存状态，同时允许正常的冻结解除
+/// 当启用状态并存时，只要僵尸有寒冷/冻结/蒜毒状态就阻止Warm方法
+/// 这样可以保护这些状态不被火焰效果清除
+/// 
+/// 修复说明：
+/// 原版游戏中，SetJalaed()内部会调用Warm()来清除寒冷状态
+/// 之前的逻辑是"只有同时有红温和寒冷状态时才阻止"，但问题是：
+/// 当火爆辣椒爆炸时，SetJalaed()被调用，此时僵尸还没有红温状态，
+/// 所以Warm()会被正常执行，清除寒冷状态，然后才设置红温状态。
+/// 
+/// 修复后的逻辑：只要僵尸有寒冷/冻结/蒜毒状态，就阻止Warm方法执行
 /// </summary>
 [HarmonyPatch(typeof(Zombie), nameof(Zombie.Warm))]
 public static class ZombieWarmPatch
@@ -2291,14 +2299,14 @@ public static class ZombieWarmPatch
         {
             if (__instance == null) return true;
             
-            // 只有当僵尸同时有红温状态和寒冷/冻结状态时才阻止Warm
-            // 这样可以保护并存状态
-            bool hasWarm = __instance.isJalaed || __instance.isEmbered;
+            // 只要僵尸有寒冷/冻结/蒜毒状态，就阻止Warm方法执行
+            // 这样可以保护这些状态不被火焰效果（如火爆辣椒）清除
             bool hasCold = __instance.coldTimer > 0 || __instance.freezeTimer > 0;
+            bool hasPoison = __instance.poisonTimer > 0;
             
-            if (hasWarm && hasCold)
+            if (hasCold || hasPoison)
             {
-                return false; // 阻止原方法执行，保护并存状态
+                return false; // 阻止原方法执行，保护寒冷/蒜毒状态
             }
         }
         catch { }
@@ -2309,7 +2317,8 @@ public static class ZombieWarmPatch
 
 /// <summary>
 /// 僵尸状态并存补丁 - Zombie.Unfreezing
-/// 当启用状态并存时，只有在僵尸同时有红温和冻结状态时才阻止
+/// 当启用状态并存时，只要僵尸有冻结状态就阻止Unfreezing方法
+/// 这样可以保护冻结状态不被火焰效果清除
 /// </summary>
 [HarmonyPatch(typeof(Zombie), nameof(Zombie.Unfreezing))]
 public static class ZombieUnfreezingPatch
@@ -2323,13 +2332,12 @@ public static class ZombieUnfreezingPatch
         {
             if (__instance == null) return true;
             
-            // 只有当僵尸同时有红温状态和冻结状态时才阻止Unfreezing
-            bool hasWarm = __instance.isJalaed || __instance.isEmbered;
+            // 只要僵尸有冻结状态，就阻止Unfreezing方法执行
             bool hasFrozen = __instance.freezeTimer > 0;
             
-            if (hasWarm && hasFrozen)
+            if (hasFrozen)
             {
-                return false; // 阻止原方法执行，保护并存状态
+                return false; // 阻止原方法执行，保护冻结状态
             }
         }
         catch { }
