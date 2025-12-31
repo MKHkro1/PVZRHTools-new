@@ -128,7 +128,7 @@ namespace ToolModBepInEx
                     alm.theSeedType = (int)GameAPP.resourcesManager.allPlants[i];
                     alm.InitNameAndInfoFromJson();
                     var item =
-                        $"{(int)GameAPP.resourcesManager.allPlants[i]} : {alm.plantName.GetComponent<TextMeshPro>().text}";
+                        $"{alm.plantName.GetComponent<TextMeshPro>().text} ({(int)GameAPP.resourcesManager.allPlants[i]})";
                     MLogger.LogInfo($"Dumping Plant String: {item}");
                     plants.Add((int)GameAPP.resourcesManager.allPlants[i], item);
                     HealthPlants.Add(GameAPP.resourcesManager.allPlants[i], -1);
@@ -180,7 +180,7 @@ namespace ToolModBepInEx
                     if (!string.IsNullOrEmpty(almz.zombieName.GetComponent<TextMeshPro>().text))
                     {
                         var item =
-                            $"{(int)GameAPP.resourcesManager.allZombieTypes[i]} : {almz.zombieName.GetComponent<TextMeshPro>().text}";
+                            $"{almz.zombieName.GetComponent<TextMeshPro>().text} ({(int)GameAPP.resourcesManager.allZombieTypes[i]})";
                         MLogger.LogInfo($"Dumping Zombie String: {item}");
                         zombies.Add((int)GameAPP.resourcesManager.allZombieTypes[i], item);
                         almz.zombieName.GetComponent<TextMeshPro>().text = "";
@@ -188,7 +188,7 @@ namespace ToolModBepInEx
                 }
 
                 Object.Destroy(gameObject2);
-                //zombies.Add(54, "54 : 试验假人僵尸");
+                //zombies.Add(54, "试验假人僵尸 (54)");
 
                 List<string> advBuffs = [];
                 for (var i = 0; i < TravelMgr.advancedBuffs.Count; i++)
@@ -224,7 +224,7 @@ namespace ToolModBepInEx
                     if (GameAPP.resourcesManager.bulletPrefabs[GameAPP.resourcesManager.allBullets[i]] is not null)
                     {
                         var text =
-                            $"{(int)GameAPP.resourcesManager.allBullets[i]} : {GameAPP.resourcesManager.bulletPrefabs[GameAPP.resourcesManager.allBullets[i]].name}";
+                            $"{GameAPP.resourcesManager.bulletPrefabs[GameAPP.resourcesManager.allBullets[i]].name} ({(int)GameAPP.resourcesManager.allBullets[i]})";
                         MLogger.LogInfo($"Dumping Bullet String: {text}");
                         bullets.Add((int)GameAPP.resourcesManager.allBullets[i], text);
                         BulletDamage.Add(GameAPP.resourcesManager.allBullets[i], -1);
