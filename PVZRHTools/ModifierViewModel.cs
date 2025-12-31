@@ -299,6 +299,7 @@ public partial class ModifierViewModel : ObservableObject
         SuperPresent = s.SuperPresent;
         Times = s.Times;
         TopMostSprite = s.TopMostSprite;
+        EnableAnimations = s.EnableAnimations;
         TravelBuffs = [.. s.TravelBuffs];
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
@@ -746,6 +747,7 @@ public partial class ModifierViewModel : ObservableObject
             SuperPresent = SuperPresent,
             Times = Times,
             TopMostSprite = TopMostSprite,
+            EnableAnimations = EnableAnimations,
             TravelBuffs = [.. TravelBuffs],
             UltimateRamdomZombie = UltimateRamdomZombie,
             UltimateSuperGatling = UltimateSuperGatling,
@@ -1812,6 +1814,8 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial double Times { get; set; }
 
     [ObservableProperty] public partial bool TopMostSprite { get; set; }
+
+    [ObservableProperty] public partial bool EnableAnimations { get; set; } = true;
 
     [ObservableProperty] public partial BindingList<TravelBuffVM> TravelBuffs { get; set; }
 

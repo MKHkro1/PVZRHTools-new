@@ -13,11 +13,30 @@ namespace PVZRHTools.Animations
         private static WindowState _previousState = WindowState.Normal;
 
         /// <summary>
+        /// 检查是否启用动画
+        /// </summary>
+        private static bool IsAnimationEnabled(Window window)
+        {
+            if (window.DataContext is ModifierViewModel vm)
+            {
+                return vm.EnableAnimations;
+            }
+            return true; // 默认启用
+        }
+
+        /// <summary>
         /// 窗口启动动画 - macOS/Windows 11 风格
         /// 对窗口内容应用动画而非窗口本身
         /// </summary>
         public static void PlayStartupAnimation(Window window)
         {
+            // 检查是否启用动画
+            if (!IsAnimationEnabled(window))
+            {
+                window.Opacity = 1;
+                return;
+            }
+
             // 获取窗口的根内容
             if (window.Content is not FrameworkElement content)
                 return;
@@ -91,6 +110,10 @@ namespace PVZRHTools.Animations
         /// </summary>
         public static void PlayActivationAnimation(Window window)
         {
+            // 检查是否启用动画
+            if (!IsAnimationEnabled(window))
+                return;
+
             if (window.Content is not FrameworkElement content)
                 return;
 
@@ -150,11 +173,16 @@ namespace PVZRHTools.Animations
             storyboard.Begin();
         }
 
+
         /// <summary>
         /// 窗口关闭动画
         /// </summary>
         public static async Task PlayCloseAnimation(Window window)
         {
+            // 检查是否启用动画
+            if (!IsAnimationEnabled(window))
+                return;
+
             if (window.Content is not FrameworkElement content)
                 return;
 
@@ -216,6 +244,10 @@ namespace PVZRHTools.Animations
 
             window.StateChanged += (s, e) =>
             {
+                // 检查是否启用动画
+                if (!IsAnimationEnabled(window))
+                    return;
+
                 if (window.Content is not FrameworkElement content)
                     return;
 
@@ -253,6 +285,7 @@ namespace PVZRHTools.Animations
                 content.RenderTransformOrigin = new Point(0.5, 0.5);
             }
         }
+
 
         private static void PlayRestoreAnimation(Window window, FrameworkElement content)
         {

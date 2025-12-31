@@ -176,6 +176,8 @@
     <s:String x:Key="Tab4.Clear">Очистить</s:String>
     <s:String x:Key="Tab7.SaveAndResume">Сохранить все настройки, кроме изменения данных и путевых баффов/дебаффов в игре</s:String>
     <s:String x:Key="Tab7.TopMostSprite">Спрайт, двойной клик для фиксации модификатора поверх окон</s:String>
+    <s:String x:Key="Tab7.EnableAnimations">Включить анимации модификатора</s:String>
+    <s:String x:Key="Tab7.EnableAnimations.Tooltip">Включить или отключить анимации окна модификатора (запуск, активация, закрытие и т.д.)</s:String>
     <s:String x:Key="Tab7.License">Лицензия и ссылки</s:String>
     <s:String x:Key="Tab5.Description1">Не устанавливайте одиночные горячие клавиши. Некоторые настройки требуют доступных данных. Все привязки клавиш здесь недействительны в любом другом приложении.</s:String>
     <s:String x:Key="Tab5.Description2">Чтобы привязать горячую клавишу, наведите курсор на поле, затем нажмите клавишу, которую хотите привязать.</s:String>

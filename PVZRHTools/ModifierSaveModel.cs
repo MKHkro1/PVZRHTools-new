@@ -78,6 +78,7 @@ public struct ModifierSaveModel
     public bool SuperPresent { get; set; }
     public double Times { get; set; }
     public bool TopMostSprite { get; set; }
+    public bool EnableAnimations { get; set; }
     public List<TravelBuffVM> TravelBuffs { get; set; }
     public bool UltimateRamdomZombie { get; set; }
     public bool UltimateSuperGatling { get; set; }

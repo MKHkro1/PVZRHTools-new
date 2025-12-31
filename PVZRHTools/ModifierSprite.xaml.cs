@@ -17,6 +17,18 @@ public partial class ModifierSprite : SimplePanel
         InitializeComponent();
     }
 
+    /// <summary>
+    /// 检查是否启用动画
+    /// </summary>
+    private bool IsAnimationEnabled()
+    {
+        if (MainWindow.Instance?.DataContext is ModifierViewModel vm)
+        {
+            return vm.EnableAnimations;
+        }
+        return true; // 默认启用
+    }
+
     private void ContentControl_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         MainWindow.Instance!.Topmost = true;
@@ -28,6 +40,10 @@ public partial class ModifierSprite : SimplePanel
 
     private void ContentControl_MouseEnter(object sender, MouseEventArgs e)
     {
+        // 检查是否启用动画
+        if (!IsAnimationEnabled())
+            return;
+
         // 放大动画
         var scaleXAnim = new DoubleAnimation
         {
@@ -65,6 +81,10 @@ public partial class ModifierSprite : SimplePanel
 
     private void ContentControl_MouseLeave(object sender, MouseEventArgs e)
     {
+        // 检查是否启用动画
+        if (!IsAnimationEnabled())
+            return;
+
         // 缩小动画
         var scaleXAnim = new DoubleAnimation
         {
