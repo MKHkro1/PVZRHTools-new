@@ -59,9 +59,10 @@ public class DataSync
                         if (s.AdvInGame is not null && s.UltiInGame is not null)
                         {
                             Enabled = false;
-                            for (var i = 0; i < s.AdvInGame.Count; i++)
+                            var inGameBuffsCount = MainWindow.Instance!.ViewModel.InGameBuffs.Count;
+                            for (var i = 0; i < s.AdvInGame.Count && i < inGameBuffsCount; i++)
                                 MainWindow.Instance!.ViewModel.InGameBuffs[i].Enabled = s.AdvInGame[i];
-                            for (var i = 0; i < s.UltiInGame.Count; i++)
+                            for (var i = 0; i < s.UltiInGame.Count && i + s.AdvInGame.Count < inGameBuffsCount; i++)
                                 MainWindow.Instance!.ViewModel.InGameBuffs[i + s.AdvInGame.Count].Enabled =
                                     s.UltiInGame[i];
                             Enabled = true;
@@ -70,7 +71,8 @@ public class DataSync
                         if (s.DebuffsInGame is not null)
                         {
                             Enabled = false;
-                            for (var i = 0; i < s.DebuffsInGame.Count; i++)
+                            var inGameDebuffsCount = MainWindow.Instance!.ViewModel.InGameDebuffs.Count;
+                            for (var i = 0; i < s.DebuffsInGame.Count && i < inGameDebuffsCount; i++)
                                 MainWindow.Instance!.ViewModel.InGameDebuffs[i].Enabled = s.DebuffsInGame[i];
 
                             Enabled = true;

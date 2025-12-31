@@ -2086,6 +2086,7 @@ public static class PickaxeZombieImmunityPatch
 /// <summary>
 /// 诅咒免疫补丁 - Board.Update
 /// 定期清除植物的诅咒视觉效果，并设置踩踏免疫属性
+/// 同时处理无限积分功能
 /// </summary>
 [HarmonyPatch(typeof(Board), nameof(Board.Update))]
 public static class BoardUpdateCursePatch
@@ -2096,10 +2097,16 @@ public static class BoardUpdateCursePatch
     private const float _trampleImmunityInterval = 0.1f;
     
     [HarmonyPostfix]
-    public static void Postfix()
+    public static void Postfix(Board __instance)
     {
         try
         {
+            // 处理无限积分
+            if (BuffRefreshNoLimit && __instance != null)
+            {
+                __instance.thePoints = 999999f;
+            }
+            
             // 处理诅咒免疫
             if (CurseImmunity)
             {
