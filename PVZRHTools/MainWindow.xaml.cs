@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using FastHotKeyForWPF;
@@ -14,6 +15,12 @@ using Button = System.Windows.Controls.Button;
 using TabControl = System.Windows.Controls.TabControl;
 using TabItem = System.Windows.Controls.TabItem;
 using Expander = System.Windows.Controls.Expander;
+using CheckBox = System.Windows.Controls.CheckBox;
+using TextBox = System.Windows.Controls.TextBox;
+using ListBox = System.Windows.Controls.ListBox;
+using ListBoxItem = System.Windows.Controls.ListBoxItem;
+using Slider = System.Windows.Controls.Slider;
+using ToolTip = System.Windows.Controls.ToolTip;
 using System.Management;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
@@ -146,6 +153,72 @@ namespace PVZRHTools
                 if (child is Expander expander)
                 {
                     ControlAnimations.AddExpanderAnimation(expander);
+                }
+                
+                // 为 CheckBox 添加切换动画
+                if (child is CheckBox checkBox)
+                {
+                    ControlAnimations.AddCheckBoxAnimation(checkBox);
+                }
+                
+                // 为 ToggleButton 添加切换动画（排除 CheckBox）
+                if (child is ToggleButton toggleButton && child is not CheckBox)
+                {
+                    ControlAnimations.AddToggleButtonAnimation(toggleButton);
+                }
+                
+                // 为 TextBox 添加聚焦动画
+                if (child is TextBox textBox)
+                {
+                    ControlAnimations.AddTextBoxFocusAnimation(textBox);
+                }
+                
+                // 为 ComboBox 添加下拉动画
+                if (child is System.Windows.Controls.ComboBox comboBox)
+                {
+                    ControlAnimations.AddComboBoxAnimation(comboBox);
+                }
+                
+                // 为 Slider 添加滑动动画
+                if (child is Slider slider)
+                {
+                    ControlAnimations.AddSliderAnimation(slider);
+                }
+                
+                // 为 ListBox 的项添加悬停动画
+                if (child is ListBox listBox)
+                {
+                    listBox.Loaded += (s, e) =>
+                    {
+                        foreach (var item in listBox.Items)
+                        {
+                            if (listBox.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem listBoxItem)
+                            {
+                                ControlAnimations.AddListItemHoverAnimation(listBoxItem);
+                            }
+                        }
+                    };
+                }
+                
+                // 为 DataGrid 行添加悬停动画
+                if (child is DataGrid dataGrid)
+                {
+                    dataGrid.LoadingRow += (s, e) =>
+                    {
+                        ControlAnimations.AddDataGridRowAnimation(e.Row);
+                    };
+                }
+                
+                // 为 ContextMenu 添加弹出动画
+                if (child is FrameworkElement fe && fe.ContextMenu != null)
+                {
+                    ControlAnimations.AddContextMenuAnimation(fe.ContextMenu);
+                }
+                
+                // 为 ToolTip 添加淡入动画
+                if (child is FrameworkElement element && element.ToolTip is ToolTip toolTip)
+                {
+                    ControlAnimations.AddToolTipAnimation(toolTip);
                 }
                 
                 // 递归处理子元素

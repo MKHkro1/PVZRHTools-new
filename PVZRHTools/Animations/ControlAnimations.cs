@@ -1,9 +1,11 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Shapes;
 
 namespace PVZRHTools.Animations
 {
@@ -12,6 +14,502 @@ namespace PVZRHTools.Animations
     /// </summary>
     public static class ControlAnimations
     {
+        #region CheckBox/ToggleButton 切换动画
+        
+        /// <summary>
+        /// 为 CheckBox 添加切换动画 - 弹性缩放和颜色过渡
+        /// </summary>
+        public static void AddCheckBoxAnimation(CheckBox checkBox)
+        {
+            checkBox.RenderTransformOrigin = new Point(0.5, 0.5);
+            checkBox.RenderTransform = new ScaleTransform(1, 1);
+
+            checkBox.Checked += (s, e) =>
+            {
+                var scale = (ScaleTransform)checkBox.RenderTransform;
+                // 弹性放大效果
+                var bounceAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(400) };
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.2, KeyTime.FromPercent(0.3), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(0.9, KeyTime.FromPercent(0.6), new CubicEase { EasingMode = EasingMode.EaseInOut }));
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new ElasticEase { EasingMode = EasingMode.EaseOut, Oscillations = 1, Springiness = 8 }));
+                bounceAnim.FillBehavior = FillBehavior.Stop;
+                bounceAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, bounceAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, bounceAnim);
+            };
+
+            checkBox.Unchecked += (s, e) =>
+            {
+                var scale = (ScaleTransform)checkBox.RenderTransform;
+                var shrinkAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(250) };
+                shrinkAnim.KeyFrames.Add(new EasingDoubleKeyFrame(0.85, KeyTime.FromPercent(0.4), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                shrinkAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                shrinkAnim.FillBehavior = FillBehavior.Stop;
+                shrinkAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrinkAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrinkAnim);
+            };
+
+            // 悬停效果
+            checkBox.MouseEnter += (s, e) =>
+            {
+                var scale = (ScaleTransform)checkBox.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(1.05, 150));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.05, 150));
+            };
+
+            checkBox.MouseLeave += (s, e) =>
+            {
+                var scale = (ScaleTransform)checkBox.RenderTransform;
+                var animX = CreateQuickAnimation(1, 150);
+                var animY = CreateQuickAnimation(1, 150);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            };
+        }
+
+        /// <summary>
+        /// 为 ToggleButton 添加切换动画
+        /// </summary>
+        public static void AddToggleButtonAnimation(ToggleButton toggleButton)
+        {
+            toggleButton.RenderTransformOrigin = new Point(0.5, 0.5);
+            toggleButton.RenderTransform = new ScaleTransform(1, 1);
+
+            toggleButton.Checked += (s, e) =>
+            {
+                var scale = (ScaleTransform)toggleButton.RenderTransform;
+                var bounceAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(350) };
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.15, KeyTime.FromPercent(0.35), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new ElasticEase { EasingMode = EasingMode.EaseOut, Oscillations = 1, Springiness = 6 }));
+                bounceAnim.FillBehavior = FillBehavior.Stop;
+                bounceAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, bounceAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, bounceAnim);
+            };
+
+            toggleButton.Unchecked += (s, e) =>
+            {
+                var scale = (ScaleTransform)toggleButton.RenderTransform;
+                var shrinkAnim = CreateQuickAnimation(1, 200);
+                shrinkAnim.From = 0.9;
+                shrinkAnim.FillBehavior = FillBehavior.Stop;
+                shrinkAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrinkAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrinkAnim);
+            };
+        }
+
+        #endregion
+
+        #region TextBox 聚焦动画
+
+        /// <summary>
+        /// 为 TextBox 添加聚焦动画 - 边框发光、轻微放大
+        /// </summary>
+        public static void AddTextBoxFocusAnimation(TextBox textBox)
+        {
+            textBox.RenderTransformOrigin = new Point(0.5, 0.5);
+            textBox.RenderTransform = new ScaleTransform(1, 1);
+            
+            // 添加发光效果
+            var glowEffect = new DropShadowEffect
+            {
+                Color = Color.FromRgb(255, 105, 180),
+                BlurRadius = 0,
+                ShadowDepth = 0,
+                Opacity = 0
+            };
+            textBox.Effect = glowEffect;
+
+            textBox.GotFocus += (s, e) =>
+            {
+                var scale = (ScaleTransform)textBox.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(1.02, 200));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.02, 200));
+                
+                glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, CreateQuickAnimation(12, 250));
+                glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, CreateQuickAnimation(0.6, 250));
+            };
+
+            textBox.LostFocus += (s, e) =>
+            {
+                var scale = (ScaleTransform)textBox.RenderTransform;
+                var animX = CreateQuickAnimation(1, 200);
+                var animY = CreateQuickAnimation(1, 200);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+                
+                var blurAnim = CreateQuickAnimation(0, 200);
+                var opacityAnim = CreateQuickAnimation(0, 200);
+                blurAnim.FillBehavior = FillBehavior.Stop;
+                opacityAnim.FillBehavior = FillBehavior.Stop;
+                blurAnim.Completed += (_, _) => glowEffect.BlurRadius = 0;
+                opacityAnim.Completed += (_, _) => glowEffect.Opacity = 0;
+                glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blurAnim);
+                glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, opacityAnim);
+            };
+        }
+
+        #endregion
+
+        #region 数值变化脉冲动画
+
+        /// <summary>
+        /// 播放数值变化脉冲动画
+        /// </summary>
+        public static void PlayValueChangePulse(FrameworkElement element)
+        {
+            element.RenderTransformOrigin = new Point(0.5, 0.5);
+            if (element.RenderTransform is not ScaleTransform)
+                element.RenderTransform = new ScaleTransform(1, 1);
+
+            var scale = (ScaleTransform)element.RenderTransform;
+            
+            var pulseAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(300) };
+            pulseAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.08, KeyTime.FromPercent(0.3), new CubicEase { EasingMode = EasingMode.EaseOut }));
+            pulseAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+            pulseAnim.FillBehavior = FillBehavior.Stop;
+            pulseAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+            
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, pulseAnim);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, pulseAnim);
+
+            // 背景闪烁效果
+            if (element is Control control)
+            {
+                var originalBg = control.Background;
+                var flashBrush = new SolidColorBrush(Color.FromArgb(80, 255, 105, 180));
+                control.Background = flashBrush;
+                
+                var colorAnim = new ColorAnimation
+                {
+                    From = Color.FromArgb(80, 255, 105, 180),
+                    To = Colors.Transparent,
+                    Duration = TimeSpan.FromMilliseconds(400),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                colorAnim.Completed += (_, _) => control.Background = originalBg;
+                flashBrush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnim);
+            }
+        }
+
+        #endregion
+
+        #region 列表项悬停动画
+
+        /// <summary>
+        /// 为 ListBoxItem 添加悬停滑入高亮动画
+        /// </summary>
+        public static void AddListItemHoverAnimation(ListBoxItem item)
+        {
+            item.RenderTransformOrigin = new Point(0, 0.5);
+            var transformGroup = new TransformGroup();
+            transformGroup.Children.Add(new ScaleTransform(1, 1));
+            transformGroup.Children.Add(new TranslateTransform(0, 0));
+            item.RenderTransform = transformGroup;
+
+            item.MouseEnter += (s, e) =>
+            {
+                var scale = (ScaleTransform)((TransformGroup)item.RenderTransform).Children[0];
+                var translate = (TranslateTransform)((TransformGroup)item.RenderTransform).Children[1];
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(1.02, 150));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.02, 150));
+                translate.BeginAnimation(TranslateTransform.XProperty, CreateQuickAnimation(4, 150));
+            };
+
+            item.MouseLeave += (s, e) =>
+            {
+                var scale = (ScaleTransform)((TransformGroup)item.RenderTransform).Children[0];
+                var translate = (TranslateTransform)((TransformGroup)item.RenderTransform).Children[1];
+                
+                var animScaleX = CreateQuickAnimation(1, 150);
+                var animScaleY = CreateQuickAnimation(1, 150);
+                var animTransX = CreateQuickAnimation(0, 150);
+                animScaleX.FillBehavior = FillBehavior.Stop;
+                animScaleY.FillBehavior = FillBehavior.Stop;
+                animTransX.FillBehavior = FillBehavior.Stop;
+                animScaleX.Completed += (_, _) => scale.ScaleX = 1;
+                animScaleY.Completed += (_, _) => scale.ScaleY = 1;
+                animTransX.Completed += (_, _) => translate.X = 0;
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animScaleX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animScaleY);
+                translate.BeginAnimation(TranslateTransform.XProperty, animTransX);
+            };
+        }
+
+        /// <summary>
+        /// 为 DataGrid 行添加悬停动画
+        /// </summary>
+        public static void AddDataGridRowAnimation(DataGridRow row)
+        {
+            row.RenderTransformOrigin = new Point(0.5, 0.5);
+            row.RenderTransform = new ScaleTransform(1, 1);
+
+            row.MouseEnter += (s, e) =>
+            {
+                var scale = (ScaleTransform)row.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateQuickAnimation(1.005, 150));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.01, 150));
+            };
+
+            row.MouseLeave += (s, e) =>
+            {
+                var scale = (ScaleTransform)row.RenderTransform;
+                var animX = CreateQuickAnimation(1, 150);
+                var animY = CreateQuickAnimation(1, 150);
+                animX.FillBehavior = FillBehavior.Stop;
+                animY.FillBehavior = FillBehavior.Stop;
+                animX.Completed += (_, _) => scale.ScaleX = 1;
+                animY.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            };
+        }
+
+        #endregion
+
+        #region 右键菜单弹出动画
+
+        /// <summary>
+        /// 为 ContextMenu 添加弹出动画
+        /// </summary>
+        public static void AddContextMenuAnimation(ContextMenu menu)
+        {
+            menu.RenderTransformOrigin = new Point(0, 0);
+            var transformGroup = new TransformGroup();
+            transformGroup.Children.Add(new ScaleTransform(0.8, 0.8));
+            transformGroup.Children.Add(new TranslateTransform(0, -10));
+            menu.RenderTransform = transformGroup;
+            menu.Opacity = 0;
+
+            menu.Opened += (s, e) =>
+            {
+                var scale = (ScaleTransform)((TransformGroup)menu.RenderTransform).Children[0];
+                var translate = (TranslateTransform)((TransformGroup)menu.RenderTransform).Children[1];
+
+                var fadeIn = CreateQuickAnimation(1, 200);
+                var scaleXAnim = CreateSpringAnimation(1, 300);
+                var scaleYAnim = CreateSpringAnimation(1, 300);
+                var translateAnim = CreateQuickAnimation(0, 250);
+
+                menu.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleXAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleYAnim);
+                translate.BeginAnimation(TranslateTransform.YProperty, translateAnim);
+            };
+
+            menu.Closed += (s, e) =>
+            {
+                // 重置状态
+                var scale = (ScaleTransform)((TransformGroup)menu.RenderTransform).Children[0];
+                var translate = (TranslateTransform)((TransformGroup)menu.RenderTransform).Children[1];
+                scale.ScaleX = 0.8;
+                scale.ScaleY = 0.8;
+                translate.Y = -10;
+                menu.Opacity = 0;
+            };
+        }
+
+        #endregion
+
+        #region Tooltip 淡入动画
+
+        /// <summary>
+        /// 为 ToolTip 添加淡入缩放动画
+        /// </summary>
+        public static void AddToolTipAnimation(ToolTip toolTip)
+        {
+            toolTip.RenderTransformOrigin = new Point(0.5, 1);
+            toolTip.RenderTransform = new ScaleTransform(0.9, 0.9);
+            toolTip.Opacity = 0;
+
+            toolTip.Opened += (s, e) =>
+            {
+                var scale = (ScaleTransform)toolTip.RenderTransform;
+                
+                var fadeIn = CreateQuickAnimation(1, 200);
+                var scaleAnim = CreateQuickAnimation(1, 250);
+                
+                toolTip.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+            };
+
+            toolTip.Closed += (s, e) =>
+            {
+                var scale = (ScaleTransform)toolTip.RenderTransform;
+                scale.ScaleX = 0.9;
+                scale.ScaleY = 0.9;
+                toolTip.Opacity = 0;
+            };
+        }
+
+        #endregion
+
+        #region 加载状态脉冲动画
+
+        /// <summary>
+        /// 播放呼吸灯脉冲动画（用于加载状态）
+        /// </summary>
+        public static Storyboard CreatePulseAnimation(FrameworkElement element)
+        {
+            element.RenderTransformOrigin = new Point(0.5, 0.5);
+            element.RenderTransform = new ScaleTransform(1, 1);
+
+            var storyboard = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+
+            var scaleXAnim = new DoubleAnimation
+            {
+                From = 1,
+                To = 1.05,
+                Duration = TimeSpan.FromMilliseconds(800),
+                AutoReverse = true,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            Storyboard.SetTarget(scaleXAnim, element);
+            Storyboard.SetTargetProperty(scaleXAnim, new PropertyPath("RenderTransform.ScaleX"));
+
+            var scaleYAnim = new DoubleAnimation
+            {
+                From = 1,
+                To = 1.05,
+                Duration = TimeSpan.FromMilliseconds(800),
+                AutoReverse = true,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            Storyboard.SetTarget(scaleYAnim, element);
+            Storyboard.SetTargetProperty(scaleYAnim, new PropertyPath("RenderTransform.ScaleY"));
+
+            var opacityAnim = new DoubleAnimation
+            {
+                From = 1,
+                To = 0.7,
+                Duration = TimeSpan.FromMilliseconds(800),
+                AutoReverse = true,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            Storyboard.SetTarget(opacityAnim, element);
+            Storyboard.SetTargetProperty(opacityAnim, new PropertyPath(UIElement.OpacityProperty));
+
+            storyboard.Children.Add(scaleXAnim);
+            storyboard.Children.Add(scaleYAnim);
+            storyboard.Children.Add(opacityAnim);
+
+            return storyboard;
+        }
+
+        /// <summary>
+        /// 停止脉冲动画并恢复原状
+        /// </summary>
+        public static void StopPulseAnimation(FrameworkElement element, Storyboard storyboard)
+        {
+            storyboard.Stop();
+            element.Opacity = 1;
+            if (element.RenderTransform is ScaleTransform scale)
+            {
+                scale.ScaleX = 1;
+                scale.ScaleY = 1;
+            }
+        }
+
+        #endregion
+
+        #region ComboBox 下拉动画
+
+        /// <summary>
+        /// 为 ComboBox 添加下拉动画
+        /// </summary>
+        public static void AddComboBoxAnimation(System.Windows.Controls.ComboBox comboBox)
+        {
+            comboBox.RenderTransformOrigin = new Point(0.5, 0.5);
+            comboBox.RenderTransform = new ScaleTransform(1, 1);
+
+            comboBox.DropDownOpened += (s, e) =>
+            {
+                var scale = (ScaleTransform)comboBox.RenderTransform;
+                var bounceAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(300) };
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.03, KeyTime.FromPercent(0.4), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                bounceAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                bounceAnim.FillBehavior = FillBehavior.Stop;
+                bounceAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, bounceAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, bounceAnim);
+            };
+
+            comboBox.DropDownClosed += (s, e) =>
+            {
+                var scale = (ScaleTransform)comboBox.RenderTransform;
+                var shrinkAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(200) };
+                shrinkAnim.KeyFrames.Add(new EasingDoubleKeyFrame(0.98, KeyTime.FromPercent(0.3), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                shrinkAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                shrinkAnim.FillBehavior = FillBehavior.Stop;
+                shrinkAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrinkAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrinkAnim);
+            };
+        }
+
+        #endregion
+
+        #region Slider 滑动动画
+
+        /// <summary>
+        /// 为 Slider 添加滑动动画
+        /// </summary>
+        public static void AddSliderAnimation(Slider slider)
+        {
+            slider.RenderTransformOrigin = new Point(0.5, 0.5);
+            slider.RenderTransform = new ScaleTransform(1, 1);
+
+            slider.ValueChanged += (s, e) =>
+            {
+                var scale = (ScaleTransform)slider.RenderTransform;
+                var pulseAnim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(200) };
+                pulseAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.02, KeyTime.FromPercent(0.5), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                pulseAnim.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseOut }));
+                pulseAnim.FillBehavior = FillBehavior.Stop;
+                pulseAnim.Completed += (_, _) => { scale.ScaleX = 1; scale.ScaleY = 1; };
+                
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, pulseAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, pulseAnim);
+            };
+
+            slider.MouseEnter += (s, e) =>
+            {
+                var scale = (ScaleTransform)slider.RenderTransform;
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateQuickAnimation(1.1, 150));
+            };
+
+            slider.MouseLeave += (s, e) =>
+            {
+                var scale = (ScaleTransform)slider.RenderTransform;
+                var anim = CreateQuickAnimation(1, 150);
+                anim.FillBehavior = FillBehavior.Stop;
+                anim.Completed += (_, _) => scale.ScaleY = 1;
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
+            };
+        }
+
+        #endregion
+
+        #region 原有动画方法
         /// <summary>
         /// 为按钮添加点击缩放动画
         /// </summary>
@@ -462,5 +960,7 @@ namespace PVZRHTools.Animations
                 }
             };
         }
+
+        #endregion
     }
 }
