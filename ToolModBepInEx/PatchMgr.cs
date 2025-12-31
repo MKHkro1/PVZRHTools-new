@@ -3807,18 +3807,21 @@ public class PatchMgr : MonoBehaviour
                         int column = Mouse.Instance.theMouseColumn;
                         int row = Mouse.Instance.theMouseRow;
                         
-                        var plants = Lawnf.Get1x1Plants(column, row);
-                        if (plants != null && plants.Count > 0)
+                        // 先检查是否点击了当前操控的植物（根据植物当前位置）
+                        var controled = Board.Instance.controledPlant;
+                        if (controled != null && controled.thePlantColumn == column && controled.thePlantRow == row)
                         {
-                            var plant = plants[0];
-                            if (plant != null)
+                            // 点击当前操控的植物，停止操控
+                            Board.Instance.controledPlant = null;
+                        }
+                        else
+                        {
+                            // 检查点击位置是否有其他植物
+                            var plants = Lawnf.Get1x1Plants(column, row);
+                            if (plants != null && plants.Count > 0)
                             {
-                                // 如果点击的是当前操控的植物，则停止操控
-                                if (Board.Instance.controledPlant == plant)
-                                {
-                                    Board.Instance.controledPlant = null;
-                                }
-                                else
+                                var plant = plants[0];
+                                if (plant != null)
                                 {
                                     // 设置为操控植物
                                     Board.Instance.controledPlant = plant;
@@ -3827,20 +3830,27 @@ public class PatchMgr : MonoBehaviour
                         }
                     }
                     
-                    // 方向键移动操控的植物
+                    // 方向键移动操控的植物（使用游戏内置方法）
                     if (Board.Instance.controledPlant != null)
                     {
-                        var plant = Board.Instance.controledPlant;
-                        float moveSpeed = 3f * Time.deltaTime * 100f;
-                        
-                        if (Input.GetKey(KeyCode.UpArrow))
-                            plant.transform.position += new Vector3(0, moveSpeed, 0);
-                        if (Input.GetKey(KeyCode.DownArrow))
-                            plant.transform.position -= new Vector3(0, moveSpeed, 0);
-                        if (Input.GetKey(KeyCode.LeftArrow))
-                            plant.transform.position -= new Vector3(moveSpeed, 0, 0);
-                        if (Input.GetKey(KeyCode.RightArrow))
-                            plant.transform.position += new Vector3(moveSpeed, 0, 0);
+                        // 使用游戏内置的 MoveControlPlant 方法
+                        // index: 0=上, 1=右, 2=下, 3=左
+                        if (Input.GetKeyDown(KeyCode.UpArrow))
+                        {
+                            Board.Instance.MoveControlPlant(0);
+                        }
+                        if (Input.GetKeyDown(KeyCode.DownArrow))
+                        {
+                            Board.Instance.MoveControlPlant(2);
+                        }
+                        if (Input.GetKeyDown(KeyCode.LeftArrow))
+                        {
+                            Board.Instance.MoveControlPlant(3);
+                        }
+                        if (Input.GetKeyDown(KeyCode.RightArrow))
+                        {
+                            Board.Instance.MoveControlPlant(1);
+                        }
                     }
                 }
             }
