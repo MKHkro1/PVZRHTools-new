@@ -211,7 +211,8 @@
                                               ItemsSource="{Binding Plants2}" SelectedValue="{Binding PlantType}"
                                               Style="{DynamicResource ComboBoxExtend}" Width="150"
                                               HorizontalAlignment="Left" VerticalContentAlignment="Center"
-                                              Margin="-34,0,0,0" VerticalAlignment="Center" Height="30" />
+                                              Margin="-34,0,0,0" VerticalAlignment="Center" Height="30"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     <Button x:Name="CreateCard" Content="{DynamicResource Tab2.Page1.CreateCard}"
                                             Width="122" Command="{Binding CreateCardCommand}" Height="30" />
                                     <Button x:Name="SimplePresents"
@@ -228,7 +229,8 @@
                                         <ComboBox x:Name="ZombieType" HorizontalAlignment="Left" Height="30"
                                                   VerticalAlignment="Center" Width="150" SelectedValuePath="Key"
                                                   DisplayMemberPath="Value" ItemsSource="{Binding Zombies}"
-                                                  SelectedValue="{Binding ZombieType}" />
+                                                  SelectedValue="{Binding ZombieType}"
+                                                  IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     </hc:ElementGroup>
                                     <CheckBox x:Name="IsMindCtrl" Content="{DynamicResource Tab2.Page1.IsMindCtrl}"
                                               Height="30" Foreground="#FF333333" BorderThickness="2,2,2,2"
@@ -253,7 +255,8 @@
                                         <ComboBox x:Name="ItemType" HorizontalAlignment="Left" Height="30"
                                                   VerticalAlignment="Top" Width="150" SelectedValuePath="Key"
                                                   DisplayMemberPath="Value" SelectedValue="{Binding ItemType}"
-                                                  ItemsSource="{Binding Items, Mode=OneWay}" />
+                                                  ItemsSource="{Binding Items, Mode=OneWay}"
+                                                  IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
 
                                     </hc:ElementGroup>
                                     <hc:ButtonGroup Height="30" Width="auto" Margin="10,0,0,0"
@@ -386,7 +389,8 @@
                                                       local:SelectedItemsExt.SelectedItems="{Binding ConveyBeltTypes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       ItemsSource="{Binding Plants2}" HorizontalAlignment="Left"
                                                       Width="644" SelectedValuePath="Key" DisplayMemberPath="Value"
-                                                      IsSynchronizedWithCurrentItem="True" Margin="10,0,0,0" />
+                                                      IsSynchronizedWithCurrentItem="True" Margin="10,0,0,0"
+                                                      IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
@@ -420,7 +424,8 @@
                                               HorizontalAlignment="Left" Height="26" Margin="10,36,0,0" Width="217"
                                               SelectedValuePath="Key" DisplayMemberPath="Value"
                                               ItemsSource="{Binding Plants}" Style="{DynamicResource ComboBoxExtend}"
-                                              VerticalAlignment="Top" />
+                                              VerticalAlignment="Top"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                 </Grid>
                             </Expander>
                             <Expander Header="{DynamicResource Tab1.Page3.Header}"
@@ -436,7 +441,8 @@
                                               VerticalAlignment="Top" Width="236" SelectedValuePath="Key"
                                               DisplayMemberPath="Value" ItemsSource="{Binding Zombies, Mode=OneWay}"
                                               SelectedValue="{Binding HealthZombieType}"
-                                              Style="{DynamicResource ComboBoxExtend}" />
+                                              Style="{DynamicResource ComboBoxExtend}"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     <ComboBox hc:TitleElement.TitlePlacement="Left"
                                               hc:TitleElement.Title="{DynamicResource Tab1.Page3.1stArmorHP}"
                                               hc:TitleElement.TitleWidth="115" x:Name="Health1stType"
@@ -444,7 +450,8 @@
                                               VerticalAlignment="Top" Width="236" SelectedValuePath="Key"
                                               DisplayMemberPath="Value" ItemsSource="{Binding FirstArmor, Mode=OneWay}"
                                               SelectedValue="{Binding Health1stType}"
-                                              Style="{DynamicResource ComboBoxExtend}" />
+                                              Style="{DynamicResource ComboBoxExtend}"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     <ComboBox hc:TitleElement.TitlePlacement="Left"
                                               hc:TitleElement.Title="{DynamicResource Tab1.Page3.2ndArmorHP}"
                                               hc:TitleElement.TitleWidth="115" x:Name="Health2ndType"
@@ -453,7 +460,8 @@
                                               DisplayMemberPath="Value"
                                               ItemsSource="{Binding SecondArmor, Mode=OneWay}"
                                               SelectedValue="{Binding Health2ndType}"
-                                              Style="{DynamicResource ComboBoxExtend}" />
+                                              Style="{DynamicResource ComboBoxExtend}"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     <ComboBox hc:TitleElement.TitlePlacement="Left"
                                               hc:TitleElement.Title="{DynamicResource Tab1.Page3.BulletDamage}"
                                               hc:TitleElement.TitleWidth="115" x:Name="bulletDamageType"
@@ -461,7 +469,8 @@
                                               VerticalAlignment="Top" Width="236" SelectedValuePath="Key"
                                               DisplayMemberPath="Value" ItemsSource="{Binding Bullets, Mode=OneWay}"
                                               SelectedValue="{Binding BulletDamageType}"
-                                              Style="{DynamicResource ComboBoxExtend}" />
+                                              Style="{DynamicResource ComboBoxExtend}"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     <hc:NumericUpDown DecimalPlaces="0" x:Name="HealthZombieValue"
                                                       HorizontalAlignment="Left" Margin="251,32,0,0"
                                                       VerticalAlignment="Top" Width="60" Height="20"
@@ -498,7 +507,8 @@
                                               VerticalAlignment="Top" Width="236" SelectedValuePath="Key"
                                               DisplayMemberPath="Value" SelectedValue="{Binding LockBulletType}"
                                               ItemsSource="{Binding Bullets2, Mode=OneWay}"
-                                              Style="{DynamicResource ComboBoxExtend}" />
+                                              Style="{DynamicResource ComboBoxExtend}"
+                                              IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     <Button x:Name="lockBulletButton" Content="{DynamicResource Modify}" Height="30"
                                             Margin="251,157,0,0" VerticalAlignment="Top" Width="134"
                                             Command="{Binding LockBulletCommand}" HorizontalAlignment="Left"
@@ -661,7 +671,8 @@
                                                   SelectedValuePath="Key" DisplayMemberPath="Value"
                                                   ItemsSource="{Binding Plants}"
                                                   Style="{DynamicResource ComboBoxExtend}"
-                                                  SelectionChanged="LockWheatPlant_SelectionChanged" />
+                                                  SelectionChanged="LockWheatPlant_SelectionChanged"
+                                                  IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Expander>
@@ -875,7 +886,8 @@
                                     hc:TitleElement.Title="{DynamicResource Tab2.Page3.ZombieSeaTypes}"
                                     hc:TitleElement.TitleWidth="80" Style="{DynamicResource CheckComboBoxExtend}"
                                     ItemsSource="{Binding Zombies}" SelectedValuePath="Key" DisplayMemberPath="Value"
-                                    Width="361" HorizontalAlignment="Left" IsSynchronizedWithCurrentItem="True" />
+                                    Width="361" HorizontalAlignment="Left" IsSynchronizedWithCurrentItem="True"
+                                    IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                                 <Button x:Name="SetZombieIdle" Content="{DynamicResource Tab2.SetZombieIdle}"
                                         Height="30" Command="{Binding SetZombieIdleCommand}" HorizontalAlignment="Left"
                                         Margin="0,0,0,0" VerticalAlignment="Top" />
@@ -1133,7 +1145,8 @@
                                                  Height="24"
                                                  SelectedValuePath="Key" DisplayMemberPath="Value"
                                                  ItemsSource="{Binding Plants}"
-                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,10,370,347" />
+                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,10,370,347"
+                                                 IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                             <ComboBox SelectedValue="{Binding LockPresent2}"
                                                  hc:TitleElement.TitlePlacement="Left"
                                                  hc:TitleElement.VerticalAlignment="Top"
@@ -1142,7 +1155,8 @@
                                                  Height="24"
                                                  SelectedValuePath="Key" DisplayMemberPath="Value"
                                                  ItemsSource="{Binding Plants}"
-                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,43,370,314" />
+                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,43,370,314"
+                                                 IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                             <ComboBox SelectedValue="{Binding LockPresent3}"
                                                  hc:TitleElement.TitlePlacement="Left"
                                                  hc:TitleElement.VerticalAlignment="Top"
@@ -1151,7 +1165,8 @@
                                                  Height="24"
                                                  SelectedValuePath="Key" DisplayMemberPath="Value"
                                                  ItemsSource="{Binding Plants}"
-                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,76,370,281" />
+                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,76,370,281"
+                                                 IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                             <ComboBox SelectedValue="{Binding LockPresent4}"
                                                  hc:TitleElement.TitlePlacement="Left"
                                                  hc:TitleElement.VerticalAlignment="Top"
@@ -1160,7 +1175,8 @@
                                                  Height="24"
                                                  SelectedValuePath="Key" DisplayMemberPath="Value"
                                                  ItemsSource="{Binding Plants}"
-                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,109,370,248" />
+                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,109,370,248"
+                                                 IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
                             <ComboBox SelectedValue="{Binding LockPresent5}"
                                                  hc:TitleElement.TitlePlacement="Left"
                                                  hc:TitleElement.VerticalAlignment="Top"
@@ -1169,7 +1185,8 @@
                                                  Height="24"
                                                  SelectedValuePath="Key" DisplayMemberPath="Value"
                                                  ItemsSource="{Binding Plants}"
-                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,142,370,215" />
+                                                 Style="{DynamicResource ComboBoxExtend}" Margin="10,142,370,215"
+                                                 IsTextSearchEnabled="True" TextSearch.TextPath="Value" />
 
                             <Button x:Name="PvE" Content="一键放置五植物+一钻盲僵+四黄金盲僵尸+一巨盲盒僵（Ctrl+A）"
                                             HorizontalAlignment="Left" Height="30" Width="383"
