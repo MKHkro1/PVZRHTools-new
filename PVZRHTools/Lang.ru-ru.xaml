@@ -115,6 +115,10 @@
     <s:String x:Key="Tab1.Page6.DevLour.Tooltip">Squalour в режиме разработчика. Создание слишком большого количества растений может вызвать баги. Эта настройка только для развлечения.</s:String>
     <s:String x:Key="Tab1.Page7.UnlimitedCardSlots">Безлимитные карты</s:String>
     <s:String x:Key="Tab1.Page7.UnlimitedCardSlots.Tooltip">При включении можно выбрать неограниченное количество карт без ограничения слотов</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetGargantuar">Призвать мини-гаргантюа</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetGargantuar.Tooltip">Призвать мини обсидианового гаргантюа в позиции мыши</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetFootball">Призвать мини-футболиста</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetFootball.Tooltip">Призвать мини чёрного оливкового генерала в позиции мыши</s:String>
     <s:String x:Key="Tab2.Page1.Header">Создание</s:String>
     <s:String x:Key="Tab2.Page1.Description">0 => вся Колонка/Строка</s:String>
     <s:String x:Key="Tab2.Page1.Row">Строка</s:String>

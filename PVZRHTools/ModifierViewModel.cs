@@ -387,6 +387,18 @@ public partial class ModifierViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void SpawnPetGargantuar()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetGargantuar = true });
+    }
+
+    [RelayCommand]
+    public void SpawnPetFootball()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetFootball = true });
+    }
+
+    [RelayCommand]
     public void BulletDamage()
     {
         App.DataSync.Value.SendData(new ValueProperties

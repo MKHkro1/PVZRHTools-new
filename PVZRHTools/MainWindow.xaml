@@ -761,6 +761,14 @@
                                                   VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0"
                                                   ToolTip="{DynamicResource Tab1.Page7.UnlimitedCardSlots.Tooltip}" />
+                                        <Button Content="{DynamicResource Tab1.Page7.SpawnPetGargantuar}" Height="21"
+                                                Command="{Binding SpawnPetGargantuarCommand}"
+                                                ToolTip="{DynamicResource Tab1.Page7.SpawnPetGargantuar.Tooltip}"
+                                                HorizontalAlignment="Left" Margin="0,0,10,0" Padding="8,0" />
+                                        <Button Content="{DynamicResource Tab1.Page7.SpawnPetFootball}" Height="21"
+                                                Command="{Binding SpawnPetFootballCommand}"
+                                                ToolTip="{DynamicResource Tab1.Page7.SpawnPetFootball.Tooltip}"
+                                                HorizontalAlignment="Left" Margin="0,0,10,0" Padding="8,0" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Expander>

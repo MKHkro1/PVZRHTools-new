@@ -183,6 +183,16 @@ public struct InGameActions : ISyncData
     public int? ZombieType { get; set; }
     public bool? ZombieVase { get; set; }
     public bool? RandomVase { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你黑曜石巨人
+    /// </summary>
+    public bool? SpawnPetGargantuar { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你黑橄榄将军
+    /// </summary>
+    public bool? SpawnPetFootball { get; set; }
 }
 
 public struct InGameHotkeys : ISyncData

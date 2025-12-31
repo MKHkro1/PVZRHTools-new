@@ -1333,6 +1333,20 @@ all");
                 CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
                 CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
             }
+
+            // 召唤迷你黑曜石巨人
+            if (iga.SpawnPetGargantuar == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetGargantuar);
+            }
+
+            // 召唤迷你黑橄榄将军
+            if (iga.SpawnPetFootball == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetFootball);
+            }
         }
 
         if (data is GameModes ga)

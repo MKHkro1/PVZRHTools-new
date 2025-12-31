@@ -122,6 +122,10 @@
     <s:String x:Key="Tab1.Page7.ColumnGlove">手套动一排</s:String>
     <s:String x:Key="Tab1.Page7.UnlimitedCardSlots">卡片无限制</s:String>
     <s:String x:Key="Tab1.Page7.UnlimitedCardSlots.Tooltip">启用后可以选择无限数量的卡片，不受卡槽数量限制</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetGargantuar">召唤迷你黑曜石巨人</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetGargantuar.Tooltip">在鼠标位置召唤一个迷你黑曜石巨人宠物</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetFootball">召唤迷你黑橄榄将军</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetFootball.Tooltip">在鼠标位置召唤一个迷你黑橄榄将军宠物</s:String>
     <s:String x:Key="Tab2.Page1.Header">布阵</s:String>
     <s:String x:Key="Tab2.Page1.Description">行、列号设为0表示整行/整列</s:String>
     <s:String x:Key="Tab2.Page1.Row">行：</s:String>
