@@ -1039,7 +1039,6 @@ public static class UnlimitedCardLevelLimPatch
 /// <summary>
 /// 卡片无限制补丁 - CardUI.OnMouseDown
 /// 当点击选取卡片时，复制一张新卡片
-/// 参考GoldImitater.BepInEx的实现方式
 /// </summary>
 [HarmonyPatch(typeof(CardUI), nameof(CardUI.OnMouseDown))]
 public static class UnlimitedCardOnMouseDownPatch
@@ -4980,6 +4979,131 @@ public class PatchMgr : MonoBehaviour
     public static bool StarUpBuff { get; set; } = false;
 
     /// <summary>
+    /// 给植物上星辉buff的辅助方法
+    /// </summary>
+    /// <param name="plant">目标植物</param>
+    /// <returns>是否成功上星辉</returns>
+    private static bool ApplyStarUpBuff(Plant plant)
+    {
+        if (plant == null)
+        {
+            MLogger?.LogWarning("[PVZRHTools] 植物为 null，无法上星辉buff");
+            return false;
+        }
+
+        try
+        {
+            // 先调用 StarUp()，然后设置属性，最后更新图标
+            var starUpMethod = typeof(Plant).GetMethod("StarUp", 
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            
+            // 尝试作为属性访问
+            var starUpProperty = typeof(Plant).GetProperty("starUp", 
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            
+            // 如果属性不存在，尝试作为字段访问
+            var starUpField = typeof(Plant).GetField("starUp", 
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            
+            var updateStarIconMethod = typeof(Plant).GetMethod("UpdateStarIcon", 
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            // 步骤1：调用 StarUp 方法（如果存在）
+            if (starUpMethod != null)
+            {
+                try
+                {
+                    starUpMethod.Invoke(plant, null);
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogWarning($"[PVZRHTools] 调用 StarUp() 方法时出错: {ex.Message}");
+                }
+            }
+
+            // 步骤2：设置 starUp 属性或字段为 true
+            bool setSuccess = false;
+            if (starUpProperty != null)
+            {
+                try
+                {
+                    starUpProperty.SetValue(plant, true);
+                    setSuccess = true;
+                    MLogger?.LogInfo("[PVZRHTools] 通过属性设置 starUp = true");
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogWarning($"[PVZRHTools] 通过属性设置 starUp 时出错: {ex.Message}");
+                }
+            }
+            else if (starUpField != null)
+            {
+                try
+                {
+                    starUpField.SetValue(plant, true);
+                    setSuccess = true;
+                    MLogger?.LogInfo("[PVZRHTools] 通过字段设置 starUp = true");
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogWarning($"[PVZRHTools] 通过字段设置 starUp 时出错: {ex.Message}");
+                }
+            }
+            else
+            {
+                MLogger?.LogError("[PVZRHTools] 无法找到 Plant.starUp 属性或字段");
+                return false;
+            }
+
+            if (!setSuccess)
+            {
+                MLogger?.LogError("[PVZRHTools] 设置 starUp 失败");
+                return false;
+            }
+            
+            // 步骤3：调用 UpdateStarIcon 更新UI显示
+            if (updateStarIconMethod != null)
+            {
+                try
+                {
+                    updateStarIconMethod.Invoke(plant, null);
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogWarning($"[PVZRHTools] 调用 UpdateStarIcon() 方法时出错: {ex.Message}");
+                }
+            }
+            
+            // 验证是否设置成功
+            bool starUpValue = false;
+            if (starUpProperty != null)
+            {
+                starUpValue = (bool)(starUpProperty.GetValue(plant) ?? false);
+            }
+            else if (starUpField != null)
+            {
+                starUpValue = (bool)(starUpField.GetValue(plant) ?? false);
+            }
+            
+            if (starUpValue)
+            {
+                MLogger?.LogInfo($"[PVZRHTools] 成功给植物 {plant.thePlantType} 上星辉buff（starUp={starUpValue}）");
+                return true;
+            }
+            else
+            {
+                MLogger?.LogWarning($"[PVZRHTools] 设置 starUp 后验证失败，值仍为 false");
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            MLogger?.LogError($"[PVZRHTools] 给植物上星辉buff时发生错误: {ex.Message}\n{ex.StackTrace}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 随机升级模式 - 点击植物操控(WASD移动)
     /// </summary>
     public static bool RandomUpgradeMode { get; set; } = false;
@@ -5237,17 +5361,8 @@ public class PatchMgr : MonoBehaviour
                             var plant = plants[0];
                             if (plant != null && !plant.isCrashed && plant.thePlantHealth > 0)
                             {
-                                // 尝试给植物上星辉buff
-                                try
-                                {
-                                    // 直接调用 Plant.StarUp 方法
-                                    plant.StarUp();
-                                    MLogger?.LogInfo($"[PVZRHTools] 已尝试给植物 {plant.thePlantType} 上星辉buff");
-                                }
-                                catch (System.Exception ex)
-                                {
-                                    MLogger?.LogWarning($"[PVZRHTools] 给植物上星辉buff时发生错误: {ex.Message}");
-                                }
+                                // 使用辅助方法给植物上星辉buff
+                                ApplyStarUpBuff(plant);
                             }
                         }
                     }
@@ -6108,7 +6223,6 @@ public class PatchMgr : MonoBehaviour
 
     /// <summary>
     /// 统一获取 TravelMgr（兼容多种场景）
-    /// 参考 HeiTa 和 SuperGoldPresent 的处理方式
     /// </summary>
     /// <param name="autoCreate">是否在找不到时自动创建 TravelMgr（仅在需要修改词条时使用）</param>
     internal static TravelMgr? ResolveTravelMgr(bool autoCreate = false)
