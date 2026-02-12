@@ -6308,6 +6308,26 @@ public class PatchMgr : MonoBehaviour
                             }
                         }
                     }
+
+                    // 同步投资词条（InvestBuff）：3.4.1 中通过 TravelMgr.GetInvestBuff 解锁/应用
+                    if (InGameInvestBuffs != null && InGameInvestBuffs.Length > 0)
+                    {
+                        for (int i = 0; i < InGameInvestBuffs.Length; i++)
+                        {
+                            if (!InGameInvestBuffs[i]) continue;
+
+                            var invest = (InvestBuff)i;
+                            try
+                            {
+                                travelMgr.GetInvestBuff(invest);
+                                MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 解锁投资词条 {invest} (index={i})");
+                            }
+                            catch (System.Exception ex)
+                            {
+                                MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 调用 GetInvestBuff({invest}) 失败: {ex.Message}");
+                            }
+                        }
+                    }
                 }
                 catch (System.Exception ex)
                 {
