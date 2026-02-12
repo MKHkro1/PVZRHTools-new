@@ -319,12 +319,32 @@ public class DataProcessor : MonoBehaviour
         {
             if (s.AdvTravelBuff is not null) AdvBuffs = [.. s.AdvTravelBuff];
             if (s.UltiTravelBuff is not null) PatchMgr.UltiBuffs = [.. s.UltiTravelBuff];
+            if (s.InvestTravelBuff is not null) PatchMgr.InvestBuffs = [.. s.InvestTravelBuff];
             if (s.Debuffs is not null) Debuffs = [.. s.Debuffs];
             if (InGame())
             {
-                if (s.AdvInGame is not null) InGameAdvBuffs = [.. s.AdvInGame];
-                if (s.UltiInGame is not null) InGameUltiBuffs = [.. s.UltiInGame];
-                if (s.DebuffsInGame is not null) InGameDebuffs = [.. s.DebuffsInGame];
+                // 优先使用专门的 InGame 字段；如果为空，则回退使用 TravelBuff 同步当前局内状态，
+                // 以保持“解锁词条”在游戏中立即生效的体验。
+                if (s.AdvInGame is not null)
+                    InGameAdvBuffs = [.. s.AdvInGame];
+                else if (s.AdvTravelBuff is not null)
+                    InGameAdvBuffs = [.. s.AdvTravelBuff];
+
+                if (s.UltiInGame is not null)
+                    InGameUltiBuffs = [.. s.UltiInGame];
+                else if (s.UltiTravelBuff is not null)
+                    InGameUltiBuffs = [.. s.UltiTravelBuff];
+
+                if (s.DebuffsInGame is not null)
+                    InGameDebuffs = [.. s.DebuffsInGame];
+                else if (s.Debuffs is not null)
+                    InGameDebuffs = [.. s.Debuffs];
+
+                if (s.InvestInGame is not null)
+                    InGameInvestBuffs = [.. s.InvestInGame];
+                else if (s.InvestTravelBuff is not null)
+                    InGameInvestBuffs = [.. s.InvestTravelBuff];
+
                 UpdateInGameBuffs();
             }
 

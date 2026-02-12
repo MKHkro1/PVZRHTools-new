@@ -157,27 +157,41 @@ public partial class ModifierViewModel : ObservableObject
         // 如果 InitData 还没有加载，先初始化空列表，等待 ReloadBuffsFromInitData 被调用
         if (App.InitData != null)
         {
-        var bi = 0;
-        foreach (var b in App.InitData.Value.AdvBuffs)
-        {
-            TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
-            InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
-            bi++;
-        }
+            var bi = 0;
+            // 高级词条
+            foreach (var b in App.InitData.Value.AdvBuffs)
+            {
+                TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
+                InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                bi++;
+            }
 
-        foreach (var b in App.InitData.Value.UltiBuffs)
-        {
-            TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
-            InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
-            bi++;
-        }
+            // 究极词条
+            foreach (var b in App.InitData.Value.UltiBuffs)
+            {
+                TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
+                InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                bi++;
+            }
 
-        var di = 0;
-        foreach (var d in App.InitData.Value.Debuffs)
-        {
-            Debuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
-            InGameDebuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
-            di++;
+            // 投资词条：作为“植物类词条”的一部分，加入与高级/究极同一分区
+            if (App.InitData.Value.InvestBuffs is not null)
+            {
+                foreach (var b in App.InitData.Value.InvestBuffs)
+                {
+                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
+                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                    bi++;
+                }
+            }
+
+            // 负面词条单独分区
+            var di = 0;
+            foreach (var d in App.InitData.Value.Debuffs)
+            {
+                Debuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
+                InGameDebuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
+                di++;
             }
         }
 
@@ -871,12 +885,21 @@ public partial class ModifierViewModel : ObservableObject
         if (!NeedSave) return;
         List<bool> adv = [];
         List<bool> ulti = [];
+        List<bool> invest = [];
         List<bool> deb = [];
+        int advLen = App.InitData!.Value.AdvBuffs?.Length ?? 0;
+        int ultiLen = App.InitData.Value.UltiBuffs?.Length ?? 0;
+
         foreach (var buff in TravelBuffs)
-            if (buff.TravelBuff.Index < App.InitData!.Value.AdvBuffs.Length)
+        {
+            int idx = buff.TravelBuff.Index;
+            if (idx < advLen)
                 adv.Add(buff.TravelBuff.Enabled);
-            else
+            else if (idx < advLen + ultiLen)
                 ulti.Add(buff.TravelBuff.Enabled);
+            else
+                invest.Add(buff.TravelBuff.Enabled);
+        }
 
         foreach (var d in Debuffs) deb.Add(d.TravelBuff.Enabled);
 
@@ -939,7 +962,8 @@ public partial class ModifierViewModel : ObservableObject
             {
                 AdvTravelBuff = adv,
                 UltiTravelBuff = ulti,
-                Debuffs = deb
+                Debuffs = deb,
+                InvestTravelBuff = invest.Count > 0 ? invest : null
             },
             ValueProperties = new ValueProperties { LockBulletType = LockBulletType },
             GameModes = new GameModes
@@ -957,12 +981,21 @@ public partial class ModifierViewModel : ObservableObject
     {
         List<bool> adv = [];
         List<bool> ulti = [];
+        List<bool> invest = [];
         List<bool> deb = [];
+        int advLen2 = App.InitData!.Value.AdvBuffs?.Length ?? 0;
+        int ultiLen2 = App.InitData.Value.UltiBuffs?.Length ?? 0;
+
         foreach (var buff in InGameBuffs)
-            if (buff.TravelBuff.Index < App.InitData!.Value.AdvBuffs.Length)
+        {
+            int idx = buff.TravelBuff.Index;
+            if (idx < advLen2)
                 adv.Add(buff.TravelBuff.Enabled);
-            else
+            else if (idx < advLen2 + ultiLen2)
                 ulti.Add(buff.TravelBuff.Enabled);
+            else
+                invest.Add(buff.TravelBuff.Enabled);
+        }
 
         foreach (var d in InGameDebuffs) deb.Add(d.TravelBuff.Enabled);
 
@@ -970,7 +1003,8 @@ public partial class ModifierViewModel : ObservableObject
         {
             AdvInGame = adv,
             UltiInGame = ulti,
-            DebuffsInGame = deb
+            DebuffsInGame = deb,
+            InvestInGame = invest.Count > 0 ? invest : null
         });
     }
 
@@ -1002,12 +1036,21 @@ public partial class ModifierViewModel : ObservableObject
     {
         List<bool> adv = [];
         List<bool> ulti = [];
+        List<bool> invest = [];
         List<bool> deb = [];
+        int advLen3 = App.InitData!.Value.AdvBuffs?.Length ?? 0;
+        int ultiLen3 = App.InitData.Value.UltiBuffs?.Length ?? 0;
+
         foreach (var buff in TravelBuffs)
-            if (buff.TravelBuff.Index < App.InitData!.Value.AdvBuffs.Length)
+        {
+            int idx = buff.TravelBuff.Index;
+            if (idx < advLen3)
                 adv.Add(buff.TravelBuff.Enabled);
-            else
+            else if (idx < advLen3 + ultiLen3)
                 ulti.Add(buff.TravelBuff.Enabled);
+            else
+                invest.Add(buff.TravelBuff.Enabled);
+        }
 
         foreach (var d in Debuffs) deb.Add(d.TravelBuff.Enabled);
 
@@ -1015,7 +1058,8 @@ public partial class ModifierViewModel : ObservableObject
         {
             AdvTravelBuff = adv,
             UltiTravelBuff = ulti,
-            Debuffs = deb
+            Debuffs = deb,
+            InvestTravelBuff = invest.Count > 0 ? invest : null
         });
     }
 
@@ -2185,7 +2229,7 @@ public partial class ModifierViewModel : ObservableObject
 
         try
         {
-            System.Diagnostics.Debug.WriteLine($"ReloadBuffsFromInitData: 开始重新加载 - AdvBuffs={App.InitData.Value.AdvBuffs?.Length ?? 0}, UltiBuffs={App.InitData.Value.UltiBuffs?.Length ?? 0}, Debuffs={App.InitData.Value.Debuffs?.Length ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"ReloadBuffsFromInitData: 开始重新加载 - AdvBuffs={App.InitData.Value.AdvBuffs?.Length ?? 0}, UltiBuffs={App.InitData.Value.UltiBuffs?.Length ?? 0}, InvestBuffs={App.InitData.Value.InvestBuffs?.Length ?? 0}, Debuffs={App.InitData.Value.Debuffs?.Length ?? 0}");
             
             NeedSync = false;
 
@@ -2210,6 +2254,17 @@ public partial class ModifierViewModel : ObservableObject
                 TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
                 InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
                 bi++;
+            }
+
+            // 重新加载 Invest Buffs（投资词条）
+            if (App.InitData.Value.InvestBuffs is not null)
+            {
+                foreach (var b in App.InitData.Value.InvestBuffs)
+                {
+                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
+                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                    bi++;
+                }
             }
 
             // 重新加载Debuffs

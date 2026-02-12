@@ -466,34 +466,45 @@ public static class BoardFlagWaveBuffPatch
             switch (buffType)
             {
                 case PatchMgr.BuffType.Advanced:
-                    // 高级词条：0..advancedCount-1（对应 advancedUpgrades[ID]）
-                    // 再次验证：如果编码ID在1000-1999范围内，绝对不能应用为Advanced
+                    // 高级词条：0..advancedCount-1，对应 AdvBuff 枚举
+                    // 再次验证：如果编码ID在1000-1999范围内，绝对不能应用为 Advanced
                     if (encodedBuffId >= 1000 && encodedBuffId < 2000)
                     {
                         MLogger?.LogError($"[PVZRHTools] 严重错误: 尝试将编码ID={encodedBuffId} (应该是Ultimate) 应用为Advanced词条！直接返回，不处理！");
                         return null; // 直接返回，防止错误应用
                     }
-                    
-                    if (travelMgr.advancedUpgrades != null &&
-                        originalId >= 0 && originalId < travelMgr.advancedUpgrades.Count)
+
+                    if (originalId >= 0)
                     {
-                        travelMgr.advancedUpgrades[originalId] = true;
-                        TravelMgr.advancedBuffs?.TryGetValue(originalId, out buffName);
-                        
-                        // 关键修复：同时更新 InGameAdvBuffs 数组，确保一致性
+                        // 3.4.1：通过 TravelMgr.GetNormalBuff / Lawnf.TravelAdvanced 应用高级词条，而不是直接操作 advancedUpgrades 数组
+                        try
+                        {
+                            travelMgr.GetNormalBuff((AdvBuff)originalId);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] 调用 GetNormalBuff 失败: id={originalId}, ex={ex.Message}");
+                        }
+
+                        if (TravelDictionary.advancedBuffsText != null)
+                        {
+                            TravelDictionary.advancedBuffsText.TryGetValue((AdvBuff)originalId, out buffName);
+                        }
+
+                        // 同步本地 InGameAdvBuffs 状态
                         if (InGameAdvBuffs != null && originalId < InGameAdvBuffs.Length)
                         {
                             InGameAdvBuffs[originalId] = true;
                             MLogger?.LogInfo($"[PVZRHTools] 已同步更新 InGameAdvBuffs[{originalId}] = true");
                         }
-                        
+
                         MLogger?.LogInfo($"[PVZRHTools] 旗帜波解锁高级词条 ID={originalId} (编码ID={encodedBuffId})");
                         applied = true;
                     }
                     break;
                     
                 case PatchMgr.BuffType.Ultimate:
-                    // 究极词条：originalId 是数组索引（参考 HeiTa 的实现）
+                    // 究极词条：originalId 是 UltiBuff 枚举值
                     // 编码时：U46 -> 1000 + 46 = 1046
                     // 解码后：originalId = 46，应该使用 46 作为 ultimateUpgrades[46] 的索引
                     // 参考 HeiTa: travel.ultimateUpgrades[choice.index] = 1; TravelMgr.ultimateBuffs[choice.index]
@@ -509,18 +520,22 @@ public static class BoardFlagWaveBuffPatch
                         buffType = PatchMgr.BuffType.Ultimate; // 强制修正
                     }
                     
-                    MLogger?.LogInfo($"[PVZRHTools] 开始应用Ultimate词条: encodedBuffId={encodedBuffId}, originalId={originalId} (数组索引), ultimateUpgrades.Count={travelMgr.ultimateUpgrades?.Count ?? 0}");
+                    MLogger?.LogInfo($"[PVZRHTools] 开始应用Ultimate词条: encodedBuffId={encodedBuffId}, originalId={originalId} (枚举值)");
                     
-                    if (travelMgr.ultimateUpgrades != null &&
-                        originalId >= 0 && originalId < travelMgr.ultimateUpgrades.Count)
+                    if (originalId >= 0)
                     {
-                        // 参考 HeiTa 的实现：直接使用数组索引
-                        // 这是最关键的一步：使用 originalId 作为数组索引
-                        travelMgr.ultimateUpgrades[originalId] = 1;
-                        MLogger?.LogInfo($"[PVZRHTools] 已设置 ultimateUpgrades[{originalId}] = 1");
+                        // 3.4.1：通过 TravelMgr.GetUltiBuff 应用究极词条，而不是直接操作 ultimateUpgrades 数组
+                        try
+                        {
+                            travelMgr.GetUltiBuff((UltiBuff)originalId, true);
+                            MLogger?.LogInfo($"[PVZRHTools] 已调用 GetUltiBuff，id={originalId}");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] 调用 GetUltiBuff 失败: id={originalId}, ex={ex.Message}");
+                        }
                         
-                        // 关键修复：同时更新 InGameUltiBuffs 数组，确保一致性
-                        // 这样即使有其他逻辑从 InGameUltiBuffs 同步回 ultimateUpgrades，也不会覆盖我们的设置
+                        // 同步 InGameUltiBuffs 数组，确保一致性
                         if (InGameUltiBuffs != null && originalId < InGameUltiBuffs.Length)
                         {
                             InGameUltiBuffs[originalId] = true;
@@ -531,35 +546,13 @@ public static class BoardFlagWaveBuffPatch
                             MLogger?.LogWarning($"[PVZRHTools] 无法同步更新 InGameUltiBuffs: originalId={originalId}, InGameUltiBuffs.Length={InGameUltiBuffs?.Length ?? 0}");
                         }
                         
-                        // 参考 HeiTa 的实现：直接使用数组索引作为字典键（假设字典键是连续的）
-                        if (TravelMgr.ultimateBuffs != null)
+                        // 通过 TravelDictionary.ultimateBuffsText 获取词条名称
+                        if (TravelDictionary.ultimateBuffsText != null)
                         {
                             try
                             {
-                                // 直接使用 originalId 作为字典键（参考 HeiTa: TravelMgr.ultimateBuffs[choice.index]）
-                                if (TravelMgr.ultimateBuffs.ContainsKey(originalId))
-                                {
-                                    TravelMgr.ultimateBuffs.TryGetValue(originalId, out buffName);
-                                    MLogger?.LogInfo($"[PVZRHTools] 从字典获取Ultimate词条名称: 字典键={originalId}, 词条名称={buffName ?? "未知"}");
-                                }
-                                else
-                                {
-                                    // 如果字典键不连续，尝试通过排序后的键列表找到对应的键
-                                    var keysList = new List<int>();
-                                    foreach (var key in TravelMgr.ultimateBuffs.Keys)
-                                        keysList.Add(key);
-                                    keysList.Sort();
-                                    if (originalId < keysList.Count)
-                                    {
-                                        var dictKey = keysList[originalId];
-                                        TravelMgr.ultimateBuffs.TryGetValue(dictKey, out buffName);
-                                        MLogger?.LogInfo($"[PVZRHTools] Ultimate词条字典键不连续: 数组索引={originalId}, 字典键={dictKey}, 词条名称={buffName ?? "未知"}");
-                                    }
-                                    else
-                                    {
-                                        MLogger?.LogWarning($"[PVZRHTools] Ultimate词条数组索引={originalId} 超出字典键列表范围 (字典键数量={keysList.Count})");
-                                    }
-                                }
+                                TravelDictionary.ultimateBuffsText.TryGetValue((UltiBuff)originalId, out buffName);
+                                MLogger?.LogInfo($"[PVZRHTools] 从 TravelDictionary 获取Ultimate词条名称: id={originalId}, 词条名称={buffName ?? "未知"}");
                             }
                             catch (System.Exception ex)
                             {
@@ -568,51 +561,32 @@ public static class BoardFlagWaveBuffPatch
                         }
                         else
                         {
-                            MLogger?.LogWarning($"[PVZRHTools] TravelMgr.ultimateBuffs 为 null，无法获取词条名称");
+                            MLogger?.LogWarning("[PVZRHTools] TravelDictionary.ultimateBuffsText 为 null，无法获取词条名称");
                         }
                         
                         MLogger?.LogInfo($"[PVZRHTools] 旗帜波解锁究极词条成功: 数组索引={originalId}, 编码ID={encodedBuffId}, 词条名称={buffName ?? "未知"}");
                         
-                        // 最终验证：确保没有错误地应用到Advanced
-                        if (travelMgr.advancedUpgrades != null && originalId < travelMgr.advancedUpgrades.Count)
-                        {
-                            bool wasAdvancedApplied = travelMgr.advancedUpgrades[originalId];
-                            if (wasAdvancedApplied)
-                            {
-                                MLogger?.LogWarning($"[PVZRHTools] 警告: 检测到 advancedUpgrades[{originalId}] 也被设置为true，这可能是之前的操作导致的");
-                            }
-                        }
-                        
                         applied = true;
-                    }
-                    else
-                    {
-                        MLogger?.LogWarning($"[PVZRHTools] 旗帜波词条应用失败：Ultimate词条 数组索引={originalId} 超出范围 (数组大小={travelMgr.ultimateUpgrades?.Count ?? 0}, 编码ID={encodedBuffId})");
-                        // 即使超出范围，也记录详细信息以便调试
-                        if (travelMgr.ultimateUpgrades == null)
-                        {
-                            MLogger?.LogError($"[PVZRHTools] travelMgr.ultimateUpgrades 为 null！");
-                        }
-                        else if (originalId < 0)
-                        {
-                            MLogger?.LogError($"[PVZRHTools] originalId={originalId} 为负数！");
-                        }
-                        else if (originalId >= travelMgr.ultimateUpgrades.Count)
-                        {
-                            MLogger?.LogError($"[PVZRHTools] originalId={originalId} >= ultimateUpgrades.Count={travelMgr.ultimateUpgrades.Count}，数组越界！");
-                        }
                     }
                     break;
                     
                 case PatchMgr.BuffType.Debuff:
-                    // 负面词条：使用 debuff[ID] (bool数组)
-                    if (travelMgr.debuff != null &&
-                        originalId >= 0 && originalId < travelMgr.debuff.Count)
+                    // 负面词条：通过 TravelMgr.GetDebuff / Lawnf.TravelDebuff 应用
+                    if (originalId >= 0)
                     {
-                        travelMgr.debuff[originalId] = true;
-                        TravelMgr.debuffs?.TryGetValue(originalId, out buffName);
+                        try
+                        {
+                            travelMgr.GetDebuff((TravelDebuff)originalId);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] 调用 GetDebuff 失败: id={originalId}, ex={ex.Message}");
+                        }
+
+                        // 为避免 Debuff 文本中出现异常 Il2Cpp 字符串，旗帜波这里不再直接读取 debuffData.Item1
+                        // 仅使用占位名称，实际效果由 TravelMgr.GetDebuff 和 Lawnf.TravelDebuff 决定
+                        buffName = $"Debuff_{originalId}";
                         
-                        // 关键修复：同时更新 InGameDebuffs 数组，确保一致性
                         if (InGameDebuffs != null && originalId < InGameDebuffs.Length)
                         {
                             InGameDebuffs[originalId] = true;
@@ -696,31 +670,17 @@ public static class BoardFlagWaveBuffPatch
             switch (buffType)
             {
                 case PatchMgr.BuffType.Advanced:
-                    TravelMgr.advancedBuffs?.TryGetValue(originalId, out buffName);
+                    // 3.4.1：高级词条文本改为从 TravelDictionary.advancedBuffsText 读取
+                    if (TravelDictionary.advancedBuffsText != null)
+                        TravelDictionary.advancedBuffsText.TryGetValue((AdvBuff)originalId, out buffName);
                     break;
                 case PatchMgr.BuffType.Ultimate:
-                    if (TravelMgr.ultimateBuffs != null)
-                    {
-                        if (TravelMgr.ultimateBuffs.ContainsKey(originalId))
-                        {
-                            TravelMgr.ultimateBuffs.TryGetValue(originalId, out buffName);
-                        }
-                        else
-                        {
-                            var keysList = new List<int>();
-                            foreach (var key in TravelMgr.ultimateBuffs.Keys)
-                                keysList.Add(key);
-                            keysList.Sort();
-                            if (originalId < keysList.Count)
-                            {
-                                var dictKey = keysList[originalId];
-                                TravelMgr.ultimateBuffs.TryGetValue(dictKey, out buffName);
-                            }
-                        }
-                    }
+                    if (TravelDictionary.ultimateBuffsText != null)
+                        TravelDictionary.ultimateBuffsText.TryGetValue((UltiBuff)originalId, out buffName);
                     break;
                 case PatchMgr.BuffType.Debuff:
-                    TravelMgr.debuffs?.TryGetValue(originalId, out buffName);
+                    // 不再访问 debuffData.Item1，避免潜在的 Il2Cpp 字符串问题
+                    buffName = $"Debuff_{originalId}";
                     break;
             }
             
@@ -773,31 +733,17 @@ public static class BoardFlagWaveBuffPatch
             switch (buffType)
             {
                 case PatchMgr.BuffType.Advanced:
-                    TravelMgr.advancedBuffs?.TryGetValue(originalId, out buffName);
+                    if (TravelDictionary.advancedBuffsText != null)
+                        TravelDictionary.advancedBuffsText.TryGetValue((AdvBuff)originalId, out buffName);
                     break;
                 case PatchMgr.BuffType.Ultimate:
-                    if (TravelMgr.ultimateBuffs != null)
-                    {
-                        if (TravelMgr.ultimateBuffs.ContainsKey(originalId))
-                        {
-                            TravelMgr.ultimateBuffs.TryGetValue(originalId, out buffName);
-                        }
-                        else
-                        {
-                            var keysList = new List<int>();
-                            foreach (var key in TravelMgr.ultimateBuffs.Keys)
-                                keysList.Add(key);
-                            keysList.Sort();
-                            if (originalId < keysList.Count)
-                            {
-                                var dictKey = keysList[originalId];
-                                TravelMgr.ultimateBuffs.TryGetValue(dictKey, out buffName);
-                            }
-                        }
-                    }
+                    if (TravelDictionary.ultimateBuffsText != null)
+                        TravelDictionary.ultimateBuffsText.TryGetValue((UltiBuff)originalId, out buffName);
                     break;
                 case PatchMgr.BuffType.Debuff:
-                    TravelMgr.debuffs?.TryGetValue(originalId, out buffName);
+                    if (TravelDictionary.debuffData != null &&
+                        TravelDictionary.debuffData.TryGetValue((TravelDebuff)originalId, out var debData))
+                        buffName = debData.Item1;
                     break;
             }
             
@@ -1926,11 +1872,13 @@ public static class ZombieExplodeProtectionPatches
 public static class UnlimitedSunlightPatches
 {
     /// <summary>
-    /// 修改GetSun方法 - 移除50000阳光上限限制
+    /// 修改 GetSun 方法 - 移除 50000 阳光上限限制
+    /// 注意：3.4.1 中 Board.GetSun 的签名为 (float count, int r, bool save)，
+    /// 这里必须使用 float 与原方法完全一致，否则会导致 Harmony 生成的 DMD 无效（InvalidProgramException）。
     /// </summary>
     [HarmonyPatch(nameof(Board.GetSun))]
     [HarmonyPrefix]
-    public static bool Prefix_GetSun(Board __instance, int count, int r, bool save)
+    public static bool Prefix_GetSun(Board __instance, float count, int r, bool save)
     {
         if (!UnlimitedSunlight) return true;
 
@@ -1938,7 +1886,10 @@ public static class UnlimitedSunlightPatches
         {
             if (__instance != null)
             {
-                int count_1 = 2 * count;
+                // 原逻辑基于 count 计算新增阳光，这里将 float count 转为 int 使用，
+                // 若需要更精确可改为完全使用 float 参与计算。
+                int intCount = (int)count;
+                int count_1 = 2 * intCount;
                 int count_2 = 4 * count_1;
                 int theSun_1 = r * (count_2 + __instance.theSun);
                 int newSun = (theSun_1 - __instance.theSun) / 10 + 5;
@@ -2044,6 +1995,7 @@ public static class BulletMagnetPatches
 
     /// <summary>
     /// 补丁 Bullet.Die 方法，阻止子弹因时间限制死亡
+    /// 3.4.1 版本中 Bullet 不再公开 theMovingWay 字段，这里仅根据存在时间进行判断。
     /// </summary>
     [HarmonyPrefix]
     [HarmonyPatch(nameof(Bullet.Die))]
@@ -2055,11 +2007,10 @@ public static class BulletMagnetPatches
         {
             if (__instance == null || ShouldExcludeBullet(__instance)) return true;
 
-            // 检查是否是因为时间限制要死亡
-            if (__instance.theExistTime > 20.0f || (__instance.theMovingWay == 3 && __instance.theExistTime > 0.75f))
+            // 检查是否是因为存在时间过长要死亡
+            if (__instance.theExistTime > 20.0f)
             {
-                // 重置状态，阻止死亡
-                __instance.theMovingWay = 10;
+                // 重置存在时间，阻止死亡
                 __instance.theExistTime = 0.0f;
                 return false; // 阻止死亡
             }
@@ -2280,31 +2231,8 @@ public static class InGameTextPatch
             var travelMgr = ResolveTravelMgr(autoCreate: true);
             if (travelMgr == null) return;
             
-            if (travelMgr.advancedUpgrades != null && InGameAdvBuffs != null)
-            {
-                var count = Math.Min(InGameAdvBuffs.Length, travelMgr.advancedUpgrades.Count);
-                for (var i = 0; i < count; i++)
-                    if (InGameAdvBuffs[i] != travelMgr.advancedUpgrades[i])
-                    {
-                        SyncInGameBuffs();
-                        return;
-                    }
-            }
-
-            if (travelMgr.ultimateUpgrades != null && InGameUltiBuffs != null)
-            {
-                var ultiArray = GetBoolArray(travelMgr.ultimateUpgrades);
-                if (ultiArray != null)
-                {
-                    var count = Math.Min(InGameUltiBuffs.Length, ultiArray.Length);
-                    for (var i = 0; i < count; i++)
-                        if (InGameUltiBuffs[i] != ultiArray[i])
-                        {
-                            SyncInGameBuffs();
-                            return;
-                        }
-                }
-            }
+            // 3.4.1：不再依赖 TravelMgr 的内部数组，仅在显示文本后尝试同步一次词条状态
+            SyncInGameBuffs();
         }
         catch (System.Exception ex)
         {
@@ -3925,14 +3853,7 @@ public static class TravelRefreshPatch
     }
 }
 
-[HarmonyPatch(typeof(TravelStore), "RefreshBuff")]
-public static class TravelStorePatch
-{
-    public static void Postfix(TravelStore __instance)
-    {
-        if (UnlimitedRefresh || BuffRefreshNoLimit) __instance.count = 0;
-    }
-}
+// 3.4.1：TravelStore 不再暴露 count 字段，这里仅保留 TravelRefreshPatch 即可实现无限刷新
 
 [HarmonyPatch(typeof(ShootingMenu), nameof(ShootingMenu.Refresh))]
 public static class ShootingMenuPatch
@@ -4767,6 +4688,14 @@ public class PatchMgr : MonoBehaviour
     public static bool[] InGameAdvBuffs { get; set; } = [];
     public static bool[] InGameDebuffs { get; set; } = [];
     public static bool[] InGameUltiBuffs { get; set; } = [];
+    /// <summary>
+    /// 投资词条（InvestBuff）当前配置状态
+    /// </summary>
+    public static bool[] InvestBuffs { get; set; } = [];
+    /// <summary>
+    /// 投资词条在游戏中的实际生效状态
+    /// </summary>
+    public static bool[] InGameInvestBuffs { get; set; } = [];
     
     /// <summary>
     /// 旗帜波词条功能 - 是否启用
@@ -5731,41 +5660,10 @@ public class PatchMgr : MonoBehaviour
         {
             yield return null;
 
-            var advs = travelMgr.advancedUpgrades;
-            if (advs != null && AdvBuffs != null)
-            {
-                // 修复数组越界：确保访问本地数组时不超过其长度
-                var count = Math.Min(advs.Count, AdvBuffs.Length);
-                for (var i = 0; i < count; i++)
-                {
-                    advs[i] = AdvBuffs[i] || advs[i];
-                    yield return null;
-                }
-            }
+            // 3.4.1：不再直接操作 TravelMgr.advancedUpgrades，改为在需要时通过 GetNormalBuff 应用
 
-            var ultis = travelMgr.ultimateUpgrades;
-            if (ultis != null && UltiBuffs != null)
-            {
-                // 修复数组越界：确保访问本地数组时不超过其长度
-                var count = Math.Min(ultis.Count, UltiBuffs.Length);
-                for (var i = 0; i < count; i++)
-                {
-                    ultis[i] = UltiBuffs[i] || ultis[i] is 1 ? 1 : 0;
-                    yield return null;
-                }
-            }
-
-            var deb = travelMgr.debuff;
-            if (deb != null && Debuffs != null)
-            {
-                // 修复数组越界：确保访问本地数组时不超过其长度
-                var count = Math.Min(deb.Count, Debuffs.Length);
-                for (var i = 0; i < count; i++)
-                {
-                    deb[i] = Debuffs[i] || deb[i];
-                    yield return null;
-                }
-            }
+            // 3.4.1：不再直接操作 TravelMgr 内部的 ultimateUpgrades/debuff 数组，
+            // 需要时通过 GetUltiBuff / GetDebuff 接口来应用词条。
             
             // 设置 BoardTag 标志，使游戏识别并应用词条效果
             // 注意：这里只在关卡本身就是旅行关（isTravel 为 true）时，才开启 enableTravelBuff，
@@ -5792,9 +5690,16 @@ public class PatchMgr : MonoBehaviour
             }
         }
 
-        InGameAdvBuffs = new bool[TravelMgr.advancedBuffs.Count];
-        InGameUltiBuffs = new bool[TravelMgr.ultimateBuffs.Count];
-        InGameDebuffs = new bool[TravelMgr.debuffs.Count];
+        // 基于 TravelDictionary 的高级/究极/负面词条数量初始化本地数组
+        int advCount = TravelDictionary.advancedBuffsText?.Count ?? 0;
+        int ultiCount = TravelDictionary.ultimateBuffsText?.Count ?? 0;
+        int debuffCount = TravelDictionary.debuffData?.Count ?? 0;
+        int investCount = TravelMgr.InvestBuffsData?.Count ?? 0;
+
+        InGameAdvBuffs = new bool[advCount];
+        InGameUltiBuffs = new bool[ultiCount];
+        InGameDebuffs = new bool[debuffCount];
+        InGameInvestBuffs = new bool[investCount];
         
         // 重置旗帜波状态检测
         // 注意：同步当前旗帜波状态，避免在 PostInitBoard 创建 TravelMgr 后导致旗帜波检测失效
@@ -5812,30 +5717,29 @@ public class PatchMgr : MonoBehaviour
         
         yield return null;
 
-        // 安全地复制数组，防止越界
-        if (travelMgr.advancedUpgrades != null)
+        // 通过 Lawnf.Travel* 接口同步当前在游戏内生效的词条状态
+        for (int i = 0; i < InGameAdvBuffs.Length; i++)
         {
-            var count = Math.Min(travelMgr.advancedUpgrades.Count, InGameAdvBuffs.Length);
-            for (var i = 0; i < count; i++)
-                InGameAdvBuffs[i] = travelMgr.advancedUpgrades[i];
+            try { InGameAdvBuffs[i] = Lawnf.TravelAdvanced((AdvBuff)i); }
+            catch { InGameAdvBuffs[i] = false; }
         }
-        
-        if (travelMgr.ultimateUpgrades != null)
+
+        for (int i = 0; i < InGameUltiBuffs.Length; i++)
         {
-            var ultiArray = GetBoolArray(travelMgr.ultimateUpgrades);
-            if (ultiArray != null)
-            {
-                var count = Math.Min(ultiArray.Length, InGameUltiBuffs.Length);
-                for (var i = 0; i < count; i++)
-                    InGameUltiBuffs[i] = ultiArray[i];
-            }
+            try { InGameUltiBuffs[i] = Lawnf.TravelUltimate((UltiBuff)i); }
+            catch { InGameUltiBuffs[i] = false; }
         }
-        
-        if (travelMgr.debuff != null)
+
+        for (int i = 0; i < InGameDebuffs.Length; i++)
         {
-            var count = Math.Min(travelMgr.debuff.Count, InGameDebuffs.Length);
-            for (var i = 0; i < count; i++)
-                InGameDebuffs[i] = travelMgr.debuff[i];
+            try { InGameDebuffs[i] = Lawnf.TravelDebuff((TravelDebuff)i); }
+            catch { InGameDebuffs[i] = false; }
+        }
+
+        for (int i = 0; i < InGameInvestBuffs.Length; i++)
+        {
+            try { InGameInvestBuffs[i] = Lawnf.TravelInvest((InvestBuff)i); }
+            catch { InGameInvestBuffs[i] = false; }
         }
         yield return null;
         new Thread(SyncInGameBuffs).Start();
@@ -6006,25 +5910,47 @@ public class PatchMgr : MonoBehaviour
         if (!InGame()) return;
         try
         {
-            // 使用统一的 TravelMgr 获取方法
-            var travelMgr = ResolveTravelMgr(autoCreate: true);
-            if (travelMgr == null)
+            if (InGameAdvBuffs == null || InGameUltiBuffs == null || InGameDebuffs == null || InGameInvestBuffs == null)
             {
-                MLogger?.LogWarning("[PVZRHTools] SyncInGameBuffs: 无法找到 TravelMgr 组件");
+                MLogger?.LogWarning("[PVZRHTools] SyncInGameBuffs: 本地词条缓存未初始化");
                 return;
             }
 
-            if (travelMgr.advancedUpgrades == null || travelMgr.ultimateUpgrades == null || travelMgr.debuff == null)
+            var adv = new bool[InGameAdvBuffs.Length];
+            var ulti = new bool[InGameUltiBuffs.Length];
+            var deb = new bool[InGameDebuffs.Length];
+            var invest = new bool[InGameInvestBuffs.Length];
+
+            for (int i = 0; i < adv.Length; i++)
             {
-                MLogger?.LogWarning("[PVZRHTools] SyncInGameBuffs: TravelMgr 的词条数据未初始化");
-                return;
+                try { adv[i] = Lawnf.TravelAdvanced((AdvBuff)i); }
+                catch { adv[i] = false; }
             }
-            
+
+            for (int i = 0; i < ulti.Length; i++)
+            {
+                try { ulti[i] = Lawnf.TravelUltimate((UltiBuff)i); }
+                catch { ulti[i] = false; }
+            }
+
+            for (int i = 0; i < deb.Length; i++)
+            {
+                try { deb[i] = Lawnf.TravelDebuff((TravelDebuff)i); }
+                catch { deb[i] = false; }
+            }
+
+            for (int i = 0; i < invest.Length; i++)
+            {
+                try { invest[i] = Lawnf.TravelInvest((InvestBuff)i); }
+                catch { invest[i] = false; }
+            }
+
             DataSync.Instance.SendData(new SyncTravelBuff
             {
-                AdvInGame = [.. travelMgr.advancedUpgrades],
-                UltiInGame = [.. GetBoolArray(travelMgr.ultimateUpgrades)],
-                DebuffsInGame = [.. travelMgr.debuff]
+                AdvInGame = adv.ToList(),
+                UltiInGame = ulti.ToList(),
+                DebuffsInGame = deb.ToList(),
+                InvestInGame = invest.ToList()
             });
         }
         catch (System.Exception ex)
@@ -6048,27 +5974,29 @@ public class PatchMgr : MonoBehaviour
                 MLogger?.LogWarning("[PVZRHTools] ReloadAndSendBuffsData: 无法找到 TravelMgr 组件");
                 return;
             }
-            if (TravelMgr.advancedBuffs == null || TravelMgr.ultimateBuffs == null || TravelMgr.debuffs == null)
+            if (TravelDictionary.advancedBuffsText == null ||
+                TravelDictionary.ultimateBuffsText == null ||
+                TravelDictionary.debuffData == null)
             {
                 MLogger?.LogWarning("[PVZRHTools] ReloadAndSendBuffsData: 词条数据未初始化");
-                MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: advancedBuffs={TravelMgr.advancedBuffs?.GetType().Name}, ultimateBuffs={TravelMgr.ultimateBuffs?.GetType().Name}, debuffs={TravelMgr.debuffs?.GetType().Name}");
+                MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: advancedBuffsText={TravelDictionary.advancedBuffsText?.GetType().Name}, ultimateBuffsText={TravelDictionary.ultimateBuffsText?.GetType().Name}, debuffData={TravelDictionary.debuffData?.GetType().Name}");
                 return;
             }
-            MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: TravelMgr 已找到，词条数量 - Advanced={TravelMgr.advancedBuffs.Count}, Ultimate={TravelMgr.ultimateBuffs.Count}, Debuff={TravelMgr.debuffs.Count}");
+            MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: TravelDictionary 已找到，词条数量 - Advanced={TravelDictionary.advancedBuffsText.Count}, Ultimate={TravelDictionary.ultimateBuffsText.Count}, Debuff={TravelDictionary.debuffData.Count}");
 
             // 遍历所有键值对以确保捕获所有词条（包括MOD添加的不连续ID词条）
             List<string> advBuffs = [];
             int maxAdvKey = -1;
-            // 先找出最大键值
-            foreach (var kvp in TravelMgr.advancedBuffs)
+            // 先找出最大键值（AdvBuff -> int）
+            foreach (var kvp in TravelDictionary.advancedBuffsText)
             {
-                if (kvp.Key > maxAdvKey) maxAdvKey = kvp.Key;
+                int key = (int)kvp.Key;
+                if (key > maxAdvKey) maxAdvKey = key;
             }
-            // 然后从0到最大键值遍历，使用TryGetValue检查
+            // 然后从 0 到最大键值遍历，使用 TryGetValue 检查
             for (int i = 0; i <= maxAdvKey; i++)
             {
-                string buffText = null;
-                if (TravelMgr.advancedBuffs.TryGetValue(i, out buffText) && !string.IsNullOrEmpty(buffText))
+                if (TravelDictionary.advancedBuffsText.TryGetValue((AdvBuff)i, out var buffText) && !string.IsNullOrEmpty(buffText))
                 {
                     advBuffs.Add($"#{i} {buffText}");
                     MLogger?.LogInfo($"[PVZRHTools] 重新读取高级词条: #{i} {buffText}");
@@ -6077,16 +6005,14 @@ public class PatchMgr : MonoBehaviour
 
             List<string> ultiBuffs = [];
             int maxUltiKey = -1;
-            // 先找出最大键值
-            foreach (var kvp in TravelMgr.ultimateBuffs)
+            foreach (var kvp in TravelDictionary.ultimateBuffsText)
             {
-                if (kvp.Key > maxUltiKey) maxUltiKey = kvp.Key;
+                int key = (int)kvp.Key;
+                if (key > maxUltiKey) maxUltiKey = key;
             }
-            // 然后从0到最大键值遍历，使用TryGetValue检查
             for (int i = 0; i <= maxUltiKey; i++)
             {
-                string buffText = null;
-                if (TravelMgr.ultimateBuffs.TryGetValue(i, out buffText) && !string.IsNullOrEmpty(buffText))
+                if (TravelDictionary.ultimateBuffsText.TryGetValue((UltiBuff)i, out var buffText) && !string.IsNullOrEmpty(buffText))
                 {
                     ultiBuffs.Add($"#{i} {buffText}");
                     MLogger?.LogInfo($"[PVZRHTools] 重新读取究极词条: #{i} {buffText}");
@@ -6095,19 +6021,19 @@ public class PatchMgr : MonoBehaviour
 
             List<string> debuffs = [];
             int maxDebuffKey = -1;
-            // 先找出最大键值
-            foreach (var kvp in TravelMgr.debuffs)
+            foreach (var kvp in TravelDictionary.debuffData)
             {
-                if (kvp.Key > maxDebuffKey) maxDebuffKey = kvp.Key;
+                int key = (int)kvp.Key;
+                if (key > maxDebuffKey) maxDebuffKey = key;
             }
-            // 然后从0到最大键值遍历，使用TryGetValue检查
             for (int i = 0; i <= maxDebuffKey; i++)
             {
-                string buffText = null;
-                if (TravelMgr.debuffs.TryGetValue(i, out buffText) && !string.IsNullOrEmpty(buffText))
+                if (TravelDictionary.debuffData.TryGetValue((TravelDebuff)i, out var _))
                 {
-                    debuffs.Add($"#{i} {buffText}");  // 添加 # 前缀，与 Advanced 和 Ultimate 保持一致
-                    MLogger?.LogInfo($"[PVZRHTools] 重新读取负面词条: #{i} {buffText}");
+                    // 这里使用与 Core.LateInit 相同的占位名称，避免访问 ValueTuple.Item1
+                    var placeholder = $"#{i} Debuff_{i}";
+                    debuffs.Add(placeholder);
+                    MLogger?.LogInfo($"[PVZRHTools] 重新读取负面词条(placeholder): {placeholder}");
                 }
             }
 
@@ -6145,11 +6071,13 @@ public class PatchMgr : MonoBehaviour
 
             // 更新并保存InitData
             // 先读取现有的InitData（保留Plants、Zombies等数据，但不使用旧的词条数据）
-            InitData data = new()
+            InitData initData = new()
             {
-                AdvBuffs = [.. advBuffs],  // 使用最新读取的词条数据
-                UltiBuffs = [.. ultiBuffs],  // 使用最新读取的词条数据
-                Debuffs = [.. debuffs]  // 使用最新读取的词条数据
+                AdvBuffs = [.. advBuffs],   // 使用最新读取的高级词条数据
+                UltiBuffs = [.. ultiBuffs], // 使用最新读取的究极词条数据
+                Debuffs = [.. debuffs],     // 使用最新读取的负面词条数据
+                // InvestBuffs 文本由 Core.LateInit 初次生成并写入，Reload 时如果旧文件中存在则在后面保留
+                InvestBuffs = Array.Empty<string>()
             };
 
             // 读取现有的InitData（仅保留Plants、Zombies、Bullets等非词条数据）
@@ -6164,25 +6092,30 @@ public class PatchMgr : MonoBehaviour
                         // 只保留非词条数据，词条数据使用上面最新读取的
                         if (existingData.Plants != null && existingData.Plants.Count > 0)
                         {
-                            data.Plants = existingData.Plants;
+                            initData.Plants = existingData.Plants;
                         }
                         if (existingData.Zombies != null && existingData.Zombies.Count > 0)
                         {
-                            data.Zombies = existingData.Zombies;
+                            initData.Zombies = existingData.Zombies;
                         }
                         if (existingData.Bullets != null && existingData.Bullets.Count > 0)
                         {
-                            data.Bullets = existingData.Bullets;
+                            initData.Bullets = existingData.Bullets;
                         }
                         if (existingData.FirstArmors != null && existingData.FirstArmors.Count > 0)
                         {
-                            data.FirstArmors = existingData.FirstArmors;
+                            initData.FirstArmors = existingData.FirstArmors;
                         }
                         if (existingData.SecondArmors != null && existingData.SecondArmors.Count > 0)
                         {
-                            data.SecondArmors = existingData.SecondArmors;
+                            initData.SecondArmors = existingData.SecondArmors;
                         }
-                        MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: 从旧文件保留了 Plants={data.Plants?.Count ?? 0}, Zombies={data.Zombies?.Count ?? 0}, Bullets={data.Bullets?.Count ?? 0}");
+                        // 如果旧文件中已经有 InvestBuffs 文本，则保留
+                        if (existingData.InvestBuffs != null && existingData.InvestBuffs.Length > 0)
+                        {
+                            initData.InvestBuffs = existingData.InvestBuffs;
+                        }
+                        MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: 从旧文件保留了 Plants={initData.Plants?.Count ?? 0}, Zombies={initData.Zombies?.Count ?? 0}, Bullets={initData.Bullets?.Count ?? 0}");
                     }
                     catch (System.Exception ex2)
                     {
@@ -6201,13 +6134,13 @@ public class PatchMgr : MonoBehaviour
 
             // 保存更新后的InitData
             Directory.CreateDirectory("./PVZRHTools");
-            File.WriteAllText("./PVZRHTools/InitData.json", System.Text.Json.JsonSerializer.Serialize(data));
+            File.WriteAllText("./PVZRHTools/InitData.json", System.Text.Json.JsonSerializer.Serialize(initData));
 
             // 发送更新后的词条数据给UI
             try
             {
                 MLogger?.LogInfo($"[PVZRHTools] 准备发送词条数据: Advanced={advBuffs.Count}, Ultimate={ultiBuffs.Count}, Debuff={debuffs.Count}");
-                DataSync.Instance.SendData(data);
+                DataSync.Instance.SendData(initData);
                 MLogger?.LogInfo($"[PVZRHTools] 已重新读取并发送词条数据: Advanced={advBuffs.Count}, Ultimate={ultiBuffs.Count}, Debuff={debuffs.Count}");
             }
             catch (System.Exception ex)
@@ -6282,33 +6215,106 @@ public class PatchMgr : MonoBehaviour
                 MLogger?.LogWarning("[PVZRHTools] 无法找到 TravelMgr 组件，可能是游戏未初始化");
                 return;
             }
-            
-            // 修复数组越界问题：确保访问本地数组时不超过其长度
-            if (travelMgr.advancedUpgrades != null && InGameAdvBuffs != null)
+
+            // 3.4.1：TravelMgr 不再公开 advancedUpgrades / ultimateUpgrades / debuff 等字段，
+            // 解锁逻辑参考 HeiTa 的实现：通过 travel.data.* 列表判断是否已解锁，再调用
+            // GetNormalBuff / GetUltiBuff / GetDebuff 进行真正的解锁与应用。
+            var data = travelMgr.data;
+            if (data == null)
             {
-                var count = Math.Min(travelMgr.advancedUpgrades.Count, InGameAdvBuffs.Length);
-                for (var i = 0; i < count; i++)
-                    travelMgr.advancedUpgrades[i] = InGameAdvBuffs[i];
+                MLogger?.LogWarning("[PVZRHTools] UpdateInGameBuffs: travelMgr.data 为空，无法同步词条状态");
             }
-            
-            if (travelMgr.ultimateUpgrades != null && InGameUltiBuffs != null)
+            else
             {
-                var ultiArray = GetIntArray(InGameUltiBuffs);
-                if (ultiArray != null)
+                try
                 {
-                    var count = Math.Min(travelMgr.ultimateUpgrades.Count, ultiArray.Length);
-                    for (var i = 0; i < count; i++)
-                        travelMgr.ultimateUpgrades[i] = ultiArray[i];
+                    // 同步高级词条：根据 InGameAdvBuffs 的状态解锁未解锁的词条
+                    if (InGameAdvBuffs != null && InGameAdvBuffs.Length > 0)
+                    {
+                        for (int i = 0; i < InGameAdvBuffs.Length; i++)
+                        {
+                            if (!InGameAdvBuffs[i]) continue;
+
+                            var adv = (AdvBuff)i;
+                            bool unlocked =
+                                (data.advBuffs != null && data.advBuffs.Contains(adv)) ||
+                                (data.advBuffs_lv2 != null && data.advBuffs_lv2.Contains(adv));
+
+                            if (!unlocked)
+                            {
+                                try
+                                {
+                                    travelMgr.GetNormalBuff(adv);
+                                    MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 解锁高级词条 {adv} (index={i})");
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 调用 GetNormalBuff({adv}) 失败: {ex.Message}");
+                                }
+                            }
+                        }
+                    }
+
+                    // 同步究极词条：根据 InGameUltiBuffs 的状态解锁未解锁的词条
+                    if (InGameUltiBuffs != null && InGameUltiBuffs.Length > 0)
+                    {
+                        for (int i = 0; i < InGameUltiBuffs.Length; i++)
+                        {
+                            if (!InGameUltiBuffs[i]) continue;
+
+                            var ulti = (UltiBuff)i;
+                            bool unlocked =
+                                (data.ultiBuffs != null && data.ultiBuffs.Contains(ulti)) ||
+                                (data.ultiBuffs_lv2 != null && data.ultiBuffs_lv2.Contains(ulti));
+
+                            if (!unlocked)
+                            {
+                                try
+                                {
+                                    // 第二个参数 upgrade = true，表示直接解锁该究极词条
+                                    travelMgr.GetUltiBuff(ulti, true);
+                                    MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 解锁究极词条 {ulti} (index={i})");
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 调用 GetUltiBuff({ulti}, true) 失败: {ex.Message}");
+                                }
+                            }
+                        }
+                    }
+
+                    // 同步负面词条：根据 InGameDebuffs 的状态解锁未解锁的词条
+                    if (InGameDebuffs != null && InGameDebuffs.Length > 0)
+                    {
+                        for (int i = 0; i < InGameDebuffs.Length; i++)
+                        {
+                            if (!InGameDebuffs[i]) continue;
+
+                            var debuff = (TravelDebuff)i;
+                            bool unlocked =
+                                data.travelDebuffs != null && data.travelDebuffs.Contains(debuff);
+
+                            if (!unlocked)
+                            {
+                                try
+                                {
+                                    travelMgr.GetDebuff(debuff);
+                                    MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 解锁负面词条 {debuff} (index={i})");
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 调用 GetDebuff({debuff}) 失败: {ex.Message}");
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] UpdateInGameBuffs: 同步 TravelMgr.data 词条状态时出错: {ex.Message}\n{ex.StackTrace}");
                 }
             }
-            
-            if (travelMgr.debuff != null && InGameDebuffs != null)
-            {
-                var count = Math.Min(travelMgr.debuff.Count, InGameDebuffs.Length);
-                for (var i = 0; i < count; i++)
-                    travelMgr.debuff[i] = InGameDebuffs[i];
-            }
-            
+
             // 关键修复：设置 BoardTag 标志，使游戏识别并应用词条效果
             // 参考 HeiTa 和 SuperGoldPresent 的处理方式
             try
@@ -6355,12 +6361,12 @@ public class PatchMgr : MonoBehaviour
 public static class MNEntryTravelMgrPatch
 {
     /// <summary>
-    /// 词条1(坚不可摧)在TravelMgr.advancedBuffs中的ID，-1表示未注册
+    /// 词条1(坚不可摧)在自定义高级词条中的ID，-1表示未注册
     /// </summary>
     public static int TravelId1 = -1;
 
     /// <summary>
-    /// 词条2(高级后勤)在TravelMgr.advancedBuffs中的ID，-1表示未注册
+    /// 词条2(高级后勤)在自定义高级词条中的ID，-1表示未注册
     /// </summary>
     public static int TravelId2 = -1;
 
@@ -6371,12 +6377,12 @@ public static class MNEntryTravelMgrPatch
     private const string BuffText2 = "高级后勤: 鱼丸恢复血量时恢复双倍血量, 阳光磁力菇冷却时间大幅减少";
 
     /// <summary>
-    /// TravelMgr.Awake 后置补丁
-    /// 在TravelMgr初始化时根据修改器开关状态注册自定义buff词条
+    /// TravelMgr.OnGameStart 后置补丁（3.4.1 中不存在 Awake）
+    /// 在第一次进入关卡时根据修改器开关状态注册自定义 buff 词条文本
     /// </summary>
     [HarmonyPostfix]
-    [HarmonyPatch("Awake")]
-    public static void PostAwake(TravelMgr __instance)
+    [HarmonyPatch(typeof(TravelMgr), "OnGameStart")]
+    public static void PostOnGameStart(TravelMgr __instance)
     {
         try
         {
@@ -6387,34 +6393,23 @@ public static class MNEntryTravelMgrPatch
             // 只有开启时才注册两个词条
             if (!PatchMgr.MNEntryEnabled) return;
 
-            // 检查 TravelMgr.advancedBuffs 是否已初始化
-            if (TravelMgr.advancedBuffs == null)
+            // 检查 TravelDictionary.advancedBuffsText 是否已初始化
+            if (TravelDictionary.advancedBuffsText == null)
             {
-                MLogger.LogError("MNEntry词条注册失败: TravelMgr.advancedBuffs 为 null");
+                MLogger.LogError("MNEntry词条注册失败: TravelDictionary.advancedBuffsText 为 null");
                 return;
             }
 
-            if (__instance.advancedUpgrades == null)
-            {
-                MLogger.LogError("MNEntry词条注册失败: __instance.advancedUpgrades 为 null");
-                return;
-            }
-
-            int baseId = TravelMgr.advancedBuffs.Count;
+            int baseId = TravelDictionary.advancedBuffsText.Count;
 
             // 注册两个词条
             TravelId1 = baseId;
             TravelId2 = baseId + 1;
 
-            // 扩展数组
-            bool[] newUpgrades = new bool[__instance.advancedUpgrades.Count + 2];
-            Array.Copy(__instance.advancedUpgrades.ToArray(), newUpgrades, __instance.advancedUpgrades.Count);
-            __instance.advancedUpgrades = newUpgrades;
-
-            // 注册词条文本（Dictionary 会自动处理键值对）
-            TravelMgr.advancedBuffs[TravelId1] = BuffText1;
-            TravelMgr.advancedBuffs[TravelId2] = BuffText2;
-            MLogger.LogInfo($"MNEntry词条注册成功，ID1: {TravelId1}, ID2: {TravelId2}");
+            // 注册词条文本（TravelDictionary 会自动处理键值对）
+            TravelDictionary.advancedBuffsText[(AdvBuff)TravelId1] = BuffText1;
+            TravelDictionary.advancedBuffsText[(AdvBuff)TravelId2] = BuffText2;
+            MLogger.LogInfo($"MNEntry词条注册成功（仅文本层面），ID1: {TravelId1}, ID2: {TravelId2}");
         }
         catch (Exception ex)
         {
@@ -6422,20 +6417,8 @@ public static class MNEntryTravelMgrPatch
         }
     }
 
-    /// <summary>
-    /// GetPlantTypeByAdvBuff 后置补丁
-    /// 返回词条对应的植物类型，用于在选词条时展示植物图标
-    /// </summary>
-    [HarmonyPatch("GetPlantTypeByAdvBuff")]
-    [HarmonyPostfix]
-    public static void PostGetPlantTypeByAdvBuff(ref int index, ref PlantType __result)
-    {
-        // 如果是我们注册的词条，返回鱼丸的植物类型
-        if ((TravelId1 >= 0 && index == TravelId1) || (TravelId2 >= 0 && index == TravelId2))
-        {
-            __result = (PlantType)1151; // SuperMachineNut = 1151
-        }
-    }
+    // 3.4.1 中 GetPlantTypeByAdvBuff 签名已变为静态方法：PlantType GetPlantTypeByAdvBuff(Il2CppSystem.Object buff)，
+    // 无法安全地在 IL2CPP 下从参数中拿到词条 ID，这里先移除该补丁，避免 Harmony 注入失败导致整个插件无法加载。
 }
 
 /// <summary>
@@ -6454,8 +6437,9 @@ public static class SuperMachineNutTakeDamageGameBuffPatch
             return true;
         }
 
-        // 检查游戏内词条是否激活
-        if (MNEntryTravelMgrPatch.TravelId1 >= 0 && Lawnf.TravelAdvanced(MNEntryTravelMgrPatch.TravelId1))
+        // 检查游戏内词条是否激活（3.4.1：TravelAdvanced 接受 AdvBuff 枚举）
+        if (MNEntryTravelMgrPatch.TravelId1 >= 0 &&
+            Lawnf.TravelAdvanced((AdvBuff)MNEntryTravelMgrPatch.TravelId1))
         {
             if (damage > 200) damage = 200;
         }
@@ -6481,8 +6465,9 @@ public static class PlantRecoverGameBuffPatch
             return true;
         }
 
-        // 检查游戏内词条是否激活
-        if (MNEntryTravelMgrPatch.TravelId2 >= 0 && Lawnf.TravelAdvanced(MNEntryTravelMgrPatch.TravelId2))
+        // 检查游戏内词条是否激活（3.4.1：TravelAdvanced 接受 AdvBuff 枚举）
+        if (MNEntryTravelMgrPatch.TravelId2 >= 0 &&
+            Lawnf.TravelAdvanced((AdvBuff)MNEntryTravelMgrPatch.TravelId2))
         {
             health *= 2f;
         }
@@ -6507,8 +6492,9 @@ public static class SunMagnetShroomGameBuffPatch
             return;
         }
 
-        // 检查游戏内词条是否激活
-        if (MNEntryTravelMgrPatch.TravelId2 >= 0 && Lawnf.TravelAdvanced(MNEntryTravelMgrPatch.TravelId2))
+        // 检查游戏内词条是否激活（3.4.1：TravelAdvanced 接受 AdvBuff 枚举）
+        if (MNEntryTravelMgrPatch.TravelId2 >= 0 &&
+            Lawnf.TravelAdvanced((AdvBuff)MNEntryTravelMgrPatch.TravelId2))
         {
             if (__instance.attributeCountdown > 5f)
                 __instance.attributeCountdown = 4.5f;

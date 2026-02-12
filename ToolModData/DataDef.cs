@@ -294,6 +294,10 @@ public struct InitData
     public Dictionary<int, string> FirstArmors { get; set; }
     public Dictionary<int, string> Plants { get; set; }
     public Dictionary<int, string> SecondArmors { get; set; }
+    /// <summary>
+    /// 投资词条（InvestBuff）名称列表
+    /// </summary>
+    public string[] InvestBuffs { get; set; }
     public string[] UltiBuffs { get; set; }
     public Dictionary<int, string> Zombies { get; set; }
 }
@@ -327,9 +331,17 @@ public struct SyncTravelBuff : ISyncData
 {
     public List<bool>? AdvInGame { get; set; }
     public List<bool>? AdvTravelBuff { get; set; }
+    /// <summary>
+    /// 投资词条在修改器中的开关状态
+    /// </summary>
+    public List<bool>? InvestTravelBuff { get; set; }
     public List<bool>? Debuffs { get; set; }
     public List<bool>? DebuffsInGame { get; set; }
     public readonly int ID => 4;
+    /// <summary>
+    /// 投资词条在游戏内的实际生效状态
+    /// </summary>
+    public List<bool>? InvestInGame { get; set; }
     public List<bool>? UltiInGame { get; set; }
     public List<bool>? UltiTravelBuff { get; set; }
 }

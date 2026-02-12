@@ -61,20 +61,20 @@ namespace ToolModBepInEx
         
         private System.Collections.IEnumerator DelayedLateInit()
         {
-            // 等待 TravelMgr 初始化
+            // 等待 TravelDictionary 初始化（3.4.1 起词条文本存放在 TravelDictionary 中）
             yield return new WaitForSeconds(2.0f);
             
-            // 重试多次，直到 TravelMgr 可用
+            // 重试多次，直到 TravelDictionary.advancedBuffsText 可用
             for (int i = 0; i < 10; i++)
             {
                 try
                 {
-                    if (TravelMgr.advancedBuffs != null && TravelMgr.advancedBuffs.Count > 0)
+                    if (TravelDictionary.advancedBuffsText != null && TravelDictionary.advancedBuffsText.Count > 0)
                     {
-                        Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] TravelMgr 已初始化，开始执行 LateInit (尝试 {i + 1}/10)");
+                        Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] TravelDictionary 已初始化，开始执行 LateInit (尝试 {i + 1}/10)");
                         if (!Core.inited)
-        {
-            Core.Instance.Value.LateInit();
+                        {
+                            Core.Instance.Value.LateInit();
                             Core.inited = true;
                             Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] LateInit 执行完成");
                         }
@@ -89,7 +89,7 @@ namespace ToolModBepInEx
                 yield return new WaitForSeconds(1.0f);
             }
             
-            Core.Instance.Value.LoggerInstance.LogError("[PVZRHTools] 延迟初始化失败：TravelMgr 未能在超时时间内初始化");
+            Core.Instance.Value.LoggerInstance.LogError("[PVZRHTools] 延迟初始化失败：TravelDictionary 未能在超时时间内初始化");
             Object.Destroy(gameObject);
         }
     }
@@ -276,113 +276,193 @@ namespace ToolModBepInEx
                 Object.Destroy(gameObject2);
                 //zombies.Add(54, "试验假人僵尸 (54)");
 
-                // 遍历所有键值对以确保捕获所有词条（包括MOD添加的不连续ID词条）
-                MLogger.LogInfo($"[PVZRHTools] 开始读取词条数据...");
-                MLogger.LogInfo($"[PVZRHTools] TravelMgr.advancedBuffs.Count = {TravelMgr.advancedBuffs.Count}");
-                MLogger.LogInfo($"[PVZRHTools] TravelMgr.ultimateBuffs.Count = {TravelMgr.ultimateBuffs.Count}");
-                MLogger.LogInfo($"[PVZRHTools] TravelMgr.debuffs.Count = {TravelMgr.debuffs.Count}");
+                // 遍历所有键值对以确保捕获所有词条（包括 MOD 添加的不连续 ID 词条）
+                // 3.4.1：词条文本数据改为存放在 TravelDictionary 中
+                MLogger.LogInfo("[PVZRHTools] 开始读取词条数据...");
 
                 List<string> advBuffs = [];
-                int maxAdvKey = -1;
-                // 先找出最大键值
-                foreach (var kvp in TravelMgr.advancedBuffs)
-                {
-                    if (kvp.Key > maxAdvKey) maxAdvKey = kvp.Key;
-                }
-                MLogger.LogInfo($"[PVZRHTools] Advanced Buffs 最大键值: {maxAdvKey}");
-                // 然后从0到最大键值遍历，使用TryGetValue检查
-                if (maxAdvKey >= 0)
-                {
-                    for (int i = 0; i <= maxAdvKey; i++)
-                    {
-                        string buffText = null;
-                        if (TravelMgr.advancedBuffs.TryGetValue(i, out buffText) && !string.IsNullOrEmpty(buffText))
-                    {
-                            MLogger.LogInfo($"Dumping Advanced Buff String:#{i} {buffText}");
-                            advBuffs.Add($"#{i} {buffText}");
-                        }
-                    }
-                }
-                MLogger.LogInfo($"[PVZRHTools] 读取到 {advBuffs.Count} 个高级词条");
-
                 List<string> ultiBuffs = [];
-                int maxUltiKey = -1;
-                // 先找出最大键值
-                foreach (var kvp in TravelMgr.ultimateBuffs)
-                {
-                    if (kvp.Key > maxUltiKey) maxUltiKey = kvp.Key;
-                }
-                MLogger.LogInfo($"[PVZRHTools] Ultimate Buffs 最大键值: {maxUltiKey}");
-                // 然后从0到最大键值遍历，使用TryGetValue检查
-                if (maxUltiKey >= 0)
-                {
-                    for (int i = 0; i <= maxUltiKey; i++)
-                    {
-                        string buffText = null;
-                        if (TravelMgr.ultimateBuffs.TryGetValue(i, out buffText) && !string.IsNullOrEmpty(buffText))
-                    {
-                            MLogger.LogInfo($"Dumping Ultimate Buff String:#{i} {buffText}");
-                            ultiBuffs.Add($"#{i} {buffText}");
-                        }
-                    }
-                }
-                MLogger.LogInfo($"[PVZRHTools] 读取到 {ultiBuffs.Count} 个究极词条");
-
                 List<string> debuffs = [];
-                int maxDebuffKey = -1;
-                // 先找出最大键值
-                foreach (var kvp in TravelMgr.debuffs)
+                List<string> investBuffs = [];
+
+                AdvBuffs = [];
+                PatchMgr.UltiBuffs = [];
+                Debuffs = [];
+                PatchMgr.InvestBuffs = [];
+
+                if (TravelDictionary.advancedBuffsText == null ||
+                    TravelDictionary.ultimateBuffsText == null ||
+                    TravelDictionary.debuffData == null)
                 {
-                    if (kvp.Key > maxDebuffKey) maxDebuffKey = kvp.Key;
+                    MLogger.LogWarning("[PVZRHTools] TravelDictionary 中的词条数据尚未初始化，跳过导出");
                 }
-                MLogger.LogInfo($"[PVZRHTools] Debuffs 最大键值: {maxDebuffKey}");
-                // 然后从0到最大键值遍历，使用TryGetValue检查
-                if (maxDebuffKey >= 0)
+                else
                 {
-                    for (int i = 0; i <= maxDebuffKey; i++)
+                    MLogger.LogInfo($"[PVZRHTools] TravelDictionary.advancedBuffsText.Count = {TravelDictionary.advancedBuffsText.Count}");
+                    MLogger.LogInfo($"[PVZRHTools] TravelDictionary.ultimateBuffsText.Count = {TravelDictionary.ultimateBuffsText.Count}");
+                    MLogger.LogInfo($"[PVZRHTools] TravelDictionary.debuffData.Count = {TravelDictionary.debuffData.Count}");
+
+                    // 高级词条
+                    int maxAdvKey = -1;
+                    foreach (var kvp in TravelDictionary.advancedBuffsText)
                     {
-                        string buffText = null;
-                        if (TravelMgr.debuffs.TryGetValue(i, out buffText) && !string.IsNullOrEmpty(buffText))
+                        int key = (int)kvp.Key;
+                        if (key > maxAdvKey) maxAdvKey = key;
+                    }
+                    if (maxAdvKey >= 0)
                     {
-                            MLogger.LogInfo($"Dumping Debuff String:#{i} {buffText}");
-                            debuffs.Add($"#{i} {buffText}");  // 添加 # 前缀，与 Advanced 和 Ultimate 保持一致
+                        for (int i = 0; i <= maxAdvKey; i++)
+                        {
+                            if (TravelDictionary.advancedBuffsText.TryGetValue((AdvBuff)i, out var buffText) &&
+                                !string.IsNullOrEmpty(buffText))
+                            {
+                                MLogger.LogInfo($"Dumping Advanced Buff String:#{i} {buffText}");
+                                advBuffs.Add($"#{i} {buffText}");
+                            }
+                        }
+                        AdvBuffs = new bool[maxAdvKey + 1];
+                        MLogger.LogInfo($"[PVZRHTools] AdvBuffs 数组大小: {maxAdvKey + 1}");
+                    }
+                    else
+                    {
+                        AdvBuffs = new bool[0];
+                        MLogger.LogWarning("[PVZRHTools] 未找到高级词条，AdvBuffs 数组为空");
+                    }
+
+                    // 究极词条
+                    int maxUltiKey = -1;
+                    foreach (var kvp in TravelDictionary.ultimateBuffsText)
+                    {
+                        int key = (int)kvp.Key;
+                        if (key > maxUltiKey) maxUltiKey = key;
+                    }
+                    if (maxUltiKey >= 0)
+                    {
+                        for (int i = 0; i <= maxUltiKey; i++)
+                        {
+                            if (TravelDictionary.ultimateBuffsText.TryGetValue((UltiBuff)i, out var buffText) &&
+                                !string.IsNullOrEmpty(buffText))
+                            {
+                                MLogger.LogInfo($"Dumping Ultimate Buff String:#{i} {buffText}");
+                                ultiBuffs.Add($"#{i} {buffText}");
+                            }
+                        }
+                        PatchMgr.UltiBuffs = new bool[maxUltiKey + 1];
+                        MLogger.LogInfo($"[PVZRHTools] UltiBuffs 数组大小: {maxUltiKey + 1}");
+                    }
+                    else
+                    {
+                        PatchMgr.UltiBuffs = new bool[0];
+                        MLogger.LogWarning("[PVZRHTools] 未找到究极词条，UltiBuffs 数组为空");
+                    }
+
+                    // 负面词条（Debuff）
+                    // 尝试直接通过 TravelDictionary.debuffData[(TravelDebuff)i].Item1 读取文本；
+                    // 若读取失败或文本为空，则退回到占位符 "Debuff_i"。
+                    int maxDebuffKey = -1;
+                    foreach (var kvp in TravelDictionary.debuffData)
+                    {
+                        int key = (int)kvp.Key;
+                        if (key > maxDebuffKey) maxDebuffKey = key;
+                    }
+                    if (maxDebuffKey >= 0)
+                    {
+                        for (int i = 0; i <= maxDebuffKey; i++)
+                        {
+                            if (TravelDictionary.debuffData.TryGetValue((TravelDebuff)i, out var _))
+                            {
+                                string desc = null;
+                                try
+                                {
+                                    // 按你的建议：直接从 TravelDictionary.debuffData[(TravelDebuff)i].Item1 读取文本
+                                    desc = TravelDictionary.debuffData[(TravelDebuff)i].Item1;
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    MLogger.LogWarning($"[PVZRHTools] 通过 debuffData[(TravelDebuff){i}].Item1 读取 Debuff 文本时出错: id={i}, err={ex.Message}");
+                                }
+
+                                string line;
+                                if (!string.IsNullOrEmpty(desc))
+                                {
+                                    line = $"#{i} {desc}";
+                                    MLogger.LogInfo($"Dumping Debuff String: {line}");
+                                }
+                                else
+                                {
+                                    var placeholder = $"#{i} Debuff_{i}";
+                                    MLogger.LogInfo($"Dumping Debuff String (placeholder): {placeholder}");
+                                    line = placeholder;
+                                }
+
+                                debuffs.Add(line);
+                            }
+                        }
+                        Debuffs = new bool[maxDebuffKey + 1];
+                        MLogger.LogInfo($"[PVZRHTools] Debuffs 数组大小: {maxDebuffKey + 1}");
+                    }
+                    else
+                    {
+                        Debuffs = new bool[0];
+                        MLogger.LogWarning("[PVZRHTools] 未找到负面词条，Debuffs 数组为空");
+                    }
+
+                    // 投资词条（InvestBuff）：从 TravelMgr.InvestBuffsData 里读取描述
+                    try
+                    {
+                        if (TravelMgr.InvestBuffsData != null)
+                        {
+                            int maxInvestKey = -1;
+                            foreach (var kvp in TravelMgr.InvestBuffsData)
+                            {
+                                int key = (int)kvp.Key;
+                                if (key > maxInvestKey) maxInvestKey = key;
+                            }
+
+                            if (maxInvestKey >= 0)
+                            {
+                                for (int i = 0; i <= maxInvestKey; i++)
+                                {
+                                    if (TravelMgr.InvestBuffsData.TryGetValue((InvestBuff)i, out var buff))
+                                    {
+                                        string desc = null;
+                                        try
+                                        {
+                                            desc = buff.GetDescription();
+                                        }
+                                        catch (System.Exception ex)
+                                        {
+                                            MLogger.LogWarning($"[PVZRHTools] 读取 InvestBuff 描述时出错: id={i}, err={ex.Message}");
+                                        }
+
+                                        if (!string.IsNullOrEmpty(desc))
+                                        {
+                                            MLogger.LogInfo($"Dumping Invest Buff String:#{i} {desc}");
+                                            investBuffs.Add($"#{i} {desc}");
+                                        }
+                                    }
+                                }
+
+                                PatchMgr.InvestBuffs = new bool[maxInvestKey + 1];
+                                MLogger.LogInfo($"[PVZRHTools] InvestBuffs 数组大小: {maxInvestKey + 1}");
+                            }
+                            else
+                            {
+                                PatchMgr.InvestBuffs = new bool[0];
+                                MLogger.LogWarning("[PVZRHTools] 未找到投资词条，InvestBuffs 数组为空");
+                            }
+                        }
+                        else
+                        {
+                            PatchMgr.InvestBuffs = new bool[0];
+                            MLogger.LogWarning("[PVZRHTools] TravelMgr.InvestBuffsData 为空，InvestBuffs 数组为空");
                         }
                     }
-                }
-                MLogger.LogInfo($"[PVZRHTools] 读取到 {debuffs.Count} 个负面词条");
-
-                // 使用最大键值+1作为数组大小（如果最大键值>=0）
-                if (maxAdvKey >= 0)
-                {
-                    AdvBuffs = new bool[maxAdvKey + 1];
-                    MLogger.LogInfo($"[PVZRHTools] AdvBuffs 数组大小: {maxAdvKey + 1}");
-                }
-                else
-                {
-                    AdvBuffs = new bool[0];
-                    MLogger.LogWarning("[PVZRHTools] 未找到高级词条，AdvBuffs 数组为空");
-                }
-                
-                if (maxUltiKey >= 0)
-                {
-                    PatchMgr.UltiBuffs = new bool[maxUltiKey + 1];
-                    MLogger.LogInfo($"[PVZRHTools] UltiBuffs 数组大小: {maxUltiKey + 1}");
-                }
-                else
-                {
-                    PatchMgr.UltiBuffs = new bool[0];
-                    MLogger.LogWarning("[PVZRHTools] 未找到究极词条，UltiBuffs 数组为空");
-                }
-                
-                if (maxDebuffKey >= 0)
-                {
-                    Debuffs = new bool[maxDebuffKey + 1];
-                    MLogger.LogInfo($"[PVZRHTools] Debuffs 数组大小: {maxDebuffKey + 1}");
-                }
-                else
-                {
-                    Debuffs = new bool[0];
-                    MLogger.LogWarning("[PVZRHTools] 未找到负面词条，Debuffs 数组为空");
+                    catch (System.Exception ex)
+                    {
+                        PatchMgr.InvestBuffs = new bool[0];
+                        MLogger.LogWarning($"[PVZRHTools] 读取投资词条数据时出错: {ex.Message}");
+                    }
                 }
 
                 Dictionary<int, string> bullets = [];
@@ -406,7 +486,7 @@ namespace ToolModBepInEx
                 MLogger.LogWarning("以上id信息为动态生成，仅适用于当前游戏实例！！！");
                 MLogger.LogWarning("以上id信息为动态生成，仅适用于当前游戏实例！！！");
 
-                InitData data = new()
+                InitData initData = new()
                 {
                     Plants = plants,
                     Zombies = zombies,
@@ -415,10 +495,11 @@ namespace ToolModBepInEx
                     Bullets = bullets,
                     FirstArmors = firsts,
                     SecondArmors = seconds,
-                    Debuffs = [.. debuffs]
+                    Debuffs = [.. debuffs],
+                    InvestBuffs = [.. investBuffs]
                 };
                 Directory.CreateDirectory("./PVZRHTools");
-                File.WriteAllText("./PVZRHTools/InitData.json", JsonSerializer.Serialize(data));
+                File.WriteAllText("./PVZRHTools/InitData.json", JsonSerializer.Serialize(initData));
                 
                 // 在 LateInit 完成后，初始化 DataSync（这会启动修改器）
                 MLogger.LogInfo("[PVZRHTools] LateInit: 数据准备完成，现在启动修改器");
@@ -429,7 +510,7 @@ namespace ToolModBepInEx
                     
                     // 立即发送数据给UI，确保UI使用最新的数据
                     MLogger.LogInfo($"[PVZRHTools] LateInit: 立即发送词条数据给UI - Advanced={advBuffs.Count}, Ultimate={ultiBuffs.Count}, Debuff={debuffs.Count}");
-                    DataSync.Instance.SendData(data);
+                    DataSync.Instance.SendData(initData);
                     MLogger.LogInfo("[PVZRHTools] LateInit: 已发送词条数据给UI");
                 }
                 catch (System.Exception ex)

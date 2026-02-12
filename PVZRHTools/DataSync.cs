@@ -215,8 +215,16 @@ public class DataSync
                 case 3:
                 {
                     var igh = json.Deserialize(InGameHotkeysSGC.Default.InGameHotkeys);
-                    Application.Current.Dispatcher.Invoke(() =>
-                        MainWindow.Instance!.ViewModel.InitInGameHotkeys(igh.KeyCodes));
+                    if (igh.KeyCodes != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            if (MainWindow.Instance != null && MainWindow.Instance.ViewModel != null)
+                            {
+                                MainWindow.Instance.ViewModel.InitInGameHotkeys(igh.KeyCodes);
+                            }
+                        });
+                    }
                     break;
                 }
                 case 4:
