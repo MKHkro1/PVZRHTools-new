@@ -122,6 +122,89 @@ namespace PVZRHTools
             
             // 为所有按钮添加交互动画
             ApplyAnimationsToControls(this);
+            
+            // 设置旗帜波词条选择下拉框的固定宽度
+            SetFlagWaveComboBoxDropDownWidth();
+        }
+        
+        /// <summary>
+        /// 设置所有旗帜波词条选择 CheckComboBox 的下拉框固定宽度
+        /// </summary>
+        private void SetFlagWaveComboBoxDropDownWidth()
+        {
+            var comboBoxes = new[]
+            {
+                FlagWaveBuffIdsComboBox,
+                FlagWave1BuffsComboBox,
+                FlagWave2BuffsComboBox,
+                FlagWave3BuffsComboBox,
+                FlagWave4BuffsComboBox,
+                FlagWave5BuffsComboBox,
+                FlagWave6BuffsComboBox,
+                FlagWave7BuffsComboBox,
+                FlagWave8BuffsComboBox,
+                FlagWave9BuffsComboBox,
+                FlagWave10BuffsComboBox
+            };
+            
+            // 固定的下拉框宽度（足够宽以容纳长文本）
+            const double fixedDropDownWidth = 800;
+            
+            foreach (var comboBox in comboBoxes)
+            {
+                if (comboBox != null)
+                {
+                    // 使用定时器定期检查下拉框状态，当下拉框打开时设置固定宽度
+                    System.Windows.Threading.DispatcherTimer timer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(50) // 每50ms检查一次
+                    };
+                    
+                    bool wasOpen = false;
+                    timer.Tick += (sender, e) =>
+                    {
+                        if (comboBox.IsDropDownOpen)
+                        {
+                            if (!wasOpen)
+                            {
+                                // 下拉框刚打开，延迟设置宽度以确保 Popup 已创建
+                                Dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    try
+                                    {
+                                        // 通过模板查找 Popup（类似 ControlAnimations.cs 中的方法）
+                                        Popup? popup = comboBox.Template?.FindName("PART_Popup", comboBox) as Popup;
+                                        if (popup == null)
+                                        {
+                                            // 如果模板查找失败，尝试使用 FindVisualChild
+                                            popup = FindVisualChild<Popup>(comboBox);
+                                        }
+                                        
+                                        if (popup != null && popup.IsOpen)
+                                        {
+                                            // 设置固定的下拉框宽度，不受文本长度影响
+                                            popup.Width = fixedDropDownWidth;
+                                            popup.MinWidth = fixedDropDownWidth;
+                                            popup.MaxWidth = fixedDropDownWidth;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // 忽略错误，避免影响其他功能
+                                    }
+                                }), System.Windows.Threading.DispatcherPriority.Loaded);
+                            }
+                            wasOpen = true;
+                        }
+                        else
+                        {
+                            wasOpen = false;
+                        }
+                    };
+                    
+                    timer.Start();
+                }
+            }
         }
         
         /// <summary>

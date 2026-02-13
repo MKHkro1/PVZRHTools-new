@@ -402,7 +402,8 @@
                                                           DisplayMemberPath="TravelBuff.Text"
                                                           IsSynchronizedWithCurrentItem="True"
                                                           IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
-                                                          SelectionChanged="FlagWaveBuffIdsComboBox_SelectionChanged" />
+                                                          SelectionChanged="FlagWaveBuffIdsComboBox_SelectionChanged"
+                                                          MaxDropDownHeight="300" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="10,5,0,0">
                                         <Label Content="{DynamicResource Tab2.Page2.FlagWaveBuffOrderIds}"
@@ -1423,7 +1424,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave1BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1449,7 +1451,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave2BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1475,7 +1478,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave3BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1501,7 +1505,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave4BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1527,7 +1532,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave5BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1553,7 +1559,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave6BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1579,7 +1586,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave7BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1605,7 +1613,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave8BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1631,7 +1640,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave9BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />
@@ -1657,7 +1667,8 @@
                                                               IsSynchronizedWithCurrentItem="False"
                                                               IsTextSearchEnabled="True" TextSearch.TextPath="TravelBuff.Text"
                                                               SelectionChanged="FlagWave10BuffsComboBox_SelectionChanged"
-                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel" />
+                                                              PreviewMouseWheel="CheckComboBox_PreviewMouseWheel"
+                                                              MaxDropDownHeight="300" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                             <Label Content="{DynamicResource Tab10.Wave.CustomText}" VerticalAlignment="Center" Width="100" />

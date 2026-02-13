@@ -2241,19 +2241,29 @@ public partial class ModifierViewModel : ObservableObject
 
             // 重新加载Advanced Buffs
             var bi = 0;
+            if (App.InitData.Value.AdvBuffs != null)
+            {
             foreach (var b in App.InitData.Value.AdvBuffs)
             {
-                TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
-                InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                    // 确保词条文本不为空，如果为空则使用占位符
+                    string buffText = string.IsNullOrEmpty(b) ? $"#{bi} AdvBuff_{bi}" : b;
+                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, false, false)));
+                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, true, false)));
                 bi++;
+                }
             }
 
             // 重新加载Ultimate Buffs
+            if (App.InitData.Value.UltiBuffs != null)
+            {
             foreach (var b in App.InitData.Value.UltiBuffs)
             {
-                TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
-                InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                    // 确保词条文本不为空，如果为空则使用占位符
+                    string buffText = string.IsNullOrEmpty(b) ? $"#{bi} UltiBuff_{bi}" : b;
+                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, false, false)));
+                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, true, false)));
                 bi++;
+                }
             }
 
             // 重新加载 Invest Buffs（投资词条）
@@ -2261,8 +2271,10 @@ public partial class ModifierViewModel : ObservableObject
             {
                 foreach (var b in App.InitData.Value.InvestBuffs)
                 {
-                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
-                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                    // 确保词条文本不为空，如果为空则使用占位符
+                    string buffText = string.IsNullOrEmpty(b) ? $"#{bi} InvestBuff_{bi}" : b;
+                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, false, false)));
+                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, true, false)));
                     bi++;
                 }
             }

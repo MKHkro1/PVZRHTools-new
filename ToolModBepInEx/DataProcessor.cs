@@ -317,35 +317,253 @@ public class DataProcessor : MonoBehaviour
 
         if (data is SyncTravelBuff s)
         {
+            // 更新初始词条数据（用于游戏开始时应用）
             if (s.AdvTravelBuff is not null) AdvBuffs = [.. s.AdvTravelBuff];
             if (s.UltiTravelBuff is not null) PatchMgr.UltiBuffs = [.. s.UltiTravelBuff];
             if (s.InvestTravelBuff is not null) PatchMgr.InvestBuffs = [.. s.InvestTravelBuff];
             if (s.Debuffs is not null) Debuffs = [.. s.Debuffs];
+            
             if (InGame())
             {
                 // 优先使用专门的 InGame 字段；如果为空，则回退使用 TravelBuff 同步当前局内状态，
-                // 以保持“解锁词条”在游戏中立即生效的体验。
-                if (s.AdvInGame is not null)
-                    InGameAdvBuffs = [.. s.AdvInGame];
-                else if (s.AdvTravelBuff is not null)
-                    InGameAdvBuffs = [.. s.AdvTravelBuff];
+                // 以保持"解锁词条"在游戏中立即生效的体验。
+                
+                // 确保数组大小足够：直接使用 Count
+                if (s.AdvInGame is not null || s.AdvTravelBuff is not null)
+                {
+                    int dataSize = Math.Max(s.AdvInGame?.Count ?? 0, s.AdvTravelBuff?.Count ?? 0);
+                    int requiredSize = Math.Max(TravelDictionary.advancedBuffsText?.Count ?? 0, dataSize);
+                    
+                    // 性能优化：减少日志输出，只在数组扩展时输出
+                    if (InGameAdvBuffs == null || InGameAdvBuffs.Length < requiredSize)
+                    {
+                        var newArray = new bool[requiredSize];
+                        if (InGameAdvBuffs != null)
+                        {
+                            Array.Copy(InGameAdvBuffs, newArray, Math.Min(InGameAdvBuffs.Length, requiredSize));
+                        }
+                        InGameAdvBuffs = newArray;
+                    }
+                    
+                    if (s.AdvInGame is not null)
+                    {
+                        // 构建索引到词条ID的映射：根据 TravelDictionary.advancedBuffsText 的顺序
+                        // UI 发送的列表顺序应该与 Core.cs 中导出词条的顺序一致（从 0 到 maxAdvKey）
+                        List<int> advBuffIdList = [];
+                        if (TravelDictionary.advancedBuffsText != null)
+                        {
+                            int maxAdvKey = -1;
+                            foreach (var kvp in TravelDictionary.advancedBuffsText)
+                            {
+                                int key = (int)kvp.Key;
+                                if (key > maxAdvKey) maxAdvKey = key;
+                            }
+                            // 按照从 0 到 maxAdvKey 的顺序构建映射
+                            for (int id = 0; id <= maxAdvKey && advBuffIdList.Count < s.AdvInGame.Count; id++)
+                            {
+                                if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
+                                {
+                                    advBuffIdList.Add(id);
+                                }
+                            }
+                        }
+                        
+                        // 性能优化：只统计变化数量，不输出每个词条的详细日志
+                        int changedCount = 0;
+                        
+                        // 同时更新数组和字典
+                        for (int i = 0; i < s.AdvInGame.Count; i++)
+                        {
+                            bool newValue = s.AdvInGame[i];
+                            
+                            // 获取实际的词条ID
+                            int actualBuffId = i; // 默认使用索引
+                            if (i < advBuffIdList.Count)
+                            {
+                                actualBuffId = advBuffIdList[i];
+                            }
+                            
+                            // 更新字典（使用实际的词条ID）
+                            if (PatchMgr.InGameAdvBuffsDict == null)
+                                PatchMgr.InGameAdvBuffsDict = new Dictionary<int, bool>();
+                            bool oldDictValue = PatchMgr.InGameAdvBuffsDict.TryGetValue(actualBuffId, out var dictVal) ? dictVal : false;
+                            
+                            // 更新数组（仅当在范围内时）
+                            bool oldValue = false;
+                            if (actualBuffId >= 0 && actualBuffId < InGameAdvBuffs.Length)
+                            {
+                                oldValue = InGameAdvBuffs[actualBuffId];
+                                InGameAdvBuffs[actualBuffId] = newValue;
+                            }
+                            
+                            // 统计变化
+                            if (oldDictValue != newValue || oldValue != newValue)
+                            {
+                                changedCount++;
+                            }
+                            
+                            PatchMgr.InGameAdvBuffsDict[actualBuffId] = newValue;
+                        }
+                        
+                        // 只在有变化时输出汇总日志
+                        if (changedCount > 0)
+                        {
+                            PatchMgr.MLogger?.LogInfo($"[PVZRHTools] ProcessData: 高级词条数据更新完成 - {changedCount} 个词条状态发生变化");
+                        }
+                    }
+                    else if (s.AdvTravelBuff is not null)
+                    {
+                        // 构建索引到词条ID的映射：根据 TravelDictionary.advancedBuffsText 的顺序
+                        List<int> advBuffIdList = [];
+                        if (TravelDictionary.advancedBuffsText != null)
+                        {
+                            int maxAdvKey = -1;
+                            foreach (var kvp in TravelDictionary.advancedBuffsText)
+                            {
+                                int key = (int)kvp.Key;
+                                if (key > maxAdvKey) maxAdvKey = key;
+                            }
+                            // 按照从 0 到 maxAdvKey 的顺序构建映射
+                            for (int id = 0; id <= maxAdvKey && advBuffIdList.Count < s.AdvTravelBuff.Count; id++)
+                            {
+                                if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
+                                {
+                                    advBuffIdList.Add(id);
+                                }
+                            }
+                        }
+                        
+                        // 性能优化：只统计变化数量，不输出每个词条的详细日志
+                        int changedCount = 0;
+                        
+                        // 同时更新数组和字典
+                        for (int i = 0; i < s.AdvTravelBuff.Count; i++)
+                        {
+                            bool newValue = s.AdvTravelBuff[i];
+                            
+                            // 获取实际的词条ID
+                            int actualBuffId = i; // 默认使用索引
+                            if (i < advBuffIdList.Count)
+                            {
+                                actualBuffId = advBuffIdList[i];
+                            }
+                            
+                            // 更新字典（使用实际的词条ID）
+                            if (PatchMgr.InGameAdvBuffsDict == null)
+                                PatchMgr.InGameAdvBuffsDict = new Dictionary<int, bool>();
+                            bool oldDictValue = PatchMgr.InGameAdvBuffsDict.TryGetValue(actualBuffId, out var dictVal) ? dictVal : false;
+                            
+                            // 更新数组（仅当在范围内时）
+                            bool oldValue = false;
+                            if (actualBuffId >= 0 && actualBuffId < InGameAdvBuffs.Length)
+                            {
+                                oldValue = InGameAdvBuffs[actualBuffId];
+                                InGameAdvBuffs[actualBuffId] = newValue;
+                            }
+                            
+                            // 统计变化
+                            if (oldDictValue != newValue || oldValue != newValue)
+                            {
+                                changedCount++;
+                            }
+                            
+                            PatchMgr.InGameAdvBuffsDict[actualBuffId] = newValue;
+                        }
+                        
+                        // 只在有变化时输出汇总日志
+                        if (changedCount > 0)
+                        {
+                            PatchMgr.MLogger?.LogInfo($"[PVZRHTools] ProcessData: 高级词条数据更新完成 - {changedCount} 个词条状态发生变化");
+                        }
+                    }
+                }
 
-                if (s.UltiInGame is not null)
-                    InGameUltiBuffs = [.. s.UltiInGame];
-                else if (s.UltiTravelBuff is not null)
-                    InGameUltiBuffs = [.. s.UltiTravelBuff];
+                if (s.UltiInGame is not null || s.UltiTravelBuff is not null)
+                {
+                    int dataSize = Math.Max(s.UltiInGame?.Count ?? 0, s.UltiTravelBuff?.Count ?? 0);
+                    int requiredSize = Math.Max(TravelDictionary.ultimateBuffsText?.Count ?? 0, dataSize);
+                    
+                    if (InGameUltiBuffs == null || InGameUltiBuffs.Length < requiredSize)
+                    {
+                        var newArray = new bool[requiredSize];
+                        if (InGameUltiBuffs != null)
+                        {
+                            Array.Copy(InGameUltiBuffs, newArray, Math.Min(InGameUltiBuffs.Length, requiredSize));
+                        }
+                        InGameUltiBuffs = newArray;
+                    }
+                    
+                    if (s.UltiInGame is not null)
+                    {
+                        for (int i = 0; i < s.UltiInGame.Count && i < InGameUltiBuffs.Length; i++)
+                            InGameUltiBuffs[i] = s.UltiInGame[i];
+                    }
+                    else if (s.UltiTravelBuff is not null)
+                    {
+                        for (int i = 0; i < s.UltiTravelBuff.Count && i < InGameUltiBuffs.Length; i++)
+                            InGameUltiBuffs[i] = s.UltiTravelBuff[i];
+                    }
+                }
 
-                if (s.DebuffsInGame is not null)
-                    InGameDebuffs = [.. s.DebuffsInGame];
-                else if (s.Debuffs is not null)
-                    InGameDebuffs = [.. s.Debuffs];
+                if (s.DebuffsInGame is not null || s.Debuffs is not null)
+                {
+                    int dataSize = Math.Max(s.DebuffsInGame?.Count ?? 0, s.Debuffs?.Count ?? 0);
+                    int requiredSize = Math.Max(TravelDictionary.debuffData?.Count ?? 0, dataSize);
+                    
+                    if (InGameDebuffs == null || InGameDebuffs.Length < requiredSize)
+                    {
+                        var newArray = new bool[requiredSize];
+                        if (InGameDebuffs != null)
+                        {
+                            Array.Copy(InGameDebuffs, newArray, Math.Min(InGameDebuffs.Length, requiredSize));
+                        }
+                        InGameDebuffs = newArray;
+                    }
+                    
+                    if (s.DebuffsInGame is not null)
+                    {
+                        for (int i = 0; i < s.DebuffsInGame.Count && i < InGameDebuffs.Length; i++)
+                            InGameDebuffs[i] = s.DebuffsInGame[i];
+                    }
+                    else if (s.Debuffs is not null)
+                    {
+                        for (int i = 0; i < s.Debuffs.Count && i < InGameDebuffs.Length; i++)
+                            InGameDebuffs[i] = s.Debuffs[i];
+                    }
+                }
 
-                if (s.InvestInGame is not null)
-                    InGameInvestBuffs = [.. s.InvestInGame];
-                else if (s.InvestTravelBuff is not null)
-                    InGameInvestBuffs = [.. s.InvestTravelBuff];
+                if (s.InvestInGame is not null || s.InvestTravelBuff is not null)
+                {
+                    int investCount = TravelMgr.InvestBuffsData?.Count ?? 0;
+                    
+                    if (InGameInvestBuffs == null || InGameInvestBuffs.Length < investCount)
+                    {
+                        var newArray = new bool[investCount];
+                        if (InGameInvestBuffs != null)
+                        {
+                            Array.Copy(InGameInvestBuffs, newArray, Math.Min(InGameInvestBuffs.Length, investCount));
+                        }
+                        InGameInvestBuffs = newArray;
+                    }
+                    
+                    if (s.InvestInGame is not null)
+                    {
+                        for (int i = 0; i < s.InvestInGame.Count && i < InGameInvestBuffs.Length; i++)
+                            InGameInvestBuffs[i] = s.InvestInGame[i];
+                    }
+                    else if (s.InvestTravelBuff is not null)
+                    {
+                        for (int i = 0; i < s.InvestTravelBuff.Count && i < InGameInvestBuffs.Length; i++)
+                            InGameInvestBuffs[i] = s.InvestTravelBuff[i];
+                    }
+                }
 
                 UpdateInGameBuffs();
+            }
+            else
+            {
+                // 不在游戏中时，只更新初始词条数据，不应用
+                // 初始词条将在 Board.Start 时自动应用
             }
 
             return;
@@ -1643,7 +1861,7 @@ all");
         }
         catch (JsonException)
         {
-            Core.Instance.Value.LoggerInstance.LogError("操作失败，可能是点太快或设置词条时出错，取消后重设置一下吧。");
+            // 静默处理 JSON 解析错误
         }
         catch (Exception ex)
         {
