@@ -496,19 +496,10 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.UltiInGame is not null)
                     {
-                        // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
+                        // 直接使用 UI 设置的值，与 AdvInGame 的处理方式一致
                         for (int i = 0; i < s.UltiInGame.Count && i < InGameUltiBuffs.Length; i++)
                         {
-                            // 读取游戏当前状态
-                            bool gameState = false;
-                            try
-                            {
-                                gameState = Lawnf.TravelUltimate((UltiBuff)i);
-                            }
-                            catch { }
-                            
-                            // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
-                            InGameUltiBuffs[i] = gameState || s.UltiInGame[i];
+                            InGameUltiBuffs[i] = s.UltiInGame[i];
                         }
                     }
                     else if (s.UltiTravelBuff is not null)
@@ -1023,9 +1014,39 @@ all");
                 }
             }
 
-            if (iga.CreatePassiveMateorite is not null) Board.Instance.CreatePassiveMateorite();
-            if (iga.CreateActiveMateorite is not null) Board.Instance.CreateActiveMateorite();
-            if (iga.CreateUltimateMateorite is not null) Board.Instance.CreateUltimateMateorite();
+            if (iga.CreatePassiveMateorite is not null && Board.Instance != null)
+            {
+                try
+                {
+                    Board.Instance.CreatePassiveMateorite();
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] 创建普通陨星失败: {ex.Message}");
+                }
+            }
+            if (iga.CreateActiveMateorite is not null && Board.Instance != null)
+            {
+                try
+                {
+                    Board.Instance.CreateActiveMateorite();
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] 创建充能陨星失败: {ex.Message}");
+                }
+            }
+            if (iga.CreateUltimateMateorite is not null && Board.Instance != null)
+            {
+                try
+                {
+                    Board.Instance.CreateUltimateMateorite();
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] 创建究极陨星失败: {ex.Message}");
+                }
+            }
             if (iga.CurrentSun is not null) Board.Instance.theSun = (int)iga.CurrentSun;
             if (iga.CurrentMoney is not null) Board.Instance.theMoney = (int)iga.CurrentMoney;
 

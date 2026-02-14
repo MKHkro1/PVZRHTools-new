@@ -1,8 +1,11 @@
 ﻿using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
+using HandyControl.Themes;
 using ToolModData;
 using static ToolModData.Modifier;
 
@@ -47,6 +50,31 @@ public partial class App : Application
             }
 
         inited = false;
+    }
+
+    public static void SwitchTheme(bool isDarkMode)
+    {
+        var app = Current as App;
+        if (app == null) return;
+
+        var resources = app.Resources;
+        var mergedDictionaries = resources.MergedDictionaries;
+
+        // 移除现有的主题资源
+        var themeDict = mergedDictionaries.FirstOrDefault(d =>
+            d.Source?.OriginalString?.Contains("SkinDefault.xaml") == true ||
+            d.Source?.OriginalString?.Contains("SkinDark.xaml") == true);
+        if (themeDict != null)
+        {
+            mergedDictionaries.Remove(themeDict);
+        }
+
+        // 添加新的主题资源
+        var newThemeSource = isDarkMode
+            ? "pack://application:,,,/HandyControl;component/Themes/SkinDark.xaml"
+            : "pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml";
+        
+        mergedDictionaries.Insert(0, new ResourceDictionary { Source = new Uri(newThemeSource) });
     }
 
     protected override void OnStartup(StartupEventArgs e)

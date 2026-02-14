@@ -28,6 +28,10 @@ using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Threading;
+using HandyControl.Tools;
 using PVZRHTools.Animations;
 using ToolModData;
 
@@ -82,6 +86,20 @@ namespace PVZRHTools
 
             App.inited = true;
             
+            // 应用初始主题（如果已保存）
+            if (ViewModel != null && ViewModel.IsDarkMode)
+            {
+                App.SwitchTheme(true);
+                // 延迟应用颜色，等待窗口完全加载
+                Loaded += (s, e) =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        ApplyThemeWithAnimation(true);
+                    }), DispatcherPriority.Loaded);
+                };
+            }
+            
             // 窗口加载完成后播放启动动画
             Loaded += MainWindow_Loaded;
             
@@ -125,6 +143,17 @@ namespace PVZRHTools
             
             // 设置旗帜波词条选择下拉框的固定宽度
             SetFlagWaveComboBoxDropDownWidth();
+            
+            // 确保在窗口加载后应用主题（延迟执行，确保所有控件都已加载）
+            if (ViewModel != null && ViewModel.IsDarkMode)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ApplyThemeWithAnimation(true);
+                    // 额外强制更新所有白色背景
+                    ForceUpdateWhiteBackgrounds(true);
+                }), DispatcherPriority.Loaded);
+            }
         }
         
         /// <summary>
@@ -335,6 +364,881 @@ namespace PVZRHTools
         public static ResourceDictionary LangZH_CN => new() { Source = new Uri("/Lang.zh-cn.xaml", UriKind.Relative) };
         public ModifierSprite ModifierSprite { get; set; }
         public ModifierViewModel ViewModel => (ModifierViewModel)DataContext;
+
+        public void ApplyThemeWithAnimation(bool isDarkMode)
+        {
+            // 定义浅色和深色模式的配色方案
+            var lightColors = new
+            {
+                WindowBackground = Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF), // #99FFFFFF
+                WindowForeground = Color.FromArgb(0xFF, 0x28, 0x2C, 0x34), // #FF282C34
+                BorderBrush = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromArgb(0xFF, 0xDB, 0x70, 0x93), 1),
+                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0xB6, 0xC1), 0),
+                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), 0.274),
+                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), 0.709),
+                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), 0.413),
+                        new GradientStop(Color.FromArgb(0xFF, 0xDB, 0x70, 0x93), 0.548)
+                    }
+                },
+                TabControlBackground = Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF), // #80FFFFFF
+                TabControlBorderBrush = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), // #FFFFFFFF
+                ContentBackground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), // #FFFFFFFF
+                ContentBorderBrush = Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), // #FFFF69B4
+                TextForeground = Color.FromArgb(0xFF, 0x33, 0x33, 0x33), // #FF333333
+                TitleForeground = Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), // #FFFF69B4
+                LabelForeground = Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4) // #FFFF69B4
+            };
+
+            var darkColors = new
+            {
+                WindowBackground = Color.FromArgb(0x99, 0x1A, 0x1A, 0x1A), // #991A1A1A
+                WindowForeground = Color.FromArgb(0xFF, 0x28, 0x2C, 0x34), // #FF282C34
+                BorderBrush = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromArgb(0x7F, 0xFF, 0x3A, 0x3A), 1),
+                        new GradientStop(Color.FromArgb(0x7F, 0xFF, 0x35, 0x35), 0),
+                        new GradientStop(Color.FromArgb(0x7F, 0xF4, 0xFF, 0x31), 0.135),
+                        new GradientStop(Color.FromArgb(0x7F, 0xA8, 0x45, 0xFF), 0.857),
+                        new GradientStop(Color.FromArgb(0x7F, 0x5B, 0xFF, 0x3A), 0.274),
+                        new GradientStop(Color.FromArgb(0x7F, 0x3E, 0x6D, 0xFF), 0.709),
+                        new GradientStop(Color.FromArgb(0xFF, 0x40, 0xE9, 0xFF), 0.413),
+                        new GradientStop(Color.FromArgb(0x7F, 0x3A, 0xC4, 0xFF), 0.548)
+                    }
+                },
+                TabControlBackground = Color.FromArgb(0x80, 0x21, 0x21, 0x25), // #80212125
+                TabControlBorderBrush = Color.FromArgb(0xFF, 0x21, 0x21, 0x25), // #FF212125
+                ContentBackground = Color.FromArgb(0xFF, 0x21, 0x21, 0x25), // #FF212125
+                ContentBorderBrush = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F), // #FF2FA42F
+                TextForeground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), // White
+                TitleForeground = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F), // #FF2FA42F
+                LabelForeground = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F) // #FF2FA42F
+            };
+
+            var targetColors = isDarkMode ? darkColors : lightColors;
+            var currentColors = isDarkMode ? lightColors : darkColors;
+
+            // 创建颜色过渡动画
+            var duration = TimeSpan.FromMilliseconds(300);
+
+            // 窗口背景色过渡
+            if (Background is SolidColorBrush bgBrush)
+            {
+                AnimateColor(bgBrush, currentColors.WindowBackground, targetColors.WindowBackground, duration);
+            }
+            else
+            {
+                Background = new SolidColorBrush(targetColors.WindowBackground);
+            }
+            
+            // 窗口前景色过渡
+            if (Foreground is SolidColorBrush fgBrush)
+            {
+                AnimateColor(fgBrush, currentColors.WindowForeground, targetColors.WindowForeground, duration);
+            }
+            else
+            {
+                Foreground = new SolidColorBrush(targetColors.WindowForeground);
+            }
+
+            // 边框渐变过渡
+            AnimateGradientBrush((LinearGradientBrush)BorderBrush, targetColors.BorderBrush, duration);
+
+            // 主窗口 Grid 背景
+            var rootGrid = this.Content as Grid;
+            if (rootGrid != null)
+            {
+                if (rootGrid.Background == null || rootGrid.Background == Brushes.Transparent)
+                {
+                    rootGrid.Background = new SolidColorBrush(targetColors.WindowBackground);
+                }
+                else if (rootGrid.Background is SolidColorBrush gridBgBrush)
+                {
+                    AnimateColor(gridBgBrush, currentColors.WindowBackground, targetColors.WindowBackground, duration);
+                }
+            }
+
+            // TabControl 背景和边框
+            var tabControl = FindVisualChild<TabControl>(this);
+            if (tabControl != null)
+            {
+                if (tabControl.Background is SolidColorBrush tabBgBrush)
+                {
+                    AnimateColor(tabBgBrush, currentColors.TabControlBackground, targetColors.TabControlBackground, duration);
+                }
+                else
+                {
+                    tabControl.Background = new SolidColorBrush(targetColors.TabControlBackground);
+                }
+                
+                if (tabControl.BorderBrush is SolidColorBrush tabBorderBrush)
+                {
+                    AnimateColor(tabBorderBrush, currentColors.TabControlBorderBrush, targetColors.TabControlBorderBrush, duration);
+                }
+                else
+                {
+                    tabControl.BorderBrush = new SolidColorBrush(targetColors.TabControlBorderBrush);
+                }
+                
+                // 直接设置所有 TabItem 的 Content Border 背景和边框（因为已移除硬编码）
+                foreach (TabItem tabItem in tabControl.Items)
+                {
+                    if (tabItem.Content is Border contentBorder)
+                    {
+                        // 直接设置背景色（不再有硬编码，所以直接设置即可）
+                        contentBorder.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                        contentBorder.BorderBrush = new SolidColorBrush((Color)targetColors.ContentBorderBrush);
+                    }
+                }
+            }
+
+            // 标题栏前景色和背景
+            if (WindowTitle != null)
+            {
+                if (WindowTitle.Foreground is SolidColorBrush titleFgBrush)
+                {
+                    AnimateColor(titleFgBrush, currentColors.TitleForeground, targetColors.TitleForeground, duration);
+                }
+                
+                // 更新标题栏 Border 的背景
+                var titleBarBorder = WindowTitle.Parent as Border;
+                if (titleBarBorder != null)
+                {
+                    if (titleBarBorder.Background is SolidColorBrush titleBgBrush)
+                    {
+                        var titleBgColor = isDarkMode ? Color.FromArgb(0xFF, 0x21, 0x21, 0x25) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+                        var currentTitleBg = isDarkMode ? Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0xFF, 0x21, 0x21, 0x25);
+                        AnimateColor(titleBgBrush, currentTitleBg, titleBgColor, duration);
+                    }
+                    else
+                    {
+                        // 如果背景为 null，创建新的画笔
+                        var titleBgColor = isDarkMode ? Color.FromArgb(0xFF, 0x21, 0x21, 0x25) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+                        titleBarBorder.Background = new SolidColorBrush(titleBgColor);
+                    }
+                }
+            }
+            
+            // 更新标题栏 Border 的背景（通过 x:Name）
+            var titleBarBorder2 = FindName("TitleBarBorder") as Border;
+            if (titleBarBorder2 != null)
+            {
+                var titleBgColor = isDarkMode ? Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+                titleBarBorder2.Background = new SolidColorBrush(titleBgColor);
+            }
+
+            // 更新所有内容区域的背景和边框
+            var rootGridForUpdate = this.Content as Grid;
+            UpdateAllControlsTheme(this, currentColors, targetColors, duration, isDarkMode, rootGridForUpdate);
+            
+            // 延迟强制更新所有白色背景（确保所有硬编码的白色背景都被更新）
+            // 多次调用以确保覆盖所有情况
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (isDarkMode)
+                {
+                    ForceUpdateWhiteBackgrounds(true);
+                    // 再次延迟调用，确保所有控件都已完全渲染
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        ForceUpdateWhiteBackgrounds(true);
+                    }), DispatcherPriority.Render);
+                }
+            }), DispatcherPriority.Loaded);
+        }
+
+        private void AnimateColor(SolidColorBrush brush, Color fromColor, Color toColor, TimeSpan duration)
+        {
+            try
+            {
+                // 检查画笔是否可用（不为 null 且未被冻结）
+                if (brush == null || brush.IsFrozen)
+                {
+                    // 如果画笔不可用，直接设置颜色（如果画笔为 null，调用者应该创建新画笔）
+                    if (brush != null)
+                    {
+                        brush.Color = toColor;
+                    }
+                    return;
+                }
+
+                // 尝试使用动画
+                var animation = new System.Windows.Media.Animation.ColorAnimation(fromColor, toColor, duration)
+                {
+                    EasingFunction = new System.Windows.Media.Animation.PowerEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut, Power = 2 }
+                };
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, animation);
+            }
+            catch
+            {
+                // 如果动画失败（例如画笔被冻结、动画系统不支持等），直接设置颜色
+                if (brush != null && !brush.IsFrozen)
+                {
+                    brush.Color = toColor;
+                }
+            }
+        }
+
+        private void AnimateGradientBrush(LinearGradientBrush currentBrush, LinearGradientBrush targetBrush, TimeSpan duration)
+        {
+            // 简化处理：直接替换渐变画笔
+            BorderBrush = targetBrush;
+        }
+
+        private void UpdateAllControlsTheme(DependencyObject parent, dynamic currentColors, dynamic targetColors, TimeSpan duration, bool isDarkMode, Grid? rootGrid = null)
+        {
+            // 递归更新所有控件的颜色
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                
+                // 处理 Border
+                if (child is Border border)
+                {
+                    // 更新所有 Border 的背景（白色背景改为深色，深色背景改为白色）
+                    var targetBg = (Color)targetColors.ContentBackground;
+                    if (border.Background is SolidColorBrush bgBrush)
+                    {
+                        var currentBg = bgBrush.Color;
+                        // 检查是否是白色或浅色背景（更宽松的条件：R、G、B 都大于 180）
+                        // 对于纯白色（#FFFFFFFF），直接强制更新，不依赖动画
+                        bool needsUpdate = false;
+                        bool isPureWhite = currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200;
+                        
+                        if (isDarkMode && currentBg.A > 0 && currentBg.R > 180 && currentBg.G > 180 && currentBg.B > 180)
+                        {
+                            needsUpdate = true;
+                        }
+                        // 浅色模式：深色背景改为白色（更宽松的条件：R、G、B 都小于 60）
+                        else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 60 && currentBg.G < 60 && currentBg.B < 60)
+                        {
+                            needsUpdate = true;
+                        }
+                        
+                        if (needsUpdate)
+                        {
+                            // 对于纯白色背景或冻结画笔，直接强制设置，不依赖动画
+                            if (isPureWhite || bgBrush.IsFrozen)
+                            {
+                                border.Background = new SolidColorBrush(targetBg);
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    AnimateColor(bgBrush, currentBg, targetBg, duration);
+                                }
+                                catch
+                                {
+                                    // 如果动画失败，直接设置
+                                    border.Background = new SolidColorBrush(targetBg);
+                                }
+                            }
+                        }
+                        // 即使不满足条件，如果是纯白色，也强制更新（确保硬编码的白色被更新）
+                        else if (isPureWhite && isDarkMode)
+                        {
+                            border.Background = new SolidColorBrush(targetBg);
+                        }
+                    }
+                    // 如果背景为 null 或透明，直接设置背景色（因为已移除硬编码）
+                    else if (border.Background == null || border.Background == Brushes.Transparent)
+                    {
+                        // 对于 TabItem 的 Content Border（Margin.Top == 8 且 BorderThickness.Top == 2），直接设置
+                        if (border.Margin.Top == 8 && border.BorderThickness.Top == 2)
+                        {
+                            border.Background = new SolidColorBrush(targetBg);
+                            border.BorderBrush = new SolidColorBrush((Color)targetColors.ContentBorderBrush);
+                        }
+                        // 其他 Border 如果有子元素，也设置背景色
+                        else if (VisualTreeHelper.GetChildrenCount(border) > 0 ||
+                                 border.ActualWidth > 0 || border.ActualHeight > 0)
+                        {
+                            border.Background = new SolidColorBrush(targetBg);
+                        }
+                    }
+                    // 如果背景是硬编码的白色（通过检查 XAML 中的 #FFFFFFFF），直接强制设置
+                    else if (isDarkMode)
+                    {
+                        // 尝试通过反射或其他方式检查是否是硬编码的白色
+                        // 这里我们直接强制设置，因为如果背景不是 SolidColorBrush，可能是其他类型
+                        // 但为了安全，我们只在深色模式下强制设置
+                        var borderType = border.Background?.GetType();
+                        if (borderType != null && borderType != typeof(SolidColorBrush))
+                        {
+                            // 如果是其他类型的画笔，也尝试设置为目标背景
+                            border.Background = new SolidColorBrush(targetBg);
+                        }
+                    }
+
+                    // 更新所有粉色边框（#FFFF69B4）为深色模式下的绿色（#FF2FA42F）
+                    if (border.BorderBrush is SolidColorBrush borderBrush)
+                    {
+                        var currentBorderColor = borderBrush.Color;
+                        // 检查是否是粉色边框（#FFFF69B4 或类似的粉色）- 更宽松的条件
+                        if (isDarkMode && currentBorderColor.A > 0 && 
+                            currentBorderColor.R > 180 && currentBorderColor.G < 160 && currentBorderColor.B > 140)
+                        {
+                            var currentBorder = (Color)currentColors.ContentBorderBrush;
+                            var targetBorder = (Color)targetColors.ContentBorderBrush;
+                            AnimateColor(borderBrush, currentBorder, targetBorder, duration);
+                        }
+                        // 浅色模式：绿色边框改为粉色
+                        else if (!isDarkMode && currentBorderColor.A > 0 &&
+                                 currentBorderColor.R < 120 && currentBorderColor.G > 140 && currentBorderColor.B < 120)
+                        {
+                            var currentBorder = (Color)currentColors.ContentBorderBrush;
+                            var targetBorder = (Color)targetColors.ContentBorderBrush;
+                            AnimateColor(borderBrush, currentBorder, targetBorder, duration);
+                        }
+                    }
+                    // 处理渐变边框（LinearGradientBrush）- 直接替换
+                    else if (border.BorderBrush is LinearGradientBrush gradientBrush && isDarkMode)
+                    {
+                        // 检查渐变中是否包含粉色，如果是则替换为绿色渐变
+                        bool hasPink = false;
+                        foreach (var stop in gradientBrush.GradientStops)
+                        {
+                            if (stop.Color.R > 200 && stop.Color.G < 150 && stop.Color.B > 150)
+                            {
+                                hasPink = true;
+                                break;
+                            }
+                        }
+                        if (hasPink)
+                        {
+                            border.BorderBrush = targetColors.BorderBrush;
+                        }
+                    }
+                }
+                // 处理 Panel 类型的背景（Grid, StackPanel 等）
+                else if (child is Panel panel)
+                {
+                    if (panel.Background is SolidColorBrush panelBgBrush)
+                    {
+                        var currentBg = panelBgBrush.Color;
+                        // 检查是否是白色或浅色背景（更宽松的条件：R、G、B 都大于 180）
+                        if (isDarkMode && currentBg.A > 0 && currentBg.R > 180 && currentBg.G > 180 && currentBg.B > 180)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(panelBgBrush, currentBg, targetBg, duration);
+                        }
+                        // 浅色模式：深色背景改为白色（更宽松的条件：R、G、B 都小于 60）
+                        else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 60 && currentBg.G < 60 && currentBg.B < 60)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(panelBgBrush, currentBg, targetBg, duration);
+                        }
+                    }
+                    // 如果背景为 null 或透明，设置背景色
+                    else if ((panel.Background == null || panel.Background == Brushes.Transparent))
+                    {
+                        // 主窗口的根 Grid 使用 WindowBackground
+                        if (rootGrid != null && panel == rootGrid)
+                        {
+                            panel.Background = new SolidColorBrush((Color)targetColors.WindowBackground);
+                        }
+                        // 其他 Panel 使用 ContentBackground（浅色和深色模式都需要设置）
+                        // 更积极地设置：只要 Panel 有子元素或实际大小，就设置背景
+                        else if (panel.Children.Count > 0 || panel.ActualWidth > 0 || panel.ActualHeight > 0)
+                        {
+                            panel.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                        }
+                    }
+                }
+                // 处理 ScrollViewer
+                else if (child is System.Windows.Controls.ScrollViewer scrollViewer)
+                {
+                    if (scrollViewer.Background is SolidColorBrush svBgBrush)
+                    {
+                        var currentBg = svBgBrush.Color;
+                        if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(svBgBrush, currentBg, targetBg, duration);
+                        }
+                        else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(svBgBrush, currentBg, targetBg, duration);
+                        }
+                    }
+                    // 强制设置 ScrollViewer 的背景色（即使为 null 或透明，浅色和深色模式都需要设置）
+                    else
+                    {
+                        scrollViewer.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                    }
+                }
+                // 处理 HandyControl 的 ScrollViewer
+                else if (child is HandyControl.Controls.ScrollViewer hcScrollViewer)
+                {
+                    if (hcScrollViewer.Background is SolidColorBrush hcSvBgBrush)
+                    {
+                        var currentBg = hcSvBgBrush.Color;
+                        if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(hcSvBgBrush, currentBg, targetBg, duration);
+                        }
+                        else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(hcSvBgBrush, currentBg, targetBg, duration);
+                        }
+                    }
+                    // 强制设置 HandyControl ScrollViewer 的背景色（即使为 null 或透明，浅色和深色模式都需要设置）
+                    else
+                    {
+                        hcScrollViewer.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                    }
+                }
+                // 处理 Control 类型的背景和前景色（包括 Button, TextBox, ComboBox, CheckBox, Label 等）
+                else if (child is System.Windows.Controls.Control control)
+                {
+                    // 更新背景色
+                    if (control.Background is SolidColorBrush controlBgBrush)
+                    {
+                        var currentBg = controlBgBrush.Color;
+                        // 检查是否是白色或浅色背景
+                        if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(controlBgBrush, currentBg, targetBg, duration);
+                        }
+                        // 浅色模式：深色背景改为白色
+                        else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(controlBgBrush, currentBg, targetBg, duration);
+                        }
+                    }
+
+                    // 更新前景色（深色/灰色文字改为白色）
+                    if (control.Foreground is SolidColorBrush controlFgBrush)
+                    {
+                        var currentFg = controlFgBrush.Color;
+                        var shouldUpdate = false;
+                        Color targetFg;
+
+                        // 检查是否是标题标签（粉色 #FFFF69B4 或绿色 #FF2FA42F）
+                        if ((currentFg.R > 200 && currentFg.G < 100 && currentFg.B > 150) || // 粉色
+                            (currentFg.R < 100 && currentFg.G > 150 && currentFg.B < 100)) // 绿色
+                        {
+                            var currentLabelFg = (Color)currentColors.LabelForeground;
+                            targetFg = (Color)targetColors.LabelForeground;
+                            shouldUpdate = true;
+                        }
+                        // 检查是否是深色或灰色文本（需要改为白色）
+                        // 包括 #FF333333、#FF666666 等灰色
+                        else if (isDarkMode && currentFg.A > 200 && 
+                                 (currentFg.R < 150 && currentFg.G < 150 && currentFg.B < 150))
+                        {
+                            var currentTextFg = (Color)currentColors.TextForeground;
+                            targetFg = (Color)targetColors.TextForeground;
+                            shouldUpdate = true;
+                        }
+                        // 浅色模式：白色文字改为深色
+                        else if (!isDarkMode && currentFg.A > 200 &&
+                                 (currentFg.R > 200 && currentFg.G > 200 && currentFg.B > 200))
+                        {
+                            var currentTextFg = (Color)currentColors.TextForeground;
+                            targetFg = (Color)targetColors.TextForeground;
+                            shouldUpdate = true;
+                        }
+
+                        if (shouldUpdate)
+                        {
+                            AnimateColor(controlFgBrush, currentFg, targetFg, duration);
+                        }
+                    }
+                }
+                // 处理 TextBlock（不是 Control，需要单独处理）
+                else if (child is TextBlock textBlock)
+                {
+                    // 更新前景色
+                    if (textBlock.Foreground is SolidColorBrush textBlockFgBrush)
+                    {
+                        var currentFg = textBlockFgBrush.Color;
+                        // 检查是否是深色或灰色文本（需要改为白色）
+                        if (isDarkMode && currentFg.A > 200 && 
+                            (currentFg.R < 150 && currentFg.G < 150 && currentFg.B < 150))
+                        {
+                            var currentTextFg = (Color)currentColors.TextForeground;
+                            var targetFg = (Color)targetColors.TextForeground;
+                            AnimateColor(textBlockFgBrush, currentTextFg, targetFg, duration);
+                        }
+                        // 浅色模式：白色文字改为深色
+                        else if (!isDarkMode && currentFg.A > 200 &&
+                                 (currentFg.R > 200 && currentFg.G > 200 && currentFg.B > 200))
+                        {
+                            var currentTextFg = (Color)currentColors.TextForeground;
+                            var targetFg = (Color)targetColors.TextForeground;
+                            AnimateColor(textBlockFgBrush, currentTextFg, targetFg, duration);
+                        }
+                    }
+                }
+                // 处理 Rectangle（线条）
+                else if (child is System.Windows.Shapes.Rectangle rectangle)
+                {
+                    // 更新 Rectangle 的 Fill（粉色线条改为绿色）
+                    if (rectangle.Fill is SolidColorBrush rectFillBrush)
+                    {
+                        var currentFill = rectFillBrush.Color;
+                        // 检查是否是粉色（#FFFF69B4 或类似）
+                        if (isDarkMode && currentFill.A > 0 && 
+                            currentFill.R > 180 && currentFill.G < 160 && currentFill.B > 140)
+                        {
+                            var currentLabelFg = (Color)currentColors.LabelForeground;
+                            var targetFill = (Color)targetColors.LabelForeground;
+                            AnimateColor(rectFillBrush, currentLabelFg, targetFill, duration);
+                        }
+                        // 浅色模式：绿色线条改为粉色
+                        else if (!isDarkMode && currentFill.A > 0 &&
+                                 currentFill.R < 120 && currentFill.G > 140 && currentFill.B < 120)
+                        {
+                            var currentLabelFg = (Color)currentColors.LabelForeground;
+                            var targetFill = (Color)targetColors.LabelForeground;
+                            AnimateColor(rectFillBrush, currentLabelFg, targetFill, duration);
+                        }
+                    }
+                }
+                // 处理 Label（标题文字）
+                else if (child is Label label)
+                {
+                    // 更新 Label 的前景色
+                    if (label.Foreground is SolidColorBrush labelFgBrush)
+                    {
+                        var currentFg = labelFgBrush.Color;
+                        var shouldUpdate = false;
+                        Color targetFg;
+
+                        // 检查是否是标题标签（粉色 #FFFF69B4 或绿色 #FF2FA42F）
+                        if ((currentFg.R > 180 && currentFg.G < 160 && currentFg.B > 140) || // 粉色
+                            (currentFg.R < 120 && currentFg.G > 140 && currentFg.B < 120)) // 绿色
+                        {
+                            var currentLabelFg = (Color)currentColors.LabelForeground;
+                            targetFg = (Color)targetColors.LabelForeground;
+                            shouldUpdate = true;
+                        }
+                        // 检查是否是深色或灰色文本（需要改为白色）
+                        else if (isDarkMode && currentFg.A > 200 && 
+                                 (currentFg.R < 150 && currentFg.G < 150 && currentFg.B < 150))
+                        {
+                            var currentTextFg = (Color)currentColors.TextForeground;
+                            targetFg = (Color)targetColors.TextForeground;
+                            shouldUpdate = true;
+                        }
+                        // 浅色模式：白色文字改为深色
+                        else if (!isDarkMode && currentFg.A > 200 &&
+                                 (currentFg.R > 200 && currentFg.G > 200 && currentFg.B > 200))
+                        {
+                            var currentTextFg = (Color)currentColors.TextForeground;
+                            targetFg = (Color)targetColors.TextForeground;
+                            shouldUpdate = true;
+                        }
+
+                        if (shouldUpdate)
+                        {
+                            AnimateColor(labelFgBrush, currentFg, targetFg, duration);
+                        }
+                    }
+                }
+                // 处理 TabItem（TabControl 的标签页）
+                else if (child is TabItem tabItem)
+                {
+                    // 更新 TabItem 的背景
+                    if (tabItem.Background is SolidColorBrush tabItemBgBrush)
+                    {
+                        var currentBg = tabItemBgBrush.Color;
+                        if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(tabItemBgBrush, currentBg, targetBg, duration);
+                        }
+                        else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
+                        {
+                            var targetBg = (Color)targetColors.ContentBackground;
+                            AnimateColor(tabItemBgBrush, currentBg, targetBg, duration);
+                        }
+                    }
+                    else if (tabItem.Background == null || tabItem.Background == Brushes.Transparent)
+                    {
+                        // TabItem 内容区域应该使用 ContentBackground
+                        tabItem.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                    }
+                    
+                    // 特别处理 TabItem 的 Content（通常是 Border）
+                    // TabItem 的内容区域（Border）需要直接处理
+                    if (tabItem.Content is Border contentBorder)
+                    {
+                        // 更新 Border 的背景 - 强制设置，不依赖动画（因为可能是硬编码的画笔）
+                        var targetBg = (Color)targetColors.ContentBackground;
+                        if (contentBorder.Background is SolidColorBrush contentBgBrush)
+                        {
+                            var currentBg = contentBgBrush.Color;
+                            // 检查是否是白色背景（#FFFFFFFF）或深色背景需要切换
+                            bool needsUpdate = false;
+                            if (isDarkMode && currentBg.A > 0 && currentBg.R > 180 && currentBg.G > 180 && currentBg.B > 180)
+                            {
+                                needsUpdate = true;
+                            }
+                            else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 60 && currentBg.G < 60 && currentBg.B < 60)
+                            {
+                                needsUpdate = true;
+                            }
+                            
+                            if (needsUpdate)
+                            {
+                                // 如果画笔被冻结或动画失败，直接创建新画笔
+                                if (contentBgBrush.IsFrozen)
+                                {
+                                    contentBorder.Background = new SolidColorBrush(targetBg);
+                                }
+                                else
+                                {
+                                    try
+                                    {
+                                        AnimateColor(contentBgBrush, currentBg, targetBg, duration);
+                                    }
+                                    catch
+                                    {
+                                        // 如果动画失败，直接设置
+                                        contentBorder.Background = new SolidColorBrush(targetBg);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // 如果背景为 null 或透明，强制设置背景色
+                            contentBorder.Background = new SolidColorBrush(targetBg);
+                        }
+                        
+                        // 更新 Border 的边框颜色（粉色改为绿色）
+                        var targetBorderColor = (Color)targetColors.ContentBorderBrush;
+                        if (contentBorder.BorderBrush is SolidColorBrush contentBorderBrush)
+                        {
+                            var currentBorderColor = contentBorderBrush.Color;
+                            bool needsBorderUpdate = false;
+                            if (isDarkMode && currentBorderColor.A > 0 && 
+                                currentBorderColor.R > 180 && currentBorderColor.G < 160 && currentBorderColor.B > 140)
+                            {
+                                needsBorderUpdate = true;
+                            }
+                            else if (!isDarkMode && currentBorderColor.A > 0 &&
+                                     currentBorderColor.R < 120 && currentBorderColor.G > 140 && currentBorderColor.B < 120)
+                            {
+                                needsBorderUpdate = true;
+                            }
+                            
+                            if (needsBorderUpdate)
+                            {
+                                if (contentBorderBrush.IsFrozen)
+                                {
+                                    contentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
+                                }
+                                else
+                                {
+                                    try
+                                    {
+                                        var currentBorder = (Color)currentColors.ContentBorderBrush;
+                                        AnimateColor(contentBorderBrush, currentBorder, targetBorderColor, duration);
+                                    }
+                                    catch
+                                    {
+                                        contentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
+                                    }
+                                }
+                            }
+                        }
+                        else if (contentBorder.BorderBrush == null)
+                        {
+                            contentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
+                        }
+                    }
+                }
+
+                // 递归处理子元素
+                UpdateAllControlsTheme(child, currentColors, targetColors, duration, isDarkMode, rootGrid);
+            }
+        }
+
+        /// <summary>
+        /// 强制更新所有白色背景为深色背景（用于确保所有硬编码的白色背景都被更新）
+        /// </summary>
+        private void ForceUpdateWhiteBackgrounds(bool isDarkMode)
+        {
+            if (!isDarkMode) return; // 只在深色模式下执行
+            
+            var targetBg = Color.FromArgb(0xFF, 0x21, 0x21, 0x25); // #FF212125
+            var targetBorder = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F); // #FF2FA42F
+            var targetText = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF); // White
+            
+            // 递归查找所有控件
+            void UpdateControls(DependencyObject parent)
+            {
+                for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+                {
+                    var child = VisualTreeHelper.GetChild(parent, i);
+                    
+                    // 处理 Border - 最优先处理，因为这是主要内容区域
+                    if (child is Border border)
+                    {
+                        // 强制更新白色背景 - 不检查任何条件，直接设置
+                        bool shouldUpdate = false;
+                        if (border.Background is SolidColorBrush bgBrush)
+                        {
+                            var currentBg = bgBrush.Color;
+                            // 检查是否是白色或浅色背景（R、G、B 都大于 200）
+                            if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                            {
+                                shouldUpdate = true;
+                            }
+                        }
+                        else if (border.Background == null || border.Background == Brushes.Transparent)
+                        {
+                            // 如果背景为 null 或透明，且 Border 有子元素，设置背景色
+                            if (VisualTreeHelper.GetChildrenCount(border) > 0 || 
+                                border.ActualWidth > 0 || border.ActualHeight > 0)
+                            {
+                                shouldUpdate = true;
+                            }
+                        }
+                        
+                        // 强制设置背景色（不依赖原画笔）
+                        if (shouldUpdate)
+                        {
+                            border.Background = new SolidColorBrush(targetBg);
+                            // 确保设置生效
+                            border.InvalidateVisual();
+                        }
+                        
+                        // 强制更新粉色边框为绿色
+                        if (border.BorderBrush is SolidColorBrush borderBrush)
+                        {
+                            var currentBorderColor = borderBrush.Color;
+                            // 检查是否是粉色边框（R > 180, G < 160, B > 140）
+                            if (currentBorderColor.A > 0 && 
+                                currentBorderColor.R > 180 && currentBorderColor.G < 160 && currentBorderColor.B > 140)
+                            {
+                                border.BorderBrush = new SolidColorBrush(targetBorder);
+                            }
+                        }
+                    }
+                    // 处理 Panel（Grid, StackPanel 等）
+                    else if (child is Panel panel)
+                    {
+                        if (panel.Background is SolidColorBrush panelBgBrush)
+                        {
+                            var currentBg = panelBgBrush.Color;
+                            if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                            {
+                                panel.Background = new SolidColorBrush(targetBg);
+                            }
+                        }
+                        else if (panel.Background == null || panel.Background == Brushes.Transparent)
+                        {
+                            if (panel.Children.Count > 0 || panel.ActualWidth > 0 || panel.ActualHeight > 0)
+                            {
+                                panel.Background = new SolidColorBrush(targetBg);
+                            }
+                        }
+                    }
+                    // 处理 Control（Button, TextBox, ComboBox 等）
+                    else if (child is Control control)
+                    {
+                        if (control.Background is SolidColorBrush controlBgBrush)
+                        {
+                            var currentBg = controlBgBrush.Color;
+                            if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                            {
+                                control.Background = new SolidColorBrush(targetBg);
+                            }
+                        }
+                        
+                        // 更新前景色（黑色文字改为白色）
+                        if (control.Foreground is SolidColorBrush controlFgBrush)
+                        {
+                            var currentFg = controlFgBrush.Color;
+                            if (currentFg.A > 200 && currentFg.R < 100 && currentFg.G < 100 && currentFg.B < 100)
+                            {
+                                control.Foreground = new SolidColorBrush(targetText);
+                            }
+                        }
+                    }
+                    // 处理 TextBlock
+                    else if (child is TextBlock textBlock)
+                    {
+                        if (textBlock.Foreground is SolidColorBrush textFgBrush)
+                        {
+                            var currentFg = textFgBrush.Color;
+                            if (currentFg.A > 200 && currentFg.R < 100 && currentFg.G < 100 && currentFg.B < 100)
+                            {
+                                textBlock.Foreground = new SolidColorBrush(targetText);
+                            }
+                        }
+                    }
+                    // 处理 ScrollViewer
+                    else if (child is System.Windows.Controls.ScrollViewer scrollViewer)
+                    {
+                        if (scrollViewer.Background is SolidColorBrush svBgBrush)
+                        {
+                            var currentBg = svBgBrush.Color;
+                            if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                            {
+                                scrollViewer.Background = new SolidColorBrush(targetBg);
+                            }
+                        }
+                        else if (scrollViewer.Background == null || scrollViewer.Background == Brushes.Transparent)
+                        {
+                            scrollViewer.Background = new SolidColorBrush(targetBg);
+                        }
+                    }
+                    // 处理 HandyControl 的 ScrollViewer
+                    else if (child is HandyControl.Controls.ScrollViewer hcScrollViewer)
+                    {
+                        if (hcScrollViewer.Background is SolidColorBrush hcSvBgBrush)
+                        {
+                            var currentBg = hcSvBgBrush.Color;
+                            if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
+                            {
+                                hcScrollViewer.Background = new SolidColorBrush(targetBg);
+                            }
+                        }
+                        else if (hcScrollViewer.Background == null || hcScrollViewer.Background == Brushes.Transparent)
+                        {
+                            hcScrollViewer.Background = new SolidColorBrush(targetBg);
+                        }
+                    }
+                    
+                    // 递归处理子元素
+                    UpdateControls(child);
+                }
+            }
+            
+            // 从窗口根元素开始遍历 - 多次遍历确保覆盖所有情况
+            UpdateControls(this);
+            
+            // 额外延迟多次，确保所有控件都已完全加载和渲染
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                UpdateControls(this);
+                // 再次延迟，确保所有动态加载的控件也被更新
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    UpdateControls(this);
+                }), DispatcherPriority.Render);
+            }), DispatcherPriority.Loaded);
+        }
 
         public void DataGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {

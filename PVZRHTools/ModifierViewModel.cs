@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -206,9 +207,38 @@ public partial class ModifierViewModel : ObservableObject
         }
 
         TravelBuffs.ListChanged += (sender, e) => SyncTravelBuffs();
-        InGameBuffs.ListChanged += (sender, e) => SyncInGameBuffs();
+        InGameBuffs.ListChanged += (sender, e) => 
+        {
+            SyncInGameBuffs();
+            // 当列表项添加时，绑定 PropertyChanged 事件
+            if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameBuffs.Count)
+            {
+                BindTravelBuffVMPropertyChanged(InGameBuffs[e.NewIndex]);
+            }
+        };
         Debuffs.ListChanged += (_, _) => SyncTravelBuffs();
-        InGameDebuffs.ListChanged += (_, _) => SyncInGameBuffs();
+        InGameDebuffs.ListChanged += (_, e) => 
+        {
+            SyncInGameBuffs();
+            // 当列表项添加时，绑定 PropertyChanged 事件
+            if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameDebuffs.Count)
+            {
+                BindTravelBuffVMPropertyChanged(InGameDebuffs[e.NewIndex]);
+            }
+        };
+        
+        // 为现有的 InGameBuffs 项绑定 PropertyChanged 事件
+        foreach (var buff in InGameBuffs)
+        {
+            BindTravelBuffVMPropertyChanged(buff);
+        }
+        
+        // 为现有的 InGameDebuffs 项绑定 PropertyChanged 事件
+        foreach (var debuff in InGameDebuffs)
+        {
+            BindTravelBuffVMPropertyChanged(debuff);
+        }
+        
         Hotkeys = [];
         foreach (var (h, hui) in from h in KeyCommands let hui = new HotkeyUI() select (h, hui))
             Hotkeys.Add(new HotkeyUIVM(hui)
@@ -336,6 +366,7 @@ public partial class ModifierViewModel : ObservableObject
         Times = s.Times;
         TopMostSprite = s.TopMostSprite;
         EnableAnimations = s.EnableAnimations;
+        // IsDarkMode 不再从保存模型加载，每次启动默认为 false
         TravelBuffs = [.. s.TravelBuffs];
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
@@ -392,9 +423,38 @@ public partial class ModifierViewModel : ObservableObject
             InGameDebuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
 
         TravelBuffs.ListChanged += (sender, e) => SyncTravelBuffs();
-        InGameBuffs.ListChanged += (sender, e) => SyncInGameBuffs();
+        InGameBuffs.ListChanged += (sender, e) => 
+        {
+            SyncInGameBuffs();
+            // 当列表项添加时，绑定 PropertyChanged 事件
+            if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameBuffs.Count)
+            {
+                BindTravelBuffVMPropertyChanged(InGameBuffs[e.NewIndex]);
+            }
+        };
         Debuffs.ListChanged += (_, _) => SyncTravelBuffs();
-        InGameDebuffs.ListChanged += (_, _) => SyncInGameBuffs();
+        InGameDebuffs.ListChanged += (_, e) => 
+        {
+            SyncInGameBuffs();
+            // 当列表项添加时，绑定 PropertyChanged 事件
+            if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameDebuffs.Count)
+            {
+                BindTravelBuffVMPropertyChanged(InGameDebuffs[e.NewIndex]);
+            }
+        };
+        
+        // 为现有的 InGameBuffs 项绑定 PropertyChanged 事件
+        foreach (var buff in InGameBuffs)
+        {
+            BindTravelBuffVMPropertyChanged(buff);
+        }
+        
+        // 为现有的 InGameDebuffs 项绑定 PropertyChanged 事件
+        foreach (var debuff in InGameDebuffs)
+        {
+            BindTravelBuffVMPropertyChanged(debuff);
+        }
+        
         var hi = 0;
         Hotkeys = [];
         foreach (var (h, hui) in from h in KeyCommands let hui = new HotkeyUI() select (h, hui))
@@ -977,6 +1037,20 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(syncAll);
     }
 
+    /// <summary>
+    /// 为 TravelBuffVM 绑定 PropertyChanged 事件，当 Enabled 属性变化时触发同步
+    /// </summary>
+    private void BindTravelBuffVMPropertyChanged(TravelBuffVM buff)
+    {
+        buff.PropertyChanged += (s, args) =>
+        {
+            if (args.PropertyName == "Enabled")
+            {
+                SyncInGameBuffs();
+            }
+        };
+    }
+
     public void SyncInGameBuffs()
     {
         List<bool> adv = [];
@@ -985,16 +1059,55 @@ public partial class ModifierViewModel : ObservableObject
         List<bool> deb = [];
         int advLen2 = App.InitData!.Value.AdvBuffs?.Length ?? 0;
         int ultiLen2 = App.InitData.Value.UltiBuffs?.Length ?? 0;
+        int investLen2 = App.InitData.Value.InvestBuffs?.Length ?? 0;
 
         foreach (var buff in InGameBuffs)
         {
             int idx = buff.TravelBuff.Index;
             if (idx < advLen2)
+            {
+                // 高级词条：直接使用索引
                 adv.Add(buff.TravelBuff.Enabled);
+            }
             else if (idx < advLen2 + ultiLen2)
-                ulti.Add(buff.TravelBuff.Enabled);
-            else
-                invest.Add(buff.TravelBuff.Enabled);
+            {
+                // 究极词条：需要转换为究极词条数组的索引（从0开始）
+                int ultiIndex = idx - advLen2;
+                // 确保 ulti 列表大小足够
+                while (ulti.Count <= ultiIndex)
+                {
+                    ulti.Add(false);
+                }
+                ulti[ultiIndex] = buff.TravelBuff.Enabled;
+            }
+            else if (idx < advLen2 + ultiLen2 + investLen2)
+            {
+                // 投资词条：需要转换为投资词条数组的索引（从0开始）
+                int investIndex = idx - advLen2 - ultiLen2;
+                // 确保 invest 列表大小足够
+                while (invest.Count <= investIndex)
+                {
+                    invest.Add(false);
+                }
+                invest[investIndex] = buff.TravelBuff.Enabled;
+            }
+        }
+
+        // 确保列表大小正确（填充缺失的项）
+        while (adv.Count < advLen2)
+        {
+            adv.Add(false);
+        }
+        while (ulti.Count < ultiLen2)
+        {
+            ulti.Add(false);
+        }
+        if (investLen2 > 0)
+        {
+            while (invest.Count < investLen2)
+            {
+                invest.Add(false);
+            }
         }
 
         foreach (var d in InGameDebuffs) deb.Add(d.TravelBuff.Enabled);
@@ -1615,6 +1728,18 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new BasicProperties { SuperPresent = value });
     }
 
+    partial void OnIsDarkModeChanged(bool value)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            App.SwitchTheme(value);
+            if (MainWindow.Instance != null)
+            {
+                MainWindow.Instance.ApplyThemeWithAnimation(value);
+            }
+        });
+    }
+
     partial void OnTopMostSpriteChanged(bool value)
     {
         if (value)
@@ -2161,6 +2286,17 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool TopMostSprite { get; set; }
 
     [ObservableProperty] public partial bool EnableAnimations { get; set; } = false;
+
+    [ObservableProperty] public partial bool IsDarkMode { get; set; } = false;
+
+    [RelayCommand]
+    private void EnableDarkMode()
+    {
+        if (!IsDarkMode)
+        {
+            IsDarkMode = true;
+        }
+    }
 
     [ObservableProperty] public partial BindingList<TravelBuffVM> TravelBuffs { get; set; }
 

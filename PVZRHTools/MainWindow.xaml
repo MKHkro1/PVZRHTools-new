@@ -48,7 +48,7 @@
             </Grid.ColumnDefinitions>
             <Image x:Name="inf75" Grid.Column="0" Source="/PVZRHTools/icon.png" Stretch="Uniform" 
                    Width="44" Height="44" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0"/>
-            <Border Grid.Column="1" Background="#FFFFFFFF" Height="44" VerticalAlignment="Center" Margin="0,0,0,0">
+            <Border Grid.Column="1" x:Name="TitleBarBorder" Height="44" VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="0,0,0,0">
                 <Label x:Name="WindowTitle" Content="" HorizontalAlignment="Left" Height="44" 
                        VerticalAlignment="Center" Foreground="#FFFF69B4" FontSize="30"
                        Style="{DynamicResource LabelBaseStyle}" />
@@ -57,7 +57,7 @@
         <TabControl Grid.Row="1" TabStripPlacement="Left" BorderBrush="#FFFFFFFF" Background="#80FFFFFF"
                     BorderThickness="0,0,0,0">
             <TabItem Header="{DynamicResource Tab0.Header}">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border x:Name="Tab0ContentBorder" Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                   PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                   CanContentScroll="False">
@@ -455,7 +455,7 @@
             </TabItem>
 
             <TabItem Header="{DynamicResource Tab1.Header}" Height="28" VerticalAlignment="Bottom">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border x:Name="Tab1ContentBorder" Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                   PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                   CanContentScroll="False">
@@ -1023,7 +1023,7 @@
                 </Border>
             </TabItem>
             <TabItem Header="{DynamicResource Tab3.Header}" Height="28" VerticalAlignment="Bottom">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                      CanContentScroll="False">
@@ -1041,7 +1041,7 @@
                                         </hc:ButtonGroup>
                                     </StackPanel>
                                     <DataGrid hc:DataGridAttach.ShowSelectAllButton="True" x:Name="TravelBuffs"
-                                              Background="#FFFFFFFF" ItemsSource="{Binding TravelBuffs}"
+ ItemsSource="{Binding TravelBuffs}"
                                               AutoGenerateColumns="False" HeadersVisibility="None"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               CanUserResizeRows="False" CanUserSortColumns="False"
@@ -1104,7 +1104,7 @@
                                         </hc:ButtonGroup>
                                     </StackPanel>
                                     <DataGrid hc:DataGridAttach.ShowSelectAllButton="True" x:Name="Debuffs"
-                                              Background="#FFFFFFFF" ItemsSource="{Binding Debuffs}"
+ ItemsSource="{Binding Debuffs}"
                                               AutoGenerateColumns="False" HeadersVisibility="None"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               CanUserResizeRows="False" CanUserSortColumns="False"
@@ -1140,7 +1140,7 @@
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               CanUserResizeRows="False" CanUserSortColumns="False"
                                               CanUserResizeColumns="False" CanUserReorderColumns="False"
-                                              Background="#FFF5F5F5" Style="{DynamicResource DataGrid.Small}"
+ Style="{DynamicResource DataGrid.Small}"
                                               PreviewMouseWheel="DataGrid_PreviewMouseWheel">
                                         <DataGrid.Columns>
                                             <DataGridCheckBoxColumn
@@ -1159,7 +1159,7 @@
                 </Border>
             </TabItem>
             <TabItem Header="{DynamicResource Tab5.Header}">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                      CanContentScroll="False">
@@ -1207,7 +1207,7 @@
                 </Border>
             </TabItem>
             <TabItem Header="{DynamicResource Tab6.Header}">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                      CanContentScroll="False">
@@ -1216,7 +1216,7 @@
                                        Text="{DynamicResource Tab6.Description}" />
                             <DataGrid ItemsSource="{Binding InGameHotkeys}" HeadersVisibility="None"
                                       VerticalScrollBarVisibility="Disabled" x:Name="InGameHotkeys"
-                                      Background="#FFF5F5F5" AutoGenerateColumns="False" CanUserAddRows="False"
+ AutoGenerateColumns="False" CanUserAddRows="False"
                                       CanUserDeleteRows="False" CanUserResizeRows="False" CanUserSortColumns="False"
                                       CanUserResizeColumns="False" CanUserReorderColumns="False">
                                 <DataGrid.Columns>
@@ -1237,7 +1237,7 @@
                 </Border>
             </TabItem>
             <TabItem Header="{DynamicResource Tab7.Header}">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <hc:ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                      CanContentScroll="False">
@@ -1252,6 +1252,21 @@
                                       Content="{DynamicResource Tab7.EnableAnimations}" Height="21"
                                       VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
                                       ToolTip="{DynamicResource Tab7.EnableAnimations.Tooltip}" />
+                            <Button x:Name="DarkMode" Command="{Binding EnableDarkModeCommand}"
+                                    Content="{DynamicResource Tab7.DarkMode}" Height="21"
+                                    VerticalAlignment="Top" Foreground="#FF333333" BorderThickness="2,2,2,2"
+                                    ToolTip="{DynamicResource Tab7.DarkMode.Tooltip}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDarkMode}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                             <Label Height="152" Width="684" Foreground="#FF333333">
                                 <TextBlock FontSize="16" Foreground="#FF80C8FF" Height="129" Width="659"
                                            Text="{DynamicResource Tab1.Description}" TextWrapping="Wrap" />
@@ -1346,7 +1361,7 @@
                 </Border>
             </TabItem>
             <TabItem Header="{DynamicResource Tab9.Header}">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                   PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                   CanContentScroll="False">
@@ -1389,7 +1404,7 @@
                 </Border>
             </TabItem>
             <TabItem Header="{DynamicResource Tab10.Header}">
-                <Border Background="#FFFFFFFF" Margin="0,8,0,0" BorderBrush="#FFFF69B4" BorderThickness="2,2,2,2">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                   PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                   CanContentScroll="False">

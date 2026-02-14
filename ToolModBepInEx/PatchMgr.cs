@@ -6469,46 +6469,10 @@ public class PatchMgr : MonoBehaviour
             {
                 try
                 {
-                    // 首先从游戏状态读取词条，更新 InGame*Buffs 数组（以游戏状态为主）
-                    // 这样可以确保游戏新获得的词条不会被工具设置覆盖
-                    // 同时，如果游戏移除了词条，也会同步更新
+                    // 不再从游戏状态读取并覆盖 UI 设置的值
+                    // UI 设置的值应该直接应用到游戏中，而不是被游戏状态覆盖
+                    // 只有在应用词条后，才需要检查游戏状态是否与设置一致
                     bool hasChanges = false;
-                    
-                    if (InGameAdvBuffs != null && InGameAdvBuffs.Length > 0)
-                    {
-                        for (int i = 0; i < InGameAdvBuffs.Length; i++)
-                        {
-                            try
-                            {
-                                bool gameState = Lawnf.TravelAdvanced((AdvBuff)i);
-                                // 以游戏状态为主：如果游戏状态与数组不一致，则更新数组
-                                if (InGameAdvBuffs[i] != gameState)
-                                {
-                                    InGameAdvBuffs[i] = gameState;
-                                    hasChanges = true;
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                    
-                    if (InGameUltiBuffs != null && InGameUltiBuffs.Length > 0)
-                    {
-                        for (int i = 0; i < InGameUltiBuffs.Length; i++)
-                        {
-                            try
-                            {
-                                bool gameState = Lawnf.TravelUltimate((UltiBuff)i);
-                                // 以游戏状态为主：如果游戏状态与数组不一致，则更新数组
-                                if (InGameUltiBuffs[i] != gameState)
-                                {
-                                    InGameUltiBuffs[i] = gameState;
-                                    hasChanges = true;
-                                }
-                            }
-                            catch { }
-                        }
-                    }
                     
                     if (InGameDebuffs != null && InGameDebuffs.Length > 0)
                     {
