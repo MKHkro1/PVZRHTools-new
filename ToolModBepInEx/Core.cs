@@ -308,14 +308,25 @@ namespace ToolModBepInEx
                     int advCount = TravelDictionary.advancedBuffsText?.Count ?? 0;
                     if (advCount > 0)
                     {
-                        foreach (var kvp in TravelDictionary.advancedBuffsText)
+                        // 按照从 0 到 maxKey 的顺序导出，确保与 DataProcessor 中的映射顺序一致
+                    int maxAdvKey = -1;
+                    foreach (var kvp in TravelDictionary.advancedBuffsText)
+                    {
+                        int key = (int)kvp.Key;
+                        if (key > maxAdvKey) maxAdvKey = key;
+                    }
+                        
+                        for (int id = 0; id <= maxAdvKey; id++)
+                    {
+                            if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
                         {
-                            int key = (int)kvp.Key;
-                            if (!string.IsNullOrEmpty(kvp.Value))
+                                var value = TravelDictionary.advancedBuffsText[(AdvBuff)id];
+                                if (!string.IsNullOrEmpty(value))
                             {
-                                MLogger.LogInfo($"Dumping Advanced Buff String:#{key} {kvp.Value}");
-                                advBuffs.Add($"#{key} {kvp.Value}");
+                                    MLogger.LogInfo($"Dumping Advanced Buff String:#{id} {value}");
+                                    advBuffs.Add($"#{id} {value}");
                             }
+                        }
                         }
                         AdvBuffs = new bool[advCount];
                         MLogger.LogInfo($"[PVZRHTools] AdvBuffs 数组大小: {advCount}");
@@ -330,14 +341,25 @@ namespace ToolModBepInEx
                     int ultiCount = TravelDictionary.ultimateBuffsText?.Count ?? 0;
                     if (ultiCount > 0)
                     {
-                        foreach (var kvp in TravelDictionary.ultimateBuffsText)
+                        // 按照从 0 到 maxKey 的顺序导出，确保与 DataProcessor 中的映射顺序一致
+                    int maxUltiKey = -1;
+                    foreach (var kvp in TravelDictionary.ultimateBuffsText)
+                    {
+                        int key = (int)kvp.Key;
+                        if (key > maxUltiKey) maxUltiKey = key;
+                    }
+                        
+                        for (int id = 0; id <= maxUltiKey; id++)
+                    {
+                            if (TravelDictionary.ultimateBuffsText.ContainsKey((UltiBuff)id))
                         {
-                            int key = (int)kvp.Key;
-                            if (!string.IsNullOrEmpty(kvp.Value))
+                                var value = TravelDictionary.ultimateBuffsText[(UltiBuff)id];
+                                if (!string.IsNullOrEmpty(value))
                             {
-                                MLogger.LogInfo($"Dumping Ultimate Buff String:#{key} {kvp.Value}");
-                                ultiBuffs.Add($"#{key} {kvp.Value}");
+                                    MLogger.LogInfo($"Dumping Ultimate Buff String:#{id} {value}");
+                                    ultiBuffs.Add($"#{id} {value}");
                             }
+                        }
                         }
                         PatchMgr.UltiBuffs = new bool[ultiCount];
                         MLogger.LogInfo($"[PVZRHTools] UltiBuffs 数组大小: {ultiCount}");
@@ -353,38 +375,49 @@ namespace ToolModBepInEx
                     int debuffCount = TravelDictionary.debuffData?.Count ?? 0;
                     if (debuffCount > 0)
                     {
+                        // 按照从 0 到 maxKey 的顺序导出，确保与 DataProcessor 中的映射顺序一致
+                    int maxDebuffKey = -1;
+                    foreach (var kvp in TravelDictionary.debuffData)
+                    {
+                        int key = (int)kvp.Key;
+                        if (key > maxDebuffKey) maxDebuffKey = key;
+                    }
+                        
                         int successCount = 0;
                         int failCount = 0;
-                        foreach (var kvp in TravelDictionary.debuffData)
+                        for (int id = 0; id <= maxDebuffKey; id++)
                         {
-                            int key = (int)kvp.Key;
-                            string desc = $"Debuff_{key}";
-                            
-                            try
+                            if (TravelDictionary.debuffData.ContainsKey((TravelDebuff)id))
                             {
-                                // 直接访问 Item1 属性（与游戏内代码一致）
-                                var item1Value = kvp.Value.Item1;
-                                if (!string.IsNullOrEmpty(item1Value))
+                                string desc = $"Debuff_{id}";
+                                
+                                try
                                 {
-                                    desc = item1Value;
-                                    successCount++;
+                                    // 直接访问 Item1 属性（与游戏内代码一致）
+                                    var debuffData = TravelDictionary.debuffData[(TravelDebuff)id];
+                                    var item1Value = debuffData.Item1;
+                                    if (!string.IsNullOrEmpty(item1Value))
+                                    {
+                                        desc = item1Value;
+                                        successCount++;
+                                    }
+                                    else
+                                    {
+                                        failCount++;
+                                    }
                                 }
-                                else
+                                catch (System.Exception ex)
                                 {
+                                    // 访问失败，使用默认名称
+                                    MLogger.LogWarning($"[PVZRHTools] 访问 debuff {id} 的 Item1 属性失败: {ex.GetType().Name}");
                                     failCount++;
+                                    desc = $"Debuff_{id}";
                                 }
-                            }
-                            catch (System.Exception ex)
-                            {
-                                // 访问失败，使用默认名称
-                                MLogger.LogWarning($"[PVZRHTools] 访问 debuff {key} 的 Item1 属性失败: {ex.GetType().Name}");
-                                failCount++;
-                                desc = $"Debuff_{key}";
-                            }
 
-                            var line = $"#{key} {desc}";
-                            MLogger.LogInfo($"Dumping Debuff String: {line}");
-                            debuffs.Add(line);
+                                var line = $"#{id} {desc}";
+                                MLogger.LogInfo($"Dumping Debuff String: {line}");
+                                debuffs.Add(line);
+                            }
                         }
                         Debuffs = new bool[debuffCount];
                         MLogger.LogInfo($"[PVZRHTools] Debuffs 数组大小: {debuffCount}, 成功读取: {successCount}, 失败: {failCount}");

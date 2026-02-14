@@ -389,27 +389,32 @@ public class DataProcessor : MonoBehaviour
                             bool oldDictValue = PatchMgr.InGameAdvBuffsDict.TryGetValue(actualBuffId, out var dictVal) ? dictVal : false;
                             
                             // 更新数组（仅当在范围内时）
+                            // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
                             bool oldValue = false;
+                            bool gameState = false;
                             if (actualBuffId >= 0 && actualBuffId < InGameAdvBuffs.Length)
                             {
                                 oldValue = InGameAdvBuffs[actualBuffId];
-                                InGameAdvBuffs[actualBuffId] = newValue;
+                                // 读取游戏当前状态
+                                try
+                                {
+                                    gameState = Lawnf.TravelAdvanced((AdvBuff)actualBuffId);
+                                }
+                                catch { }
+                                
+                                // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
+                                InGameAdvBuffs[actualBuffId] = gameState || newValue;
                             }
                             
                             // 统计变化
                             if (oldDictValue != newValue || oldValue != newValue)
                             {
                                 changedCount++;
-                            }
+                                }
                             
                             PatchMgr.InGameAdvBuffsDict[actualBuffId] = newValue;
-                        }
-                        
-                        // 只在有变化时输出汇总日志
-                        if (changedCount > 0)
-                        {
-                            PatchMgr.MLogger?.LogInfo($"[PVZRHTools] ProcessData: 高级词条数据更新完成 - {changedCount} 个词条状态发生变化");
-                        }
+                            }
+                            
                     }
                     else if (s.AdvTravelBuff is not null)
                     {
@@ -454,27 +459,23 @@ public class DataProcessor : MonoBehaviour
                             bool oldDictValue = PatchMgr.InGameAdvBuffsDict.TryGetValue(actualBuffId, out var dictVal) ? dictVal : false;
                             
                             // 更新数组（仅当在范围内时）
+                            // 初始词条：只叠加，不覆盖
                             bool oldValue = false;
                             if (actualBuffId >= 0 && actualBuffId < InGameAdvBuffs.Length)
                             {
                                 oldValue = InGameAdvBuffs[actualBuffId];
-                                InGameAdvBuffs[actualBuffId] = newValue;
+                                InGameAdvBuffs[actualBuffId] = InGameAdvBuffs[actualBuffId] || newValue;
                             }
                             
                             // 统计变化
                             if (oldDictValue != newValue || oldValue != newValue)
                             {
                                 changedCount++;
-                            }
+                                }
                             
                             PatchMgr.InGameAdvBuffsDict[actualBuffId] = newValue;
-                        }
-                        
-                        // 只在有变化时输出汇总日志
-                        if (changedCount > 0)
-                        {
-                            PatchMgr.MLogger?.LogInfo($"[PVZRHTools] ProcessData: 高级词条数据更新完成 - {changedCount} 个词条状态发生变化");
-                        }
+                            }
+                            
                     }
                 }
 
@@ -495,13 +496,28 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.UltiInGame is not null)
                     {
+                        // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
                         for (int i = 0; i < s.UltiInGame.Count && i < InGameUltiBuffs.Length; i++)
-                            InGameUltiBuffs[i] = s.UltiInGame[i];
+                        {
+                            // 读取游戏当前状态
+                            bool gameState = false;
+                            try
+                            {
+                                gameState = Lawnf.TravelUltimate((UltiBuff)i);
+                            }
+                            catch { }
+                            
+                            // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
+                            InGameUltiBuffs[i] = gameState || s.UltiInGame[i];
+                        }
                     }
                     else if (s.UltiTravelBuff is not null)
                     {
+                        // 初始词条：只叠加，不覆盖
                         for (int i = 0; i < s.UltiTravelBuff.Count && i < InGameUltiBuffs.Length; i++)
-                            InGameUltiBuffs[i] = s.UltiTravelBuff[i];
+                        {
+                            InGameUltiBuffs[i] = InGameUltiBuffs[i] || s.UltiTravelBuff[i];
+                        }
                     }
                 }
 
@@ -522,13 +538,28 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.DebuffsInGame is not null)
                     {
+                        // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
                         for (int i = 0; i < s.DebuffsInGame.Count && i < InGameDebuffs.Length; i++)
-                            InGameDebuffs[i] = s.DebuffsInGame[i];
+                        {
+                            // 读取游戏当前状态
+                            bool gameState = false;
+                            try
+                            {
+                                gameState = Lawnf.TravelDebuff((TravelDebuff)i);
+                            }
+                            catch { }
+                            
+                            // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
+                            InGameDebuffs[i] = gameState || s.DebuffsInGame[i];
+                        }
                     }
                     else if (s.Debuffs is not null)
                     {
+                        // 初始词条：只叠加，不覆盖
                         for (int i = 0; i < s.Debuffs.Count && i < InGameDebuffs.Length; i++)
-                            InGameDebuffs[i] = s.Debuffs[i];
+                        {
+                            InGameDebuffs[i] = InGameDebuffs[i] || s.Debuffs[i];
+                        }
                     }
                 }
 
@@ -548,13 +579,28 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.InvestInGame is not null)
                     {
+                        // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
                         for (int i = 0; i < s.InvestInGame.Count && i < InGameInvestBuffs.Length; i++)
-                            InGameInvestBuffs[i] = s.InvestInGame[i];
+                        {
+                            // 读取游戏当前状态
+                            bool gameState = false;
+                            try
+                            {
+                                gameState = Lawnf.TravelInvest((InvestBuff)i);
+                            }
+                            catch { }
+                            
+                            // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
+                            InGameInvestBuffs[i] = gameState || s.InvestInGame[i];
+                        }
                     }
                     else if (s.InvestTravelBuff is not null)
                     {
+                        // 初始词条：只叠加，不覆盖
                         for (int i = 0; i < s.InvestTravelBuff.Count && i < InGameInvestBuffs.Length; i++)
-                            InGameInvestBuffs[i] = s.InvestTravelBuff[i];
+                        {
+                            InGameInvestBuffs[i] = InGameInvestBuffs[i] || s.InvestTravelBuff[i];
+                        }
                     }
                 }
 
@@ -1180,8 +1226,6 @@ all");
                         {
                     if (Board.Instance != null && Board.Instance.theMaxWave > 0)
                     {
-                        MLogger?.LogInfo($"[PVZRHTools] 生成下一波僵尸: 当前波数={Board.Instance.theWave}, 最大波数={Board.Instance.theMaxWave}");
-                        
                         // 第 0 波时保证进度条可见（与原版表现一致）
                         if (Board.Instance.theWave == 0 && InGameUI.Instance != null && InGameUI.Instance.LevProgress != null)
                                 InGameUI.Instance.LevProgress.SetActive(true);
@@ -1190,7 +1234,6 @@ all");
                         Board.Instance.timeUntilNextWave = -0.01f;
                         Board.Instance.NewZombieUpdate();
                         
-                        MLogger?.LogInfo($"[PVZRHTools] 生成下一波僵尸完成: 新波数={Board.Instance.theWave}, timeUntilNextWave={Board.Instance.timeUntilNextWave}");
                         }
                     else
                     {
@@ -1725,7 +1768,6 @@ all");
                             CurrentWave = currentWave,
                             ZombieListByWave = zombieListData
                         });
-                        MLogger?.LogInfo($"[PVZRHTools] 已发送出怪列表数据，当前波数: {currentWave}, 波次数: {zombieListData.Count}");
                     }
                     else
                     {
@@ -1757,7 +1799,6 @@ all");
                             int.TryParse(parts[2], out int zombieType))
                         {
                             PatchMgr.SetZombieList(zombieIndex, waveIndex, (ZombieType)zombieType);
-                            MLogger?.LogInfo($"[PVZRHTools] 已修改出怪列表: 波次={waveIndex}, 索引={zombieIndex}, 类型={zombieType}");
                         }
                     }
                 }
@@ -1774,17 +1815,11 @@ all");
             }
             if (iga.FlagWaveBuffIds is not null)
             {
-                var idsStr = string.Join(", ", iga.FlagWaveBuffIds);
-                MLogger?.LogInfo($"[PVZRHTools] DataProcessor: 接收到 FlagWaveBuffIds = [{idsStr}]");
                 PatchMgr.FlagWaveBuffIds = iga.FlagWaveBuffIds;
-                var setIdsStr = string.Join(", ", PatchMgr.FlagWaveBuffIds);
-                MLogger?.LogInfo($"[PVZRHTools] DataProcessor: 已设置 PatchMgr.FlagWaveBuffIds = [{setIdsStr}]");
             }
             if (iga.FlagWaveCustomTexts is not null)
             {
                 PatchMgr.FlagWaveCustomTexts = iga.FlagWaveCustomTexts;
-                var textsStr = string.Join(" | ", iga.FlagWaveCustomTexts);
-                MLogger?.LogInfo($"[PVZRHTools] DataProcessor: 已设置 FlagWaveCustomTexts = [{textsStr}]");
             }
         }
 
