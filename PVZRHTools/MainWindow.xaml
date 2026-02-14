@@ -36,19 +36,19 @@
             <GradientStop Color="#FFDB7093" Offset="0.548" />
         </LinearGradientBrush>
     </Window.BorderBrush>
-    <Grid>
+    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Grid x:Name="TitleBar" Grid.Row="0" PreviewMouseDown="TitleBar_PreviewMouseDown">
+        <Grid x:Name="TitleBar" Grid.Row="0" PreviewMouseDown="TitleBar_PreviewMouseDown" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="48"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Image x:Name="inf75" Grid.Column="0" Source="/PVZRHTools/icon.png" Stretch="Uniform" 
                    Width="44" Height="44" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0"/>
-            <Border Grid.Column="1" x:Name="TitleBarBorder" Height="44" VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="0,0,0,0">
+            <Border Grid.Column="1" x:Name="TitleBarBorder" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,0,0,0" Background="#FFFFFFFF">
                 <Label x:Name="WindowTitle" Content="" HorizontalAlignment="Left" Height="44" 
                        VerticalAlignment="Center" Foreground="#FFFF69B4" FontSize="30"
                        Style="{DynamicResource LabelBaseStyle}" />

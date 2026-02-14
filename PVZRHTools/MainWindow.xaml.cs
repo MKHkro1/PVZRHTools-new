@@ -102,6 +102,7 @@ namespace PVZRHTools
             
             // 窗口加载完成后播放启动动画
             Loaded += MainWindow_Loaded;
+            SizeChanged += MainWindow_SizeChanged;
             
             // 窗口激活时播放过渡动画（从后台切回前台）
             Activated += MainWindow_Activated;
@@ -144,6 +145,9 @@ namespace PVZRHTools
             // 设置旗帜波词条选择下拉框的固定宽度
             SetFlagWaveComboBoxDropDownWidth();
             
+            // 确保标题栏背景延伸到窗口最右边
+            UpdateTitleBarBorderWidth();
+            
             // 确保在窗口加载后应用主题（延迟执行，确保所有控件都已加载）
             if (ViewModel != null && ViewModel.IsDarkMode)
             {
@@ -153,6 +157,24 @@ namespace PVZRHTools
                     // 额外强制更新所有白色背景
                     ForceUpdateWhiteBackgrounds(true);
                 }), DispatcherPriority.Loaded);
+            }
+        }
+        
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // 窗口大小改变时，确保标题栏背景延伸到窗口最右边
+            UpdateTitleBarBorderWidth();
+        }
+        
+        private void UpdateTitleBarBorderWidth()
+        {
+            var titleBarBorder = FindName("TitleBarBorder") as Border;
+            if (titleBarBorder != null)
+            {
+                // 确保 Border 填充整个可用空间
+                titleBarBorder.HorizontalAlignment = HorizontalAlignment.Stretch;
+                titleBarBorder.VerticalAlignment = VerticalAlignment.Stretch;
+                titleBarBorder.Margin = new Thickness(0, 0, 0, 0);
             }
         }
         
