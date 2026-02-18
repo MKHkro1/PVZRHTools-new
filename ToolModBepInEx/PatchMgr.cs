@@ -4802,11 +4802,31 @@ public class PatchMgr : MonoBehaviour
     public static int ImpToBeThrown { get; set; } = 37;
     public static bool[] InGameAdvBuffs { get; set; } = [];
     /// <summary>
-    /// 高级词条状态字典（用于支持非连续的大ID词条）
+    /// 高级词条当前状态字典（用于支持非连续的大ID词条）
     /// </summary>
     public static Dictionary<int, bool> InGameAdvBuffsDict { get; set; } = new Dictionary<int, bool>();
     public static bool[] InGameDebuffs { get; set; } = [];
     public static bool[] InGameUltiBuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 修改器“期望”的局内负面词条开关（用于锁定/强制应用，以避免被游戏状态同步覆盖）
+    /// </summary>
+    public static bool[] DesiredInGameDebuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 修改器“期望”的局内究极词条开关（用于锁定/强制应用，以避免被游戏状态同步覆盖）
+    /// </summary>
+    public static bool[] DesiredInGameUltiBuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 上一次应用时的“期望”究极词条状态，用于检测 true -> false 这种“用户取消勾选”的变化
+    /// </summary>
+    public static bool[] LastDesiredInGameUltiBuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 上一次应用时的高级词条期望状态（用于检测高级词条 true->false 的变化）
+    /// </summary>
+    public static Dictionary<int, bool> LastInGameAdvBuffsDict { get; set; } = new Dictionary<int, bool>();
     /// <summary>
     /// 投资词条（InvestBuff）当前配置状态
     /// </summary>
@@ -4815,6 +4835,21 @@ public class PatchMgr : MonoBehaviour
     /// 投资词条在游戏中的实际生效状态
     /// </summary>
     public static bool[] InGameInvestBuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 修改器“期望”的局内投资词条开关（用于锁定/强制应用，以避免被游戏状态同步覆盖）
+    /// </summary>
+    public static bool[] DesiredInGameInvestBuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 上一次应用时的“期望”负面词条状态，用于检测 true -> false 这种“用户取消勾选”的变化
+    /// </summary>
+    public static bool[] LastDesiredInGameDebuffs { get; set; } = [];
+    
+    /// <summary>
+    /// 上一次应用时的“期望”投资词条状态，用于检测 true -> false 这种“用户取消勾选”的变化
+    /// </summary>
+    public static bool[] LastDesiredInGameInvestBuffs { get; set; } = [];
     
     /// <summary>
     /// 旗帜波词条功能 - 是否启用
@@ -6439,403 +6474,278 @@ public class PatchMgr : MonoBehaviour
         }
         return travelMgr;
     }
-
+    
     // 控制是否允许 UpdateInGameBuffs 根据 shouldUnlock=false 去“关闭/移除”词条。
     // 初始词条功能会将其设置为 false，避免在场景切换时把已有词条清空；
     // UI 主动关闭词条时则允许移除。
     public static bool AllowBuffRemoval = true;
-
+    
+    /// <summary>
+    /// 将修改器端缓存的 InGame* 状态应用到游戏中。
+    /// 注意：这里应当以“修改器设置”为主，不要在一开始就用游戏当前状态覆盖 InGame*，
+    /// 否则会导致实时修改页的勾选/取消完全失效。
+    /// 游戏 -> 修改器 的同步已经由 SyncGameBuffsToModifier / TravelMgrBuffSyncPatch 负责。
+    /// </summary>
     public static void UpdateInGameBuffs()
     {
         try
         {
-            // 使用统一的 TravelMgr 获取方法
             var travelMgr = ResolveTravelMgr(autoCreate: true);
             if (travelMgr == null)
             {
-                MLogger?.LogWarning("[PVZRHTools] 无法找到 TravelMgr 组件，可能是游戏未初始化");
+                MLogger?.LogWarning("[PVZRHTools] UpdateInGameBuffs: 无法找到 TravelMgr，可能未进入关卡/未初始化");
                 return;
             }
-            
-            // 3.4.1：TravelMgr 不再公开 advancedUpgrades / ultimateUpgrades / debuff 等字段，
-            // 解锁逻辑参考 HeiTa 的实现：通过 travel.data.* 列表判断是否已解锁，再调用
-            // GetNormalBuff / GetUltiBuff / GetDebuff 进行真正的解锁与应用。
+
             var data = travelMgr.data;
             if (data == null)
             {
                 MLogger?.LogWarning("[PVZRHTools] UpdateInGameBuffs: travelMgr.data 为空，无法同步词条状态");
+                return;
             }
-            else
+
+            // 高级词条：以游戏为主，但对“手动取消勾选”的该词条执行一次关闭
+            // - 勾选为 true 且当前未解锁 -> 只补充解锁这一条
+            // - 从 true 取消勾选（上一次为 true、本次为 false） -> 只对这一条从当前局移除，相当于“关闭该词条”，不动其它词条。
+            if (TravelDictionary.advancedBuffsText != null)
             {
-                try
+                foreach (var kvp in TravelDictionary.advancedBuffsText)
                 {
-                    // 不再从游戏状态读取并覆盖 UI 设置的值
-                    // UI 设置的值应该直接应用到游戏中，而不是被游戏状态覆盖
-                    // 只有在应用词条后，才需要检查游戏状态是否与设置一致
-                    bool hasChanges = false;
-                    
-                    if (InGameDebuffs != null && InGameDebuffs.Length > 0)
-                    {
-                        for (int i = 0; i < InGameDebuffs.Length; i++)
-                        {
-                            try
-                            {
-                                bool gameState = Lawnf.TravelDebuff((TravelDebuff)i);
-                                // 以游戏状态为主：如果游戏状态与数组不一致，则更新数组
-                                if (InGameDebuffs[i] != gameState)
-                                {
-                                    InGameDebuffs[i] = gameState;
-                                    hasChanges = true;
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                    
-                    if (InGameInvestBuffs != null && InGameInvestBuffs.Length > 0)
-                    {
-                        for (int i = 0; i < InGameInvestBuffs.Length; i++)
-                        {
-                            try
-                            {
-                                bool gameState = Lawnf.TravelInvest((InvestBuff)i);
-                                // 以游戏状态为主：如果游戏状态与数组不一致，则更新数组
-                                if (InGameInvestBuffs[i] != gameState)
-                                {
-                                    InGameInvestBuffs[i] = gameState;
-                                    hasChanges = true;
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                    
-                    // 如果检测到游戏状态变化，发送更新到UI
-                    if (hasChanges)
-                    {
-                        ReloadAndSendBuffsData();
-                    }
-                    
-                    // 同步高级词条：根据 InGameAdvBuffs 的状态解锁未解锁的词条
-                    // 3.4.1：使用 TravelDictionary.advancedBuffsText 的键来遍历，确保使用实际的 AdvBuff 枚举值
-                    // 性能优化：只在有变化时输出日志，减少性能损耗
-                    if (InGameAdvBuffs != null && InGameAdvBuffs.Length > 0 && TravelDictionary.advancedBuffsText != null)
-                    {
-                        int unlockedCount = 0;
-                        int removedCount = 0;
-                        
-                        // 遍历 TravelDictionary.advancedBuffsText 的所有键（AdvBuff 枚举值）
-                        foreach (var kvp in TravelDictionary.advancedBuffsText)
-                        {
-                            int advBuffId = (int)kvp.Key;
-                            
-                            // 检查该词条是否应该解锁：优先使用字典，如果字典中没有则使用数组
-                            bool shouldUnlock = false;
-                            if (InGameAdvBuffsDict != null && InGameAdvBuffsDict.TryGetValue(advBuffId, out var dictValue))
-                            {
-                                shouldUnlock = dictValue;
-                            }
-                            else if (advBuffId >= 0 && advBuffId < InGameAdvBuffs.Length)
-                            {
-                                shouldUnlock = InGameAdvBuffs[advBuffId];
-                            }
-                            else
-                            {
-                                // 词条ID超出数组范围，且字典中也没有，跳过
-                                continue;
-                            }
+                    int id = (int)kvp.Key;
 
-                            var adv = (AdvBuff)advBuffId;
-                            bool unlocked =
-                                (data.advBuffs != null && data.advBuffs.Contains(adv)) ||
-                                (data.advBuffs_lv2 != null && data.advBuffs_lv2.Contains(adv));
-
-                            if (shouldUnlock)
-                            {
-                                // 需要解锁：如果未解锁则解锁
-                            if (!unlocked)
-                            {
-                                try
-                                {
-                                    // 参考 HeiTa 的实现：使用 travelMgr.GetNormalBuff 来解锁词条
-                                    // 这会自动处理词条的解锁和应用逻辑
-                                    travelMgr.GetNormalBuff(adv);
-                                        unlockedCount++;
-                                }
-                                catch (System.Exception ex)
-                                {
-                                        MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁高级词条 {adv} (id={advBuffId}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
-                            else if (AllowBuffRemoval)
-                            {
-                                // 需要关闭：如果已解锁则移除
-                                // 但是，如果游戏中有这个词条，则不应该移除（以游戏状态为主）
-                                if (unlocked)
-                                {
-                                    // 先检查游戏状态，如果游戏中有，则保留，不移除
-                                    bool gameHasBuff = false;
-                                    try
-                                    {
-                                        gameHasBuff = Lawnf.TravelAdvanced(adv);
-                                    }
-                                    catch { }
-                                    
-                                    // 只有游戏中没有这个词条时，才允许移除
-                                    if (!gameHasBuff)
-                                {
-                                    try
-                                    {
-                                        // 从 data.advBuffs 中移除
-                                        if (data.advBuffs != null && data.advBuffs.Contains(adv))
-                                        {
-                                            data.advBuffs.Remove(adv);
-                                        }
-                                        // 从 data.advBuffs_lv2 中移除
-                                        if (data.advBuffs_lv2 != null && data.advBuffs_lv2.Contains(adv))
-                                        {
-                                            data.advBuffs_lv2.Remove(adv);
-                                        }
-                                            removedCount++;
-                                    }
-                                    catch (System.Exception ex)
-                                    {
-                                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 关闭高级词条 {adv} (id={advBuffId}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
-                        }
-                        }
-                        
-                    }
+                    bool desired;
+                    if (InGameAdvBuffsDict != null && InGameAdvBuffsDict.TryGetValue(id, out var dictValue))
+                        desired = dictValue;
+                    else if (InGameAdvBuffs != null && id >= 0 && id < InGameAdvBuffs.Length)
+                        desired = InGameAdvBuffs[id];
                     else
-                    {
-                        MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 跳过高级词条同步 - InGameAdvBuffs={(InGameAdvBuffs != null ? $"Length={InGameAdvBuffs.Length}" : "null")}, TravelDictionary.advancedBuffsText={(TravelDictionary.advancedBuffsText != null ? $"Count={TravelDictionary.advancedBuffsText.Count}" : "null")}");
-                    }
+                        continue; // 未知ID，跳过
 
-                    // 同步究极词条：根据 InGameUltiBuffs 的状态解锁未解锁的词条
-                    // 3.4.1：使用 TravelDictionary.ultimateBuffsText 的键来遍历，确保使用实际的 UltiBuff 枚举值
-                    // 性能优化：只在有变化时输出日志，减少性能损耗
-                    if (InGameUltiBuffs != null && InGameUltiBuffs.Length > 0 && TravelDictionary.ultimateBuffsText != null)
+                    var adv = (AdvBuff)id;
+                    bool unlocked =
+                        (data.advBuffs != null && data.advBuffs.Contains(adv)) ||
+                        (data.advBuffs_lv2 != null && data.advBuffs_lv2.Contains(adv));
+
+                    // 上一次期望状态，用于判断是否从 true -> false
+                    bool lastDesired = false;
+                    if (LastInGameAdvBuffsDict != null && LastInGameAdvBuffsDict.TryGetValue(id, out var lastVal))
+                        lastDesired = lastVal;
+
+                    if (desired && !unlocked)
                     {
-                        int unlockedCount = 0;
-                        int removedCount = 0;
-                        
-                        // 遍历 TravelDictionary.ultimateBuffsText 的所有键（UltiBuff 枚举值）
-                        foreach (var kvp in TravelDictionary.ultimateBuffsText)
+                        try
                         {
-                            int ultiBuffId = (int)kvp.Key;
-                            
-                            // 检查索引是否在 InGameUltiBuffs 数组范围内
-                            if (ultiBuffId < 0 || ultiBuffId >= InGameUltiBuffs.Length) continue;
-                            
-                            // 检查该词条是否应该解锁
-                            bool shouldUnlock = InGameUltiBuffs[ultiBuffId];
-
-                            var ulti = (UltiBuff)ultiBuffId;
-                            bool unlocked =
-                                (data.ultiBuffs != null && data.ultiBuffs.Contains(ulti)) ||
-                                (data.ultiBuffs_lv2 != null && data.ultiBuffs_lv2.Contains(ulti));
-
-                            if (shouldUnlock)
-                            {
-                                // 需要解锁：如果未解锁则解锁
-                            if (!unlocked)
-                            {
-                                try
-                                {
-                                    // 参考 HeiTa 的实现：使用 travelMgr.GetUltiBuff(ulti, true) 来解锁词条
-                                    // 第二个参数 upgrade = true，表示直接解锁该终极词条
-                                    travelMgr.GetUltiBuff(ulti, true);
-                                        unlockedCount++;
-                                }
-                                catch (System.Exception ex)
-                                {
-                                        MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁究极词条 {ulti} (id={ultiBuffId}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
-                            else if (AllowBuffRemoval)
-                            {
-                                // 需要关闭：如果已解锁则移除
-                                // 但是，如果游戏中有这个词条，则不应该移除（以游戏状态为主）
-                                if (unlocked)
-                                {
-                                    // 先检查游戏状态，如果游戏中有，则保留，不移除
-                                    bool gameHasBuff = false;
-                                    try
-                                    {
-                                        gameHasBuff = Lawnf.TravelUltimate(ulti);
-                                    }
-                                    catch { }
-                                    
-                                    // 只有游戏中没有这个词条时，才允许移除
-                                    if (!gameHasBuff)
-                                {
-                                    try
-                                    {
-                                        // 从 data.ultiBuffs 中移除
-                                        if (data.ultiBuffs != null && data.ultiBuffs.Contains(ulti))
-                                        {
-                                            data.ultiBuffs.Remove(ulti);
-                                        }
-                                        // 从 data.ultiBuffs_lv2 中移除
-                                        if (data.ultiBuffs_lv2 != null && data.ultiBuffs_lv2.Contains(ulti))
-                                        {
-                                            data.ultiBuffs_lv2.Remove(ulti);
-                                        }
-                                            removedCount++;
-                                    }
-                                    catch (System.Exception ex)
-                                    {
-                                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 关闭究极词条 {ulti} (id={ultiBuffId}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
+                            travelMgr.GetNormalBuff(adv);
                         }
-                        }
-                        
-                    }
-
-                    // 同步负面词条：根据 InGameDebuffs 的状态解锁未解锁的词条
-                    // 3.4.1：使用 TravelDictionary.debuffData 的键来遍历，确保使用实际的 TravelDebuff 枚举值
-                    // 性能优化：只在有变化时输出日志，减少性能损耗
-                    if (InGameDebuffs != null && InGameDebuffs.Length > 0 && TravelDictionary.debuffData != null)
-                    {
-                        int unlockedCount = 0;
-                        int removedCount = 0;
-                        
-                        // 遍历 TravelDictionary.debuffData 的所有键（TravelDebuff 枚举值）
-                        foreach (var kvp in TravelDictionary.debuffData)
+                        catch (System.Exception ex)
                         {
-                            int debuffId = (int)kvp.Key;
-                            
-                            // 检查索引是否在 InGameDebuffs 数组范围内
-                            if (debuffId < 0 || debuffId >= InGameDebuffs.Length) continue;
-                            
-                            // 检查该词条是否应该解锁
-                            bool shouldUnlock = InGameDebuffs[debuffId];
-
-                            var debuff = (TravelDebuff)debuffId;
-                            bool unlocked =
-                                data.travelDebuffs != null && data.travelDebuffs.Contains(debuff);
-
-                            if (shouldUnlock)
-                            {
-                                // 需要解锁：如果未解锁则解锁
-                            if (!unlocked)
-                            {
-                                try
-                                {
-                                    // 参考 HeiTa 的实现：使用 travelMgr.GetDebuff 来解锁词条
-                                    travelMgr.GetDebuff(debuff);
-                                        unlockedCount++;
-                                }
-                                catch (System.Exception ex)
-                                {
-                                        MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁负面词条 {debuff} (id={debuffId}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
-                            else if (AllowBuffRemoval)
-                            {
-                                // 需要关闭：如果已解锁则移除
-                                // 但是，如果游戏中有这个词条，则不应该移除（以游戏状态为主）
-                                if (unlocked)
-                                {
-                                    // 先检查游戏状态，如果游戏中有，则保留，不移除
-                                    bool gameHasBuff = false;
-                                    try
-                                    {
-                                        gameHasBuff = Lawnf.TravelDebuff(debuff);
-                                    }
-                                    catch { }
-                                    
-                                    // 只有游戏中没有这个词条时，才允许移除
-                                    if (!gameHasBuff)
-                                {
-                                    try
-                                    {
-                                        // 从 data.travelDebuffs 中移除
-                                        if (data.travelDebuffs != null && data.travelDebuffs.Contains(debuff))
-                                        {
-                                            data.travelDebuffs.Remove(debuff);
-                                        }
-                                            removedCount++;
-                                    }
-                                    catch (System.Exception ex)
-                                    {
-                                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 关闭负面词条 {debuff} (id={debuffId}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁高级词条 {adv} (id={id}) 失败: {ex.Message}");
                         }
-                        }
-                        
                     }
-
-                    // 同步投资词条（InvestBuff）：3.4.1 中通过 TravelMgr.GetInvestBuff 解锁/应用
-                    // 性能优化：只在有变化时输出日志，减少性能损耗
-                    if (InGameInvestBuffs != null && InGameInvestBuffs.Length > 0)
+                    // 仅当“上一次为 true、本次为 false”且允许移除、当前已解锁时，才关闭这一条高级词条
+                    else if (!desired && lastDesired && AllowBuffRemoval && unlocked)
                     {
-                        int unlockedCount = 0;
-                        int removedCount = 0;
-                        
-                        for (int i = 0; i < InGameInvestBuffs.Length; i++)
+                        try
                         {
-                            bool shouldUnlock = InGameInvestBuffs[i];
-                            var invest = (InvestBuff)i;
-                            
-                            // 检查投资词条是否已解锁
-                            bool unlocked = false;
-                            try
-                            {
-                                unlocked = Lawnf.TravelInvest(invest);
-                            }
-                            catch (System.Exception ex)
-                            {
-                                MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 检查投资词条 {invest} 状态失败: {ex.Message}");
-                            }
-                            
-                            if (shouldUnlock)
-                            {
-                                // 需要解锁：如果未解锁则解锁
-                                if (!unlocked)
-                                {
-                            try
-                            {
-                                travelMgr.GetInvestBuff(invest);
-                                        unlockedCount++;
-                            }
-                            catch (System.Exception ex)
-                            {
-                                MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 调用 GetInvestBuff({invest}) 失败: {ex.Message}");
-                                    }
-                                }
-                            }
-                            else if (AllowBuffRemoval)
-                            {
-                                // 需要关闭：如果已解锁则移除
-                                // 但是，如果游戏中有这个词条，则不应该移除（以游戏状态为主）
-                                // 注意：unlocked 已经是通过 Lawnf.TravelInvest 检查的游戏状态
-                                // 如果 unlocked 是 true，说明游戏中有，则不应该移除
-                                // 如果 unlocked 是 false，说明游戏中没有，则不需要移除
-                                // 因此，这里实际上不需要做任何操作，因为我们要以游戏状态为主
-                                // 如果游戏中有（unlocked 是 true），则保留；如果游戏中没有（unlocked 是 false），则不需要移除
-                                    }
-                                }
-                        
+                            data.advBuffs?.Remove(adv);
+                            data.advBuffs_lv2?.Remove(adv);
+                            MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 关闭高级词条 {adv} (id={id})，已从当前局移除");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 移除高级词条 {adv} (id={id}) 失败: {ex.Message}");
+                        }
                     }
-                }
-                catch (System.Exception ex)
-                {
-                    MLogger?.LogError($"[PVZRHTools] UpdateInGameBuffs: 同步 TravelMgr.data 词条状态时出错: {ex.Message}\n{ex.StackTrace}");
                 }
             }
-            
-            // 关键修复：设置 BoardTag 标志，使游戏识别并应用词条效果
-            // 参考 HeiTa 和 SuperGoldPresent 的处理方式
+
+            // 究极词条：以游戏为主，但对“手动取消勾选”的该词条执行一次关闭
+            // - 勾选 true 且未解锁 -> 解锁
+            // - 从 true 取消勾选 -> 只对这一条从当前局移除，其它究极词条不受影响。
+            if (TravelDictionary.ultimateBuffsText != null)
+            {
+                foreach (var kvp in TravelDictionary.ultimateBuffsText)
+                {
+                    int id = (int)kvp.Key;
+
+                    bool desired;
+                    if (DesiredInGameUltiBuffs != null && id >= 0 && id < DesiredInGameUltiBuffs.Length)
+                        desired = DesiredInGameUltiBuffs[id];
+                    else if (InGameUltiBuffs != null && id >= 0 && id < InGameUltiBuffs.Length)
+                        desired = InGameUltiBuffs[id];
+                    else
+                        continue;
+
+                    var ulti = (UltiBuff)id;
+                    bool unlocked =
+                        (data.ultiBuffs != null && data.ultiBuffs.Contains(ulti)) ||
+                        (data.ultiBuffs_lv2 != null && data.ultiBuffs_lv2.Contains(ulti));
+
+                    // 上一次期望状态，用于判断是否从 true -> false
+                    bool lastDesired = false;
+                    if (LastDesiredInGameUltiBuffs != null && id >= 0 && id < LastDesiredInGameUltiBuffs.Length)
+                        lastDesired = LastDesiredInGameUltiBuffs[id];
+
+                    if (desired && !unlocked)
+                    {
+                        try
+                        {
+                            travelMgr.GetUltiBuff(ulti, true);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁究极词条 {ulti} (id={id}) 失败: {ex.Message}");
+                        }
+                    }
+                    // 从 true 取消勾选时，且允许移除并且当前已解锁，则关闭这一条究极词条
+                    else if (!desired && lastDesired && AllowBuffRemoval && unlocked)
+                    {
+                        try
+                        {
+                            data.ultiBuffs?.Remove(ulti);
+                            data.ultiBuffs_lv2?.Remove(ulti);
+                            MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 关闭究极词条 {ulti} (id={id})，已从当前局移除");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 移除究极词条 {ulti} (id={id}) 失败: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            // 负面词条（Debuff）：以游戏为主，但对“手动取消勾选”的该词条执行一次关闭
+            // - 勾选 true 且未解锁 -> 解锁
+            // - 从 true 取消勾选 -> 只对这一条从当前局移除，其它 Debuff 不受影响。
+            if (TravelDictionary.debuffData != null)
+            {
+                foreach (var kvp in TravelDictionary.debuffData)
+                {
+                    int id = (int)kvp.Key;
+
+                    bool desired;
+                    if (DesiredInGameDebuffs != null && id >= 0 && id < DesiredInGameDebuffs.Length)
+                        desired = DesiredInGameDebuffs[id];
+                    else if (InGameDebuffs != null && id >= 0 && id < InGameDebuffs.Length)
+                        desired = InGameDebuffs[id];
+                    else
+                        continue;
+
+                    var debuff = (TravelDebuff)id;
+                    bool unlocked = data.travelDebuffs != null && data.travelDebuffs.Contains(debuff);
+
+                    // 上一次期望状态，用于判断是否从 true -> false
+                    bool lastDesired = false;
+                    if (LastDesiredInGameDebuffs != null && id >= 0 && id < LastDesiredInGameDebuffs.Length)
+                        lastDesired = LastDesiredInGameDebuffs[id];
+
+                    if (desired && !unlocked)
+                    {
+                        try
+                        {
+                            travelMgr.GetDebuff(debuff);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁负面词条 {debuff} (id={id}) 失败: {ex.Message}");
+                        }
+                    }
+                    // 从 true 取消勾选时，且允许移除并且当前已解锁，则关闭这一条 Debuff
+                    else if (!desired && lastDesired && AllowBuffRemoval && unlocked)
+                    {
+                        try
+                        {
+                            data.travelDebuffs?.Remove(debuff);
+                            MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 关闭负面词条 {debuff} (id={id})，已从当前局移除");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 移除负面词条 {debuff} (id={id}) 失败: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            // 投资词条（Invest）：以游戏为主，但对“手动取消勾选”的该词条执行一次关闭
+            // - 勾选 true 且未解锁 -> 解锁
+            // - 从 true 取消勾选 -> 只对这一条从当前局移除，其它投资词条不受影响。
+            int investLen = System.Math.Max(DesiredInGameInvestBuffs?.Length ?? 0, InGameInvestBuffs?.Length ?? 0);
+            if (investLen > 0)
+            {
+                for (int id = 0; id < investLen; id++)
+                {
+                    bool desired;
+                    if (DesiredInGameInvestBuffs != null && id >= 0 && id < DesiredInGameInvestBuffs.Length)
+                        desired = DesiredInGameInvestBuffs[id];
+                    else if (InGameInvestBuffs != null && id >= 0 && id < InGameInvestBuffs.Length)
+                        desired = InGameInvestBuffs[id];
+                    else
+                        continue;
+
+                    var invest = (InvestBuff)id;
+                    bool unlocked = data.investmentBuffs != null && data.investmentBuffs.Contains(invest);
+
+                    // 上一次期望状态，用于判断是否从 true -> false
+                    bool lastDesired = false;
+                    if (LastDesiredInGameInvestBuffs != null && id >= 0 && id < LastDesiredInGameInvestBuffs.Length)
+                        lastDesired = LastDesiredInGameInvestBuffs[id];
+
+                    if (desired && !unlocked)
+                    {
+                        try
+                        {
+                            travelMgr.GetInvestBuff(invest);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 解锁投资词条 {invest} (id={id}) 失败: {ex.Message}");
+                        }
+                    }
+                    // 从 true 取消勾选时，且允许移除并且当前已解锁，则关闭这一条投资词条
+                    else if (!desired && lastDesired && AllowBuffRemoval && unlocked)
+                    {
+                        try
+                        {
+                            data.investmentBuffs?.Remove(invest);
+                            MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 关闭投资词条 {invest} (id={id})，已从当前局移除");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] UpdateInGameBuffs: 移除投资词条 {invest} (id={id}) 失败: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            // 更新“上一次期望状态”快照，用于下一次判断 true->false 变化
+            if (DesiredInGameUltiBuffs != null)
+            {
+                if (LastDesiredInGameUltiBuffs == null || LastDesiredInGameUltiBuffs.Length < DesiredInGameUltiBuffs.Length)
+                    LastDesiredInGameUltiBuffs = new bool[DesiredInGameUltiBuffs.Length];
+                Array.Copy(DesiredInGameUltiBuffs, LastDesiredInGameUltiBuffs, DesiredInGameUltiBuffs.Length);
+            }
+            if (InGameAdvBuffsDict != null)
+            {
+                LastInGameAdvBuffsDict.Clear();
+                foreach (var kvp in InGameAdvBuffsDict)
+                {
+                    LastInGameAdvBuffsDict[kvp.Key] = kvp.Value;
+                }
+            }
+            if (DesiredInGameDebuffs != null)
+            {
+                if (LastDesiredInGameDebuffs == null || LastDesiredInGameDebuffs.Length < DesiredInGameDebuffs.Length)
+                    LastDesiredInGameDebuffs = new bool[DesiredInGameDebuffs.Length];
+                Array.Copy(DesiredInGameDebuffs, LastDesiredInGameDebuffs, DesiredInGameDebuffs.Length);
+            }
+            if (DesiredInGameInvestBuffs != null)
+            {
+                if (LastDesiredInGameInvestBuffs == null || LastDesiredInGameInvestBuffs.Length < DesiredInGameInvestBuffs.Length)
+                    LastDesiredInGameInvestBuffs = new bool[DesiredInGameInvestBuffs.Length];
+                Array.Copy(DesiredInGameInvestBuffs, LastDesiredInGameInvestBuffs, DesiredInGameInvestBuffs.Length);
+            }
+
+            // 关键：设置 BoardTag 标志，使游戏识别并应用词条系统
             try
             {
                 if (Board.Instance != null && GameAPP.board != null)
@@ -6852,12 +6762,12 @@ public class PatchMgr : MonoBehaviour
             }
             catch (System.Exception ex)
             {
-                MLogger?.LogError($"[PVZRHTools] 设置 BoardTag 失败: {ex.Message}\n{ex.StackTrace}");
+                MLogger?.LogError($"[PVZRHTools] UpdateInGameBuffs: 设置 BoardTag 失败: {ex.Message}\n{ex.StackTrace}");
             }
         }
         catch (System.Exception ex)
         {
-            MLogger?.LogError($"UpdateInGameBuffs 异常: {ex.Message}\n{ex.StackTrace}");
+            MLogger?.LogError($"[PVZRHTools] UpdateInGameBuffs 异常: {ex.Message}\n{ex.StackTrace}");
         }
     }
 }
@@ -6958,6 +6868,35 @@ public static class TravelMgrBuffSyncPatch
         yield return new WaitForSeconds(0.1f);
         PatchMgr.SyncGameBuffsToModifier();
     }
+}
+
+/// <summary>
+/// 词条“锁定”补丁：
+/// - 当修改器中取消勾选某个高级/究极/debuff/投资词条时，对应 InGame* 数组为 false；
+/// - 这里在 TravelMgr.GetNormalBuff / GetUltiBuff / GetDebuff / GetInvestBuff 之前检查该数组，
+///   如果是 false，则直接跳过原方法，从而在游戏内“锁定”对应词条，防止被获取。
+/// </summary>
+[HarmonyPatch(typeof(TravelMgr))]
+public static class TravelMgrBuffLockPatch
+{
+    // 按你的最新要求：不再阻止游戏获取任何词条，一切以游戏为主；
+    // 修改器只做“显示/同步”，不再通过前置补丁锁定 Get* 接口。
+
+    [HarmonyPrefix]
+    [HarmonyPatch("GetNormalBuff", new System.Type[] { typeof(AdvBuff) })]
+    public static bool PrefixGetNormalBuff(AdvBuff __0) => true;
+
+    [HarmonyPrefix]
+    [HarmonyPatch("GetUltiBuff", new System.Type[] { typeof(UltiBuff), typeof(bool) })]
+    public static bool PrefixGetUltiBuff(UltiBuff __0) => true;
+
+    [HarmonyPrefix]
+    [HarmonyPatch("GetDebuff", new System.Type[] { typeof(TravelDebuff) })]
+    public static bool PrefixGetDebuff(TravelDebuff __0) => true;
+
+    [HarmonyPrefix]
+    [HarmonyPatch("GetInvestBuff", new System.Type[] { typeof(InvestBuff) })]
+    public static bool PrefixGetInvestBuff(InvestBuff __0) => true;
 }
 
 /// <summary>

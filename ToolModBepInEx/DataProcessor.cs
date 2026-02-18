@@ -389,21 +389,13 @@ public class DataProcessor : MonoBehaviour
                             bool oldDictValue = PatchMgr.InGameAdvBuffsDict.TryGetValue(actualBuffId, out var dictVal) ? dictVal : false;
                             
                             // 更新数组（仅当在范围内时）
-                            // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
+                            // 直接使用修改器期望值（用于锁定/强制应用）；不要再用 gameState||newValue 合并，
+                            // 否则取消勾选将永远无法变回 false，导致无法锁定词条。
                             bool oldValue = false;
-                            bool gameState = false;
                             if (actualBuffId >= 0 && actualBuffId < InGameAdvBuffs.Length)
                             {
                                 oldValue = InGameAdvBuffs[actualBuffId];
-                                // 读取游戏当前状态
-                                try
-                                {
-                                    gameState = Lawnf.TravelAdvanced((AdvBuff)actualBuffId);
-                                }
-                                catch { }
-                                
-                                // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
-                                InGameAdvBuffs[actualBuffId] = gameState || newValue;
+                                InGameAdvBuffs[actualBuffId] = newValue;
                             }
                             
                             // 统计变化
@@ -497,9 +489,17 @@ public class DataProcessor : MonoBehaviour
                     if (s.UltiInGame is not null)
                     {
                         // 直接使用 UI 设置的值，与 AdvInGame 的处理方式一致
+                        if (PatchMgr.DesiredInGameUltiBuffs == null || PatchMgr.DesiredInGameUltiBuffs.Length < InGameUltiBuffs.Length)
+                        {
+                            var newArr = new bool[InGameUltiBuffs.Length];
+                            if (PatchMgr.DesiredInGameUltiBuffs != null)
+                                Array.Copy(PatchMgr.DesiredInGameUltiBuffs, newArr, Math.Min(PatchMgr.DesiredInGameUltiBuffs.Length, newArr.Length));
+                            PatchMgr.DesiredInGameUltiBuffs = newArr;
+                        }
                         for (int i = 0; i < s.UltiInGame.Count && i < InGameUltiBuffs.Length; i++)
                         {
                             InGameUltiBuffs[i] = s.UltiInGame[i];
+                            PatchMgr.DesiredInGameUltiBuffs[i] = s.UltiInGame[i];
                         }
                     }
                     else if (s.UltiTravelBuff is not null)
@@ -529,19 +529,46 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.DebuffsInGame is not null)
                     {
-                        // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
-                        for (int i = 0; i < s.DebuffsInGame.Count && i < InGameDebuffs.Length; i++)
+                        // 直接使用修改器期望值（用于锁定/强制应用），并通过 debuffIdList 建立
+                        // “UI 索引 -> 实际 TravelDebuff ID” 的映射（允许ID不连续）。
+                        if (PatchMgr.DesiredInGameDebuffs == null || PatchMgr.DesiredInGameDebuffs.Length < InGameDebuffs.Length)
                         {
-                            // 读取游戏当前状态
-                            bool gameState = false;
-                            try
+                            var newArr = new bool[InGameDebuffs.Length];
+                            if (PatchMgr.DesiredInGameDebuffs != null)
+                                Array.Copy(PatchMgr.DesiredInGameDebuffs, newArr, Math.Min(PatchMgr.DesiredInGameDebuffs.Length, newArr.Length));
+                            PatchMgr.DesiredInGameDebuffs = newArr;
+                        }
+
+                        List<int> debuffIdList = [];
+                        if (TravelDictionary.debuffData != null)
+                        {
+                            int maxDebuffKey = -1;
+                            foreach (var kvp in TravelDictionary.debuffData)
                             {
-                                gameState = Lawnf.TravelDebuff((TravelDebuff)i);
+                                int key = (int)kvp.Key;
+                                if (key > maxDebuffKey) maxDebuffKey = key;
                             }
-                            catch { }
-                            
-                            // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
-                            InGameDebuffs[i] = gameState || s.DebuffsInGame[i];
+                            for (int id = 0; id <= maxDebuffKey && debuffIdList.Count < s.DebuffsInGame.Count; id++)
+                            {
+                                if (TravelDictionary.debuffData.ContainsKey((TravelDebuff)id))
+                                {
+                                    debuffIdList.Add(id);
+                                }
+                            }
+                        }
+
+                        for (int i = 0; i < s.DebuffsInGame.Count; i++)
+                        {
+                            bool value = s.DebuffsInGame[i];
+                            int debuffId = i;
+                            if (i < debuffIdList.Count)
+                                debuffId = debuffIdList[i];
+
+                            if (debuffId >= 0 && debuffId < InGameDebuffs.Length)
+                            {
+                                PatchMgr.DesiredInGameDebuffs[debuffId] = value;
+                                InGameDebuffs[debuffId] = value;
+                            }
                         }
                     }
                     else if (s.Debuffs is not null)
@@ -570,19 +597,19 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.InvestInGame is not null)
                     {
-                        // 先读取游戏当前状态，然后与UI设置合并（以游戏状态为主）
+                        // 直接使用修改器期望值（用于锁定/强制应用）；不要再用 gameState||UI 合并
+                        if (PatchMgr.DesiredInGameInvestBuffs == null || PatchMgr.DesiredInGameInvestBuffs.Length < InGameInvestBuffs.Length)
+                        {
+                            var newArr = new bool[InGameInvestBuffs.Length];
+                            if (PatchMgr.DesiredInGameInvestBuffs != null)
+                                Array.Copy(PatchMgr.DesiredInGameInvestBuffs, newArr, Math.Min(PatchMgr.DesiredInGameInvestBuffs.Length, newArr.Length));
+                            PatchMgr.DesiredInGameInvestBuffs = newArr;
+                        }
+                        
                         for (int i = 0; i < s.InvestInGame.Count && i < InGameInvestBuffs.Length; i++)
                         {
-                            // 读取游戏当前状态
-                            bool gameState = false;
-                            try
-                            {
-                                gameState = Lawnf.TravelInvest((InvestBuff)i);
-                            }
-                            catch { }
-                            
-                            // 以游戏状态为主：如果游戏中有，则保留；如果UI设置为true，则也设置为true
-                            InGameInvestBuffs[i] = gameState || s.InvestInGame[i];
+                            PatchMgr.DesiredInGameInvestBuffs[i] = s.InvestInGame[i];
+                            InGameInvestBuffs[i] = s.InvestInGame[i];
                         }
                     }
                     else if (s.InvestTravelBuff is not null)

@@ -1046,6 +1046,11 @@ public partial class ModifierViewModel : ObservableObject
         {
             if (args.PropertyName == "Enabled")
             {
+                // 防止游戏->修改器同步时触发回传（会在跨关卡/连续关卡时把游戏真实词条覆盖掉）
+                // - NeedSync=false：批量更新UI期间不回传
+                // - DataSync.Enabled=false：DataSync 正在处理来自游戏的同步，不回传
+                if (!NeedSync) return;
+                if (!DataSync.Enabled) return;
                 SyncInGameBuffs();
             }
         };
@@ -1053,6 +1058,11 @@ public partial class ModifierViewModel : ObservableObject
 
     public void SyncInGameBuffs()
     {
+        // 仅在允许同步、且不处于游戏->修改器同步更新期间时才发送，避免反馈环覆盖游戏状态
+        if (!NeedSync) return;
+        if (!DataSync.Enabled) return;
+        if (!App.inited) return;
+
         List<bool> adv = [];
         List<bool> ulti = [];
         List<bool> invest = [];
