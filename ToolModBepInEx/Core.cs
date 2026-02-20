@@ -31,27 +31,28 @@ using Object = UnityEngine.Object;
 
 namespace ToolModBepInEx
 {
-    [HarmonyPatch(typeof(NoticeMenu), "Start")]
-    public static class Help_Patch
-    {
-        public static void Postfix()
-        {
-            try
-            {
-                // 不再在 NoticeMenu.Start 中直接执行 LateInit，避免 TravelDictionary/TravelMgr 尚未完全初始化时
-                // 提前调用 TravelMgr.GetText 导致 Il2CppStringToManaged 崩溃。
-                // 初始化逻辑统一交给 GameAPP.Start + LateInitHelper 协程处理。
-                if (Core.inited)
-                    return;
-
-                Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] NoticeMenu.Start Postfix 被调用，等待 GameAPP.Start 中的 LateInitHelper 负责初始化");
-            }
-            catch (System.Exception ex)
-            {
-                Core.Instance.Value.LoggerInstance.LogError($"[PVZRHTools] LateInit 执行出错: {ex}");
-            }
-        }
-    }
+    // NoticeMenu 在 3.4.2 版本中已不存在，初始化逻辑已由 GameAPP_Start_Patch 处理
+    // [HarmonyPatch(typeof(NoticeMenu), "Start")]
+    // public static class Help_Patch
+    // {
+    //     public static void Postfix()
+    //     {
+    //         try
+    //         {
+    //             // 不再在 NoticeMenu.Start 中直接执行 LateInit，避免 TravelDictionary/TravelMgr 尚未完全初始化时
+    //             // 提前调用 TravelMgr.GetText 导致 Il2CppStringToManaged 崩溃。
+    //             // 初始化逻辑统一交给 GameAPP.Start + LateInitHelper 协程处理。
+    //             if (Core.inited)
+    //                 return;
+    //
+    //             Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] NoticeMenu.Start Postfix 被调用，等待 GameAPP.Start 中的 LateInitHelper 负责初始化");
+    //         }
+    //         catch (System.Exception ex)
+    //         {
+    //             Core.Instance.Value.LoggerInstance.LogError($"[PVZRHTools] LateInit 执行出错: {ex}");
+    //         }
+    //     }
+    // }
 
     // 辅助类用于在主线程中延迟执行 LateInit
     public class LateInitHelper : MonoBehaviour
@@ -577,6 +578,8 @@ namespace ToolModBepInEx
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreatePlantVase), KeyCode.J));
             KeyAlmanacCreateZombieVase =
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreateZombieVase), KeyCode.K));
+            // 注意：3.4.2版本游戏新增了H键用于悬停植物时打开信息面板
+            // 如果与游戏内置H键功能冲突，用户可以在插件设置中更改此快捷键
             KeyRandomCard =
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyRandomCard), KeyCode.H));
             ModsHash = new Lazy<ConfigEntry<string>>(Config.Bind("PVZRHTools", nameof(ModsHash), ""));
