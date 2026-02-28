@@ -8,7 +8,7 @@
     
     <!-- 高级按钮样式 - 带悬停和点击动画 -->
     <Style x:Key="AnimatedButtonStyle" TargetType="Button">
-        <Setter Property="Background" Value="#FFFF69B4"/>
+        <Setter Property="Background" Value="{DynamicResource LabelForegroundBrush}"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="16,8"/>
@@ -102,7 +102,7 @@
 
     <!-- 高级 CheckBox 样式 -->
     <Style x:Key="AnimatedCheckBoxStyle" TargetType="CheckBox">
-        <Setter Property="Foreground" Value="#FF333333"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -112,7 +112,7 @@
                                 Width="20" Height="20" 
                                 CornerRadius="4"
                                 BorderThickness="2"
-                                BorderBrush="#FFCCCCCC"
+                                BorderBrush="{DynamicResource CheckBoxBorderBrush}"
                                 Background="White"
                                 RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform>
@@ -211,7 +211,7 @@
 
     <!-- 高级 TabItem 样式 -->
     <Style x:Key="AnimatedTabItemStyle" TargetType="TabItem">
-        <Setter Property="Foreground" Value="#FF666666"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextForegroundBrush}"/>
         <Setter Property="Padding" Value="16,12"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
@@ -264,7 +264,7 @@
                             </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Foreground" Value="#FFFF69B4"/>
+                            <Setter Property="Foreground" Value="{DynamicResource LabelForegroundBrush}"/>
                             <Setter TargetName="border" Property="Background" Value="#15FF69B4"/>
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
@@ -312,7 +312,7 @@
     <!-- 带平滑展开动画的 Expander 样式 -->
     <Style x:Key="AnimatedExpanderStyle" TargetType="Expander">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderBrush" Value="#FFFF69B4"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ContentBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="8"/>
         <Setter Property="Template">
@@ -345,7 +345,7 @@
                                                 <!-- 箭头图标 -->
                                                 <Path x:Name="Arrow" Grid.Column="0"
                                                       Data="M 0,0 L 6,5 L 0,10 Z"
-                                                      Fill="#FFFF69B4"
+                                                      Fill="{DynamicResource LineFillBrush}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,8,0"
                                                       RenderTransformOrigin="0.5,0.5">

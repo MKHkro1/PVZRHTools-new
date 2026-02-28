@@ -37,3 +37,5 @@ D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.genruntimeconfig.cache
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\ref\PVZRHTools.dll
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.sourcelink.json
+D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsDark.baml
+D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsLight.baml

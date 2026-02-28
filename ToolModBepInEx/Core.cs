@@ -372,10 +372,14 @@ namespace ToolModBepInEx
                     }
 
                     // 负面词条（Debuff）
-                    // 参考游戏内代码实现：直接通过 TravelDictionary.debuffData[debuff].Item1 访问文本
+                    // 使用 TravelMgr.GetText 方法安全获取文本，避免直接访问 Item1 导致 IL2CPP 崩溃
                     int debuffCount = TravelDictionary.debuffData?.Count ?? 0;
                     if (debuffCount > 0)
                     {
+                        // 创建临时的 TravelMgr 实例用于获取文本
+                        GameObject tempTravelMgrObj = new("TempTravelMgr");
+                        TravelMgr tempTravelMgr = tempTravelMgrObj.AddComponent<TravelMgr>();
+                        
                         // 按照从 0 到 maxKey 的顺序导出，确保与 DataProcessor 中的映射顺序一致
                     int maxDebuffKey = -1;
                     foreach (var kvp in TravelDictionary.debuffData)
@@ -394,12 +398,12 @@ namespace ToolModBepInEx
                                 
                                 try
                                 {
-                                    // 直接访问 Item1 属性（与游戏内代码一致）
-                                    var debuffData = TravelDictionary.debuffData[(TravelDebuff)id];
-                                    var item1Value = debuffData.Item1;
-                                    if (!string.IsNullOrEmpty(item1Value))
+                                    // 使用 TravelMgr.GetText 方法获取文本（type=3 表示 Debuff）
+                                    // 这个方法内部会安全地处理 IL2CPP 字符串转换
+                                    string text = tempTravelMgr.GetText(3, id);
+                                    if (!string.IsNullOrEmpty(text))
                                     {
-                                        desc = item1Value;
+                                        desc = text;
                                         successCount++;
                                     }
                                     else
@@ -409,8 +413,8 @@ namespace ToolModBepInEx
                                 }
                                 catch (System.Exception ex)
                                 {
-                                    // 访问失败，使用默认名称
-                                    MLogger.LogWarning($"[PVZRHTools] 访问 debuff {id} 的 Item1 属性失败: {ex.GetType().Name}");
+                                    // 如果 GetText 失败，使用占位符名称
+                                    MLogger.LogWarning($"[PVZRHTools] 通过 TravelMgr.GetText 获取 debuff {id} 文本失败: {ex.GetType().Name}");
                                     failCount++;
                                     desc = $"Debuff_{id}";
                                 }
@@ -420,6 +424,10 @@ namespace ToolModBepInEx
                                 debuffs.Add(line);
                             }
                         }
+                        
+                        // 清理临时对象
+                        Object.Destroy(tempTravelMgrObj);
+                        
                         Debuffs = new bool[debuffCount];
                         MLogger.LogInfo($"[PVZRHTools] Debuffs 数组大小: {debuffCount}, 成功读取: {successCount}, 失败: {failCount}");
                     }

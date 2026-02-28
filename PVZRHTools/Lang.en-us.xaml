@@ -236,8 +236,9 @@
     <s:String x:Key="Tab7.TopMostSprite">Sprite,double click it to topmost the modifier</s:String>
     <s:String x:Key="Tab7.EnableAnimations">Enable Modifier Animations</s:String>
     <s:String x:Key="Tab7.EnableAnimations.Tooltip">Enable or disable modifier window animations (startup, activation, close, etc.)</s:String>
-    <s:String x:Key="Tab7.DarkMode">Dark Mode</s:String>
-    <s:String x:Key="Tab7.DarkMode.Tooltip">Switch between light and dark theme with smooth color transition</s:String>
+    <s:String x:Key="Tab7.DarkModeLight">Switch to Dark Mode</s:String>
+    <s:String x:Key="Tab7.DarkModeDark">Switch to Light Mode</s:String>
+    <s:String x:Key="Tab7.DarkMode.Tooltip">Click to toggle between light and dark theme with smooth color transition</s:String>
     <s:String x:Key="Tab7.License">License and references</s:String>
     <s:String x:Key="Tab5.Description1">Don't set single hotkey. Some settings need availalbe data. All the key bindings here are invalid in any other app.</s:String>
     <s:String x:Key="Tab5.Description2">To bind hotkey, put the mouse on the box, then press the key you'll bind.</s:String>

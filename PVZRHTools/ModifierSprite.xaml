@@ -8,7 +8,7 @@
     <ContentControl MouseDoubleClick="ContentControl_MouseDoubleClick"
                     MouseEnter="ContentControl_MouseEnter"
                     MouseLeave="ContentControl_MouseLeave">
-        <Border x:Name="SpriteBorder" Width="55" Height="55" CornerRadius="27.5" Background="#80000000" BorderBrush="#FFFF69B4" BorderThickness="2"
+        <Border x:Name="SpriteBorder" Width="55" Height="55" CornerRadius="27.5" Background="#80000000" BorderBrush="{DynamicResource LabelForegroundBrush}" BorderThickness="2"
                 RenderTransformOrigin="0.5,0.5">
             <Border.RenderTransform>
                 <ScaleTransform x:Name="SpriteScale" ScaleX="1" ScaleY="1"/>
@@ -17,7 +17,7 @@
                 <EllipseGeometry Center="27.5,27.5" RadiusX="27.5" RadiusY="27.5"/>
             </Border.Clip>
             <Border.Effect>
-                <DropShadowEffect x:Name="SpriteGlow" Color="#FFFF69B4" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                <DropShadowEffect x:Name="SpriteGlow" Color="#60FFFFFF" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
             </Border.Effect>
             <Image Source="/PVZRHTools/icon.png" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>

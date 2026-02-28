@@ -60,21 +60,31 @@ public partial class App : Application
         var resources = app.Resources;
         var mergedDictionaries = resources.MergedDictionaries;
 
-        // 移除现有的主题资源
-        var themeDict = mergedDictionaries.FirstOrDefault(d =>
+        // 移除 HandyControl 皮肤
+        var skinDict = mergedDictionaries.FirstOrDefault(d =>
             d.Source?.OriginalString?.Contains("SkinDefault.xaml") == true ||
             d.Source?.OriginalString?.Contains("SkinDark.xaml") == true);
-        if (themeDict != null)
-        {
-            mergedDictionaries.Remove(themeDict);
-        }
+        if (skinDict != null)
+            mergedDictionaries.Remove(skinDict);
 
-        // 添加新的主题资源
-        var newThemeSource = isDarkMode
+        // 移除背景板主题颜色（ThemeColorsLight/Dark）
+        var themeColorsDict = mergedDictionaries.FirstOrDefault(d =>
+            d.Source?.OriginalString?.Contains("ThemeColorsLight.xaml") == true ||
+            d.Source?.OriginalString?.Contains("ThemeColorsDark.xaml") == true);
+        if (themeColorsDict != null)
+            mergedDictionaries.Remove(themeColorsDict);
+
+        // 添加 HandyControl 皮肤
+        var newSkinSource = isDarkMode
             ? "pack://application:,,,/HandyControl;component/Themes/SkinDark.xaml"
             : "pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml";
-        
-        mergedDictionaries.Insert(0, new ResourceDictionary { Source = new Uri(newThemeSource) });
+        mergedDictionaries.Insert(0, new ResourceDictionary { Source = new Uri(newSkinSource) });
+
+        // 添加背景板主题颜色（可配置的软编码）
+        var newThemeColorsSource = isDarkMode
+            ? "/Styles/ThemeColorsDark.xaml"
+            : "/Styles/ThemeColorsLight.xaml";
+        mergedDictionaries.Insert(1, new ResourceDictionary { Source = new Uri(newThemeColorsSource, UriKind.Relative) });
     }
 
     protected override void OnStartup(StartupEventArgs e)

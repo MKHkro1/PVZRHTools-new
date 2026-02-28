@@ -1,0 +1,55 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 深色模式 - 背景板文字、线条颜色配置（可修改以自定义主题） -->
+    
+    <!-- 窗口背景（半透明深色） -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#991A1A1A"/>
+    <!-- 窗口前景/主文字 -->
+    <SolidColorBrush x:Key="WindowForegroundBrush" Color="#FF282C34"/>
+    
+    <!-- 标题栏背景 -->
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FF212125"/>
+    <!-- 标题/标签高亮色（绿色） -->
+    <SolidColorBrush x:Key="TitleForegroundBrush" Color="#FF2FA42F"/>
+    <SolidColorBrush x:Key="LabelForegroundBrush" Color="#FF2FA42F"/>
+    <!-- 分隔线颜色 -->
+    <SolidColorBrush x:Key="LineFillBrush" Color="#FF2FA42F"/>
+    
+    <!-- 正文文字颜色 -->
+    <SolidColorBrush x:Key="TextForegroundBrush" Color="#FFFFFFFF"/>
+    <!-- 次要文字颜色 -->
+    <SolidColorBrush x:Key="SecondaryTextForegroundBrush" Color="#FFCCCCCC"/>
+    
+    <!-- 内容区背景 -->
+    <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#FF212125"/>
+    <!-- 内容区边框 -->
+    <SolidColorBrush x:Key="ContentBorderBrush" Color="#FF2FA42F"/>
+    
+    <!-- TabControl 背景（半透明） -->
+    <SolidColorBrush x:Key="TabControlBackgroundBrush" Color="#80212125"/>
+    <!-- TabControl 边框 -->
+    <SolidColorBrush x:Key="TabControlBorderBrush" Color="#FF212125"/>
+    
+    <!-- 复选框边框 -->
+    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#FF555555"/>
+    <!-- 列表/表格背景 -->
+    <SolidColorBrush x:Key="ListBackgroundBrush" Color="#FF2D2D30"/>
+    <!-- 链接/信息文字色 -->
+    <SolidColorBrush x:Key="LinkForegroundBrush" Color="#FF5BA3FF"/>
+    <!-- 信息框边框色 -->
+    <SolidColorBrush x:Key="InfoBorderBrush" Color="#FF3A9AD9"/>
+    <!-- 成功/强调绿色 -->
+    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#FF2FA42F"/>
+
+    <!-- 窗口边框渐变 -->
+    <LinearGradientBrush x:Key="WindowBorderBrush" EndPoint="1,1" StartPoint="0,0">
+        <GradientStop Color="#7FFF3A3A" Offset="1"/>
+        <GradientStop Color="#7FFF3535" Offset="0"/>
+        <GradientStop Color="#7FF4FF31" Offset="0.135"/>
+        <GradientStop Color="#7FA845FF" Offset="0.857"/>
+        <GradientStop Color="#7F5BFF3A" Offset="0.274"/>
+        <GradientStop Color="#7F3E6DFF" Offset="0.709"/>
+        <GradientStop Color="#FF40E9FF" Offset="0.413"/>
+        <GradientStop Color="#7F3AC4FF" Offset="0.548"/>
+    </LinearGradientBrush>
+</ResourceDictionary>

@@ -366,7 +366,7 @@ public partial class ModifierViewModel : ObservableObject
         Times = s.Times;
         TopMostSprite = s.TopMostSprite;
         EnableAnimations = s.EnableAnimations;
-        // IsDarkMode 不再从保存模型加载，每次启动默认为 false
+        IsDarkMode = s.IsDarkMode;
         TravelBuffs = [.. s.TravelBuffs];
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
@@ -862,6 +862,7 @@ public partial class ModifierViewModel : ObservableObject
             Times = Times,
             TopMostSprite = TopMostSprite,
             EnableAnimations = EnableAnimations,
+            IsDarkMode = IsDarkMode,
             TravelBuffs = [.. TravelBuffs],
             UltimateRamdomZombie = UltimateRamdomZombie,
             UltimateSuperGatling = UltimateSuperGatling,
@@ -1742,11 +1743,15 @@ public partial class ModifierViewModel : ObservableObject
     {
         Application.Current.Dispatcher.Invoke(() =>
         {
-            App.SwitchTheme(value);
+            // 先播放从浅到深 / 从深到浅的过渡动画
+            // 此时仍然使用旧主题颜色，动画可以平滑地从当前颜色过渡到目标颜色
             if (MainWindow.Instance != null)
             {
                 MainWindow.Instance.ApplyThemeWithAnimation(value);
             }
+
+            // 再切换 HandyControl 皮肤和 ThemeColors 资源，确保 DynamicResource 绑定的控件使用新主题
+            App.SwitchTheme(value);
         });
     }
 
@@ -2300,12 +2305,10 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool IsDarkMode { get; set; } = false;
 
     [RelayCommand]
-    private void EnableDarkMode()
+    private void ToggleDarkMode()
     {
-        if (!IsDarkMode)
-        {
-            IsDarkMode = true;
-        }
+        // 切换深色/浅色模式
+        IsDarkMode = !IsDarkMode;
     }
 
     [ObservableProperty] public partial BindingList<TravelBuffVM> TravelBuffs { get; set; }

@@ -244,8 +244,9 @@
     <s:String x:Key="Tab7.TopMostSprite">悬浮窗，双击使修改窗口前置，推荐全屏时使用</s:String>
     <s:String x:Key="Tab7.EnableAnimations">启用修改器动画效果</s:String>
     <s:String x:Key="Tab7.EnableAnimations.Tooltip">启用或禁用修改器窗口的动画效果（包括启动、激活、关闭等动画）</s:String>
-    <s:String x:Key="Tab7.DarkMode">深色模式（Infinite-75经典配色，一次性按钮）</s:String>
-    <s:String x:Key="Tab7.DarkMode.Tooltip">切换到深色模式，使用 Infinite-75 经典配色方案。此按钮为一次性按钮，点击后本次启动将一直保持启用深色模式</s:String>
+    <s:String x:Key="Tab7.DarkModeLight">切换到深色模式</s:String>
+    <s:String x:Key="Tab7.DarkModeDark">切换到浅色模式</s:String>
+    <s:String x:Key="Tab7.DarkMode.Tooltip">点击切换深浅色模式，使用 Infinite-75 经典配色方案</s:String>
     <s:String x:Key="Tab7.License">本项目及所使用开源库许可协议(LICENSE)</s:String>
     <s:String x:Key="Tab5.Description1">请不要设置单键，部分功能需提前填好数据，游戏运行时其他软件中下列键位均失效，可能导致冲突</s:String>
     <s:String x:Key="Tab5.Description2">设置方法：调节为英文输入法，将鼠标指针放在对应条目的框上，先设置Ctrl/Shift/Alt，再设置要组合的键位</s:String>

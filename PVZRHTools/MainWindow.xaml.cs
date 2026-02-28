@@ -844,6 +844,74 @@ namespace PVZRHTools
                         }
                     }
 
+                    // 对 ComboBox 做更强制的处理，确保在深/浅色切换时"盒子"背景正确更新
+                    if (control is System.Windows.Controls.ComboBox stdCombo)
+                    {
+                        var targetBg = (Color)targetColors.ContentBackground;
+                        var targetBorder = (Color)targetColors.ContentBorderBrush;
+                        
+                        // 处理背景色
+                        if (stdCombo.Background is SolidColorBrush comboBgBrush && !comboBgBrush.IsFrozen)
+                        {
+                            var currentBg = comboBgBrush.Color;
+                            AnimateColor(comboBgBrush, currentBg, targetBg, duration);
+                        }
+                        else
+                        {
+                            // 如果没有背景画笔或已冻结，创建新的并动画化
+                            var newBgBrush = new SolidColorBrush(stdCombo.Background is SolidColorBrush oldBg ? oldBg.Color : Colors.Transparent);
+                            stdCombo.Background = newBgBrush;
+                            AnimateColor(newBgBrush, newBgBrush.Color, targetBg, duration);
+                        }
+                        
+                        // 处理边框色
+                        if (stdCombo.BorderBrush is SolidColorBrush comboBorderBrush && !comboBorderBrush.IsFrozen)
+                        {
+                            var currentBorder = comboBorderBrush.Color;
+                            AnimateColor(comboBorderBrush, currentBorder, targetBorder, duration);
+                        }
+                        else
+                        {
+                            // 如果没有边框画笔或已冻结，创建新的并动画化
+                            var newBorderBrush = new SolidColorBrush(stdCombo.BorderBrush is SolidColorBrush oldBorder ? oldBorder.Color : Colors.Transparent);
+                            stdCombo.BorderBrush = newBorderBrush;
+                            AnimateColor(newBorderBrush, newBorderBrush.Color, targetBorder, duration);
+                        }
+                    }
+                    else if (control is HandyControl.Controls.ComboBox handyCombo)
+                    {
+                        var targetBg = (Color)targetColors.ContentBackground;
+                        var targetBorder = (Color)targetColors.ContentBorderBrush;
+                        
+                        // 处理背景色
+                        if (handyCombo.Background is SolidColorBrush comboBgBrush && !comboBgBrush.IsFrozen)
+                        {
+                            var currentBg = comboBgBrush.Color;
+                            AnimateColor(comboBgBrush, currentBg, targetBg, duration);
+                        }
+                        else
+                        {
+                            // 如果没有背景画笔或已冻结，创建新的并动画化
+                            var newBgBrush = new SolidColorBrush(handyCombo.Background is SolidColorBrush oldBg ? oldBg.Color : Colors.Transparent);
+                            handyCombo.Background = newBgBrush;
+                            AnimateColor(newBgBrush, newBgBrush.Color, targetBg, duration);
+                        }
+                        
+                        // 处理边框色
+                        if (handyCombo.BorderBrush is SolidColorBrush comboBorderBrush && !comboBorderBrush.IsFrozen)
+                        {
+                            var currentBorder = comboBorderBrush.Color;
+                            AnimateColor(comboBorderBrush, currentBorder, targetBorder, duration);
+                        }
+                        else
+                        {
+                            // 如果没有边框画笔或已冻结，创建新的并动画化
+                            var newBorderBrush = new SolidColorBrush(handyCombo.BorderBrush is SolidColorBrush oldBorder ? oldBorder.Color : Colors.Transparent);
+                            handyCombo.BorderBrush = newBorderBrush;
+                            AnimateColor(newBorderBrush, newBorderBrush.Color, targetBorder, duration);
+                        }
+                    }
+
                     // 更新前景色（深色/灰色文字改为白色）
                     if (control.Foreground is SolidColorBrush controlFgBrush)
                     {

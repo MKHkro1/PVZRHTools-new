@@ -539,6 +539,7 @@ public static class BoardFlagWaveBuffPatch
                     
                 case PatchMgr.BuffType.Debuff:
                     // 负面词条：通过 TravelMgr.GetDebuff / Lawnf.TravelDebuff 应用
+                    // 直接使用 TravelDictionary.debuffData[travelDebuff].Item1
                     if (originalId >= 0)
                     {
                         try
@@ -550,9 +551,33 @@ public static class BoardFlagWaveBuffPatch
                             MLogger?.LogWarning($"[PVZRHTools] 调用 GetDebuff 失败: id={originalId}, ex={ex.Message}");
                         }
 
-                        // 为避免 Debuff 文本中出现异常 Il2Cpp 字符串，旗帜波这里不再直接读取 debuffData.Item1
-                        // 仅使用占位名称，实际效果由 TravelMgr.GetDebuff 和 Lawnf.TravelDebuff 决定
+                        // 直接读取 debuffData.Item1
+                        try
+                        {
+                            if (TravelDictionary.debuffData != null && 
+                                TravelDictionary.debuffData.ContainsKey((TravelDebuff)originalId))
+                            {
+                                var debuffData = TravelDictionary.debuffData[(TravelDebuff)originalId];
+                                var item1Value = debuffData.Item1;
+                                if (!string.IsNullOrEmpty(item1Value))
+                                {
+                                    buffName = item1Value;
+                                }
+                                else
+                                {
                         buffName = $"Debuff_{originalId}";
+                                }
+                            }
+                            else
+                            {
+                                buffName = $"Debuff_{originalId}";
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MLogger?.LogWarning($"[PVZRHTools] 读取 debuff {originalId} 的 Item1 属性失败: {ex.GetType().Name}");
+                            buffName = $"Debuff_{originalId}";
+                        }
                         
                         if (InGameDebuffs != null && originalId < InGameDebuffs.Length)
                         {
@@ -640,8 +665,33 @@ public static class BoardFlagWaveBuffPatch
                         TravelDictionary.ultimateBuffsText.TryGetValue((UltiBuff)originalId, out buffName);
                     break;
                 case PatchMgr.BuffType.Debuff:
-                    // 不再访问 debuffData.Item1，避免潜在的 Il2Cpp 字符串问题
+                    // 直接使用 TravelDictionary.debuffData[travelDebuff].Item1
+                    try
+                    {
+                        if (TravelDictionary.debuffData != null && 
+                            TravelDictionary.debuffData.ContainsKey((TravelDebuff)originalId))
+                        {
+                            var debuffData = TravelDictionary.debuffData[(TravelDebuff)originalId];
+                            var item1Value = debuffData.Item1;
+                            if (!string.IsNullOrEmpty(item1Value))
+                            {
+                                buffName = item1Value;
+                            }
+                            else
+                            {
                     buffName = $"Debuff_{originalId}";
+                            }
+                        }
+                        else
+                        {
+                            buffName = $"Debuff_{originalId}";
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MLogger?.LogWarning($"[PVZRHTools] 读取 debuff {originalId} 的 Item1 属性失败: {ex.GetType().Name}");
+                        buffName = $"Debuff_{originalId}";
+                    }
                     break;
             }
             
@@ -3959,16 +4009,118 @@ public static class SuperSnowGatlingPatchB
     }
 }
 
-[HarmonyPatch(typeof(TravelRefresh), "OnMouseUpAsButton")]
+/// <summary>
+/// 旅行刷新补丁
+/// 确保无限刷新在旅行投资的新游戏模式中也能生效
+/// </summary>
+[HarmonyPatch(typeof(TravelRefresh))]
 public static class TravelRefreshPatch
 {
+    /// <summary>
+    /// 在 TravelRefresh.Start 时设置 refreshTimes，确保旅行投资模式中也能生效
+    ///  TravelRefreshOnMouseUpAsButtonPatch.PrefixStart
+    /// </summary>
+    [HarmonyPatch("Start")]
+    [HarmonyPrefix]
+    public static void PrefixStart(TravelRefresh __instance)
+    {
+        try
+        {
+            if (UnlimitedRefresh || BuffRefreshNoLimit)
+            {
+                __instance.refreshTimes = 9999999;
+                if (__instance.text != null)
+                {
+                    __instance.text.text = "∞";
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            MLogger?.LogWarning($"[PVZRHTools] TravelRefresh.Start 补丁异常: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 在点击刷新按钮前设置 refreshTimes
+    ///  TravelRefreshOnMouseUpAsButtonPatch.Prefix
+    /// </summary>
+    [HarmonyPatch("OnMouseUpAsButton")]
+    [HarmonyPrefix]
+    public static void Prefix(TravelRefresh __instance)
+    {
+        try
+        {
+            if (UnlimitedRefresh || BuffRefreshNoLimit)
+            {
+                __instance.refreshTimes = 9999999;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            MLogger?.LogWarning($"[PVZRHTools] TravelRefresh.OnMouseUpAsButton Prefix 补丁异常: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 在点击刷新按钮后设置 refreshTimes 和文本
+    ///  TravelRefreshOnMouseUpAsButtonPatch.Postfix
+    /// </summary>
+    [HarmonyPatch("OnMouseUpAsButton")]
+    [HarmonyPostfix]
     public static void Postfix(TravelRefresh __instance)
     {
-        if (UnlimitedRefresh || BuffRefreshNoLimit) __instance.refreshTimes = 2147483647;
+        try
+        {
+            if (UnlimitedRefresh || BuffRefreshNoLimit)
+            {
+                __instance.refreshTimes = 9999999;
+                if (__instance.text != null)
+                {
+                    __instance.text.text = "∞";
+    }
+}
+        }
+        catch (System.Exception ex)
+        {
+            MLogger?.LogWarning($"[PVZRHTools] TravelRefresh.OnMouseUpAsButton Postfix 补丁异常: {ex.Message}");
+        }
     }
 }
 
-// 3.4.1：TravelStore 不再暴露 count 字段，这里仅保留 TravelRefreshPatch 即可实现无限刷新
+/// <summary>
+/// 旅行商店补丁
+/// 确保无限刷新在旅行投资的新游戏模式中也能生效
+/// </summary>
+[HarmonyPatch(typeof(TravelStore))]
+public static class TravelStoreUpdatePatch
+{
+    /// <summary>
+    /// 在 TravelStore.Update 时设置 refreshCount = 0，确保旅行投资模式中也能生效
+    ///TravelStoreUpdatePatch.Postfix
+    /// </summary>
+    [HarmonyPatch("Update")]
+    [HarmonyPostfix]
+    public static void PostfixUpdate(TravelStore __instance)
+    {
+        try
+        {
+            if (UnlimitedRefresh || BuffRefreshNoLimit)
+            {
+                // 直接设置 refreshCount = 0
+                if (__instance != null)
+                {
+                    __instance.refreshCount = 0;
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            MLogger?.LogWarning($"[PVZRHTools] TravelStore.Update 补丁异常: {ex.Message}");
+        }
+    }
+
+}
 
 [HarmonyPatch(typeof(ShootingMenu), nameof(ShootingMenu.Refresh))]
 public static class ShootingMenuPatch
@@ -5983,7 +6135,7 @@ public class PatchMgr : MonoBehaviour
     {
         try
         {
-            // 直接访问 InitZombieList.zombieList，与 Modified-Plus 的实现一致
+            // 直接访问 InitZombieList.zombieList
             Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieType>>? zombieList = null;
             
             try
@@ -6030,7 +6182,7 @@ public class PatchMgr : MonoBehaviour
                 return;
             }
 
-            // 直接修改列表，与 Modified-Plus 的实现一致
+            // 直接修改列表
             wave[zombieIndex] = value;
             
         }

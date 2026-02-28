@@ -10,11 +10,12 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/Theme.xaml" />
+                <ResourceDictionary Source="/Styles/ThemeColorsLight.xaml" />
                 <ResourceDictionary Source="/Lang.zh-cn.xaml" />
                 <ResourceDictionary Source="/Styles/AnimatedStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <Style TargetType="{x:Type fh:HotKeyBox}">
-                <Setter Property="Foreground" Value="#FF333333" />
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>
