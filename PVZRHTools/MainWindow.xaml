@@ -1114,6 +1114,37 @@
                                     </DataGrid>
                                 </StackPanel>
                             </Expander>
+                            <Expander Header="{DynamicResource Tab3.Page5.Header}">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Label Content="{DynamicResource Tab3.Description2}" Foreground="{DynamicResource TextForegroundBrush}"
+                                               Height="27" Width="444" />
+                                        <hc:ButtonGroup>
+                                            <Button Content="{DynamicResource Tab3.All}"
+                                                    Command="{Binding InGameInvestBuffSelectAllCommand}" />
+                                            <Button Content="{DynamicResource Tab3.None}"
+                                                    Command="{Binding InGameInvestBuffUnselectAllCommand}" />
+                                        </hc:ButtonGroup>
+                                    </StackPanel>
+                                    <DataGrid x:Name="InGameInvestBuffs" AutoGenerateColumns="False" HeadersVisibility="None"
+                                              ItemsSource="{Binding InGameInvestBuffs}" CanUserAddRows="False"
+                                              CanUserDeleteRows="False" CanUserResizeRows="False"
+                                              CanUserSortColumns="False" CanUserResizeColumns="False"
+                                              CanUserReorderColumns="False" Background="{DynamicResource ListBackgroundBrush}"
+                                              Style="{DynamicResource DataGrid.Small}"
+                                              PreviewMouseWheel="DataGrid_PreviewMouseWheel">
+                                        <DataGrid.Columns>
+                                            <DataGridCheckBoxColumn
+                                                Binding="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                <DataGridCheckBoxColumn.ElementStyle>
+                                                    <Style />
+                                                </DataGridCheckBoxColumn.ElementStyle>
+                                            </DataGridCheckBoxColumn>
+                                            <DataGridTextColumn IsReadOnly="True" Binding="{Binding TravelBuff.Text}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Expander>
                             <Expander Header="{DynamicResource Tab3.Page4.Header}">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal">

@@ -22,6 +22,7 @@ public struct ModifierSaveModel
     public bool ConveyBeltModify { get; set; }
     public List<int> ConveyBeltTypes { get; set; }
     public List<TravelBuffVM> Debuffs { get; set; }
+    public List<TravelBuffVM> InvestBuffs { get; set; }
     public bool DeveloperMode { get; set; }
     public bool DevLour { get; set; }
     public bool Exchange { get; set; }

@@ -1547,16 +1547,34 @@ namespace PVZRHTools
         {
             if (App.inited && sender is ComboBox)
             {
-                Application.Current.Resources.MergedDictionaries.RemoveAt(2);
+                var mergedDictionaries = Application.Current.Resources.MergedDictionaries;
+
+                // 先移除当前加载的语言资源（避免误删主题/控件样式）
+                ResourceDictionary? currentLangDict = null;
+                foreach (var dict in mergedDictionaries)
+                {
+                    var source = dict.Source?.OriginalString;
+                    if (source != null && source.Contains("Lang.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        currentLangDict = dict;
+                        break;
+                    }
+                }
+
+                if (currentLangDict != null)
+                    mergedDictionaries.Remove(currentLangDict);
+
+                // 根据下拉框选择加载对应语言资源
                 ResourceDictionary lang;
-                if ((string?)((ComboBoxItem?)e.AddedItems[0]!).Content == "简体中文")
+                var selectedText = (string?)((ComboBoxItem?)e.AddedItems[0]!)!.Content;
+                if (selectedText == "简体中文")
                     lang = LangZH_CN;
-                else if ((string?)((ComboBoxItem?)e.AddedItems[0]!).Content == "English")
+                else if (selectedText == "English")
                     lang = LangEN_US;
                 else
                     lang = LangRU_RU;
 
-                Application.Current.Resources.MergedDictionaries.Add(lang);
+                mergedDictionaries.Add(lang);
                 OnApplyTemplate();
             }
         }

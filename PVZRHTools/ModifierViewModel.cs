@@ -150,6 +150,8 @@ public partial class ModifierViewModel : ObservableObject
         ZombieSeaTypes = [];
         TravelBuffs = [];
         InGameBuffs = [];
+        InvestBuffs = [];
+        InGameInvestBuffs = [];
         Debuffs = [];
         InGameDebuffs = [];
         Times = 1;
@@ -175,13 +177,13 @@ public partial class ModifierViewModel : ObservableObject
                 bi++;
             }
 
-            // 投资词条：作为“植物类词条”的一部分，加入与高级/究极同一分区
+            // 投资词条：单独分区，不再归类到植物词条里
             if (App.InitData.Value.InvestBuffs is not null)
             {
                 foreach (var b in App.InitData.Value.InvestBuffs)
                 {
-                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
-                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
+                    InvestBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, false, false)));
+                    InGameInvestBuffs.Add(new TravelBuffVM(new TravelBuff(bi, b, true, false)));
                     bi++;
                 }
             }
@@ -202,6 +204,8 @@ public partial class ModifierViewModel : ObservableObject
         {
             foreach (var buff in InGameBuffs)
                 AllInGameBuffs.Add(buff);
+            foreach (var invest in InGameInvestBuffs)
+                AllInGameBuffs.Add(invest);
             foreach (var debuff in InGameDebuffs)
                 AllInGameBuffs.Add(debuff);
         }
@@ -217,6 +221,16 @@ public partial class ModifierViewModel : ObservableObject
             }
         };
         Debuffs.ListChanged += (_, _) => SyncTravelBuffs();
+        InvestBuffs.ListChanged += (_, _) => SyncTravelBuffs();
+        InGameInvestBuffs.ListChanged += (_, e) =>
+        {
+            SyncInGameBuffs();
+            // 当列表项添加时，绑定 PropertyChanged 事件
+            if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameInvestBuffs.Count)
+            {
+                BindTravelBuffVMPropertyChanged(InGameInvestBuffs[e.NewIndex]);
+            }
+        };
         InGameDebuffs.ListChanged += (_, e) => 
         {
             SyncInGameBuffs();
@@ -231,6 +245,12 @@ public partial class ModifierViewModel : ObservableObject
         foreach (var buff in InGameBuffs)
         {
             BindTravelBuffVMPropertyChanged(buff);
+        }
+
+        // 为现有的 InGameInvestBuffs 项绑定 PropertyChanged 事件
+        foreach (var invest in InGameInvestBuffs)
+        {
+            BindTravelBuffVMPropertyChanged(invest);
         }
         
         // 为现有的 InGameDebuffs 项绑定 PropertyChanged 事件
@@ -293,6 +313,7 @@ public partial class ModifierViewModel : ObservableObject
         foreach (var b in Bullets) Bullets2.Add(b.Key, b.Key + " : " + b.Value);
 
         InGameBuffs = [];
+        InGameInvestBuffs = [];
         InGameDebuffs = [];
         BuffRefreshNoLimit = s.BuffRefreshNoLimit;
         UnlimitedRefresh = s.UnlimitedRefresh;
@@ -313,6 +334,7 @@ public partial class ModifierViewModel : ObservableObject
         ConveyBeltTypes =
             [.. from cbt in s.ConveyBeltTypes select new KeyValuePair<int, string>(cbt, Plants2[cbt])];
         Debuffs = [.. s.Debuffs];
+        InvestBuffs = s.InvestBuffs is not null ? [.. s.InvestBuffs] : new BindingList<TravelBuffVM>();
         DeveloperMode = s.DeveloperMode;
         DevLour = s.DevLour;
         Exchange = s.Exchange;
@@ -368,6 +390,7 @@ public partial class ModifierViewModel : ObservableObject
         EnableAnimations = s.EnableAnimations;
         IsDarkMode = s.IsDarkMode;
         TravelBuffs = [.. s.TravelBuffs];
+        InvestBuffs = s.InvestBuffs is not null ? [.. s.InvestBuffs] : new BindingList<TravelBuffVM>();
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
         UndeadBullet = s.UndeadBullet;
@@ -418,6 +441,16 @@ public partial class ModifierViewModel : ObservableObject
             bi++;
         }
 
+        // 初始化 InGameInvestBuffs：与 InvestBuffs 对应
+        foreach (var ib in InvestBuffs)
+        {
+            InGameInvestBuffs.Add(new TravelBuffVM(
+                new TravelBuff(ib.TravelBuff.Index, ib.TravelBuff.Text, true, false)
+                {
+                    Enabled = ib.TravelBuff.Enabled
+                }));
+        }
+
         var di = 0;
         foreach (var d in App.InitData.Value.Debuffs)
             InGameDebuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
@@ -426,30 +459,37 @@ public partial class ModifierViewModel : ObservableObject
         InGameBuffs.ListChanged += (sender, e) => 
         {
             SyncInGameBuffs();
-            // 当列表项添加时，绑定 PropertyChanged 事件
             if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameBuffs.Count)
             {
                 BindTravelBuffVMPropertyChanged(InGameBuffs[e.NewIndex]);
             }
         };
         Debuffs.ListChanged += (_, _) => SyncTravelBuffs();
+        InGameInvestBuffs.ListChanged += (_, e) =>
+        {
+            SyncInGameBuffs();
+            if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameInvestBuffs.Count)
+            {
+                BindTravelBuffVMPropertyChanged(InGameInvestBuffs[e.NewIndex]);
+            }
+        };
         InGameDebuffs.ListChanged += (_, e) => 
         {
             SyncInGameBuffs();
-            // 当列表项添加时，绑定 PropertyChanged 事件
             if (e.ListChangedType == System.ComponentModel.ListChangedType.ItemAdded && e.NewIndex >= 0 && e.NewIndex < InGameDebuffs.Count)
             {
                 BindTravelBuffVMPropertyChanged(InGameDebuffs[e.NewIndex]);
             }
         };
         
-        // 为现有的 InGameBuffs 项绑定 PropertyChanged 事件
         foreach (var buff in InGameBuffs)
         {
             BindTravelBuffVMPropertyChanged(buff);
         }
-        
-        // 为现有的 InGameDebuffs 项绑定 PropertyChanged 事件
+        foreach (var invest in InGameInvestBuffs)
+        {
+            BindTravelBuffVMPropertyChanged(invest);
+        }
         foreach (var debuff in InGameDebuffs)
         {
             BindTravelBuffVMPropertyChanged(debuff);
@@ -697,6 +737,28 @@ public partial class ModifierViewModel : ObservableObject
         if (!App.inited) return;
         NeedSync = false;
         foreach (var t in InGameDebuffs) t.Enabled = false;
+
+        NeedSync = true;
+        SyncInGameBuffs();
+    }
+
+    [RelayCommand]
+    public void InGameInvestBuffSelectAll()
+    {
+        if (!App.inited) return;
+        NeedSync = false;
+        foreach (var t in InGameInvestBuffs) t.Enabled = true;
+
+        NeedSync = true;
+        SyncInGameBuffs();
+    }
+
+    [RelayCommand]
+    public void InGameInvestBuffUnselectAll()
+    {
+        if (!App.inited) return;
+        NeedSync = false;
+        foreach (var t in InGameInvestBuffs) t.Enabled = false;
 
         NeedSync = true;
         SyncInGameBuffs();
@@ -958,9 +1020,11 @@ public partial class ModifierViewModel : ObservableObject
                 adv.Add(buff.TravelBuff.Enabled);
             else if (idx < advLen + ultiLen)
                 ulti.Add(buff.TravelBuff.Enabled);
-            else
-                invest.Add(buff.TravelBuff.Enabled);
         }
+
+        // 投资词条单独分区
+        foreach (var ib in InvestBuffs)
+            invest.Add(ib.TravelBuff.Enabled);
 
         foreach (var d in Debuffs) deb.Add(d.TravelBuff.Enabled);
 
@@ -1091,17 +1155,12 @@ public partial class ModifierViewModel : ObservableObject
                 }
                 ulti[ultiIndex] = buff.TravelBuff.Enabled;
             }
-            else if (idx < advLen2 + ultiLen2 + investLen2)
-            {
-                // 投资词条：需要转换为投资词条数组的索引（从0开始）
-                int investIndex = idx - advLen2 - ultiLen2;
-                // 确保 invest 列表大小足够
-                while (invest.Count <= investIndex)
+        }
+
+        // 投资词条单独分区，顺序与 InitData.InvestBuffs 保持一致
+        foreach (var ib in InGameInvestBuffs)
                 {
-                    invest.Add(false);
-                }
-                invest[investIndex] = buff.TravelBuff.Enabled;
-            }
+            invest.Add(ib.TravelBuff.Enabled);
         }
 
         // 确保列表大小正确（填充缺失的项）
@@ -1172,9 +1231,11 @@ public partial class ModifierViewModel : ObservableObject
                 adv.Add(buff.TravelBuff.Enabled);
             else if (idx < advLen3 + ultiLen3)
                 ulti.Add(buff.TravelBuff.Enabled);
-            else
-                invest.Add(buff.TravelBuff.Enabled);
         }
+
+        // 投资词条单独分区
+        foreach (var ib in InvestBuffs)
+            invest.Add(ib.TravelBuff.Enabled);
 
         foreach (var d in Debuffs) deb.Add(d.TravelBuff.Enabled);
 
@@ -2049,6 +2110,16 @@ public partial class ModifierViewModel : ObservableObject
 
     [ObservableProperty] public partial BindingList<TravelBuffVM> InGameBuffs { get; set; }
 
+    /// <summary>
+    /// 投资词条 UI 列表（初始）
+    /// </summary>
+    [ObservableProperty] public partial BindingList<TravelBuffVM> InvestBuffs { get; set; }
+
+    /// <summary>
+    /// 投资词条 UI 列表（局内）
+    /// </summary>
+    [ObservableProperty] public partial BindingList<TravelBuffVM> InGameInvestBuffs { get; set; }
+
     [ObservableProperty] public partial BindingList<TravelBuffVM> InGameDebuffs { get; set; }
     
     /// <summary>
@@ -2385,6 +2456,8 @@ public partial class ModifierViewModel : ObservableObject
             // 清空现有词条列表
             TravelBuffs.Clear();
             InGameBuffs.Clear();
+            InvestBuffs.Clear();
+            InGameInvestBuffs.Clear();
             Debuffs.Clear();
             InGameDebuffs.Clear();
 
@@ -2415,15 +2488,15 @@ public partial class ModifierViewModel : ObservableObject
                 }
             }
 
-            // 重新加载 Invest Buffs（投资词条）
+            // 重新加载 Invest Buffs（投资词条） - 单独分区
             if (App.InitData.Value.InvestBuffs is not null)
             {
                 foreach (var b in App.InitData.Value.InvestBuffs)
                 {
                     // 确保词条文本不为空，如果为空则使用占位符
                     string buffText = string.IsNullOrEmpty(b) ? $"#{bi} InvestBuff_{bi}" : b;
-                    TravelBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, false, false)));
-                    InGameBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, true, false)));
+                    InvestBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, false, false)));
+                    InGameInvestBuffs.Add(new TravelBuffVM(new TravelBuff(bi, buffText, true, false)));
                     bi++;
                 }
             }
@@ -2448,6 +2521,8 @@ public partial class ModifierViewModel : ObservableObject
             }
             foreach (var buff in InGameBuffs)
                 AllInGameBuffs.Add(buff);
+            foreach (var invest in InGameInvestBuffs)
+                AllInGameBuffs.Add(invest);
             foreach (var debuff in InGameDebuffs)
                 AllInGameBuffs.Add(debuff);
 

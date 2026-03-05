@@ -5374,7 +5374,10 @@ public class PatchMgr : MonoBehaviour
         catch (Exception)
         {
         }
-        if (GameAPP.theGameStatus is GameStatus.InGame or GameStatus.InInterlude or GameStatus.Selecting)
+        // 注意：打开背包时（InGame_openBag.ShowCards）会将 theGameStatus 设为 3，并强制 Time.timeScale = 0。
+        // 这里如果继续在 Selecting 状态下覆盖 Time.timeScale，会导致“背包打开后僵尸仍在移动”的问题。
+        // 因此仅在真正的局内状态下处理修改器的速度逻辑，把 Selecting 交给游戏自身（0 或 gameSpeed）。
+        if (GameAPP.theGameStatus is GameStatus.InGame or GameStatus.InInterlude)
         {
             // 只有在游戏速度功能开启时才允许时停/慢速操作
             if (GameSpeedEnabled)

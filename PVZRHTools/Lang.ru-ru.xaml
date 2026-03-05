@@ -203,6 +203,7 @@
     <s:String x:Key="Tab3.Page2.Header">Одиссейские усиленияв игре</s:String>
     <s:String x:Key="Tab3.Page3.Header">Начальные дебаффы</s:String>
     <s:String x:Key="Tab3.Page4.Header">Дебаффы в игре</s:String>
+    <s:String x:Key="Tab3.Page5.Header">Инвестиционные усиления в игре</s:String>
     <s:String x:Key="Tab3.Description2">Баффы здесь синхронизируются с игрой и действуют только в этом уровне.</s:String>
     <s:String x:Key="Tab3.Description1">Баффы здесь будут автоматически добавлены при начале уровня.</s:String>
     <s:String x:Key="Tab3.All">Все</s:String>

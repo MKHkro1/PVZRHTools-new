@@ -228,6 +228,7 @@
     <s:String x:Key="Tab3.Page2.Header">植物词条实时修改</s:String>
     <s:String x:Key="Tab3.Page3.Header">初始僵尸词条设置</s:String>
     <s:String x:Key="Tab3.Page4.Header">僵尸词条实时修改</s:String>
+    <s:String x:Key="Tab3.Page5.Header">投资词条实时修改</s:String>
     <s:String x:Key="Tab3.Description2">此页面中词条与游戏实时同步，可任意增删词条，但仅对本局有效</s:String>
     <s:String x:Key="Tab3.Description1">此页面中词条在每局游戏开始时/生存模式第1轮作为初始词条自动添加，局内修改无效</s:String>
     <s:String x:Key="Tab3.All">全选</s:String>

@@ -220,6 +220,7 @@
     <s:String x:Key="Tab3.Page2.Header">InGameTravelBuffs</s:String>
     <s:String x:Key="Tab3.Page3.Header">InitialDebuffs</s:String>
     <s:String x:Key="Tab3.Page4.Header">InGameDebuffs</s:String>
+    <s:String x:Key="Tab3.Page5.Header">InGameInvestBuffs</s:String>
     <s:String x:Key="Tab3.Description2">Buffs here are synced with game and are only effective in this level.</s:String>
     <s:String x:Key="Tab3.Description1">Buffs here will be added automatically when the level begins.</s:String>
     <s:String x:Key="Tab3.All">All</s:String>

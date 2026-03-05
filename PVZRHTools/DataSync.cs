@@ -244,6 +244,16 @@ public class DataSync
                             Enabled = true;
                         }
 
+                        // 投资词条局内同步
+                        if (s.InvestInGame is not null)
+                        {
+                            Enabled = false;
+                            var inGameInvestCount = MainWindow.Instance!.ViewModel.InGameInvestBuffs.Count;
+                            for (var i = 0; i < s.InvestInGame.Count && i < inGameInvestCount; i++)
+                                MainWindow.Instance!.ViewModel.InGameInvestBuffs[i].Enabled = s.InvestInGame[i];
+                            Enabled = true;
+                        }
+
                         if (s.DebuffsInGame is not null)
                         {
                             Enabled = false;
