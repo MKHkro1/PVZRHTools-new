@@ -132,6 +132,17 @@ public struct BasicProperties : ISyncData
     /// 随机升级模式 - 点击植物操控，手套点击自己升级，融合重置等级返还阳光
     /// </summary>
     public bool? RandomUpgradeMode { get; set; }
+
+    /// <summary>
+    /// PvE 斗蛐蛐布阵：盲盒僵尸置顶列表（-1 表示不置顶，沿用游戏原始随机）
+    /// 依次对应 6 个盲盒僵尸位；不足 6 个时，前面的为有效配置，后面的忽略。
+    /// </summary>
+    public int? PvEBlindBoxZombie1 { get; set; }
+    public int? PvEBlindBoxZombie2 { get; set; }
+    public int? PvEBlindBoxZombie3 { get; set; }
+    public int? PvEBlindBoxZombie4 { get; set; }
+    public int? PvEBlindBoxZombie5 { get; set; }
+    public int? PvEBlindBoxZombie6 { get; set; }
 }
 
 [Serializable]

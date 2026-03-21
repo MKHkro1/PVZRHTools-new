@@ -121,9 +121,9 @@ public static class BoardPatchB
             if (NewZombieUpdateCD > 0f && NewZombieUpdateCD <= 30f && Board.Instance != null)
             {
                 // 确保waveInterval不超过设置的最大值
-                if (Board.Instance.waveInterval > NewZombieUpdateCD)
+                if (Board.Instance.config != null && Board.Instance.config.waveInterval > NewZombieUpdateCD)
                 {
-                    Board.Instance.waveInterval = NewZombieUpdateCD;
+                    Board.Instance.config.waveInterval = NewZombieUpdateCD;
                 }
             }
         }
@@ -453,13 +453,20 @@ public static class BoardFlagWaveBuffPatch
                     if (originalId >= 0)
                     {
                         // 3.4.1：通过 TravelMgr.GetNormalBuff / Lawnf.TravelAdvanced 应用高级词条，而不是直接操作 advancedUpgrades 数组
-                        try
+                        if (CanApplyRuntimeBuff())
                         {
-                            travelMgr.GetNormalBuff((AdvBuff)originalId);
+                            try
+                            {
+                                travelMgr.GetNormalBuff((AdvBuff)originalId);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                MLogger?.LogWarning($"[PVZRHTools] 调用 GetNormalBuff 失败: id={originalId}, ex={ex.Message}");
+                            }
                         }
-                        catch (System.Exception ex)
+                        else
                         {
-                            MLogger?.LogWarning($"[PVZRHTools] 调用 GetNormalBuff 失败: id={originalId}, ex={ex.Message}");
+                            MLogger?.LogWarning($"[PVZRHTools] 跳过 GetNormalBuff: 关卡对象未就绪, id={originalId}");
                         }
 
                         if (TravelDictionary.advancedBuffsText != null)
@@ -1603,8 +1610,8 @@ public static class DriverZombiePatch
 /// 禁用全屏冰冻特效的 Harmony 补丁
 /// 拦截 Board.CreateFreeze 全屏冰冻特效，同时为全场僵尸添加冻结效果并造成伤害，为雪原植物恢复充能
 /// </summary>
-[HarmonyPatch(typeof(Board), nameof(Board.CreateFreeze))]
-public static class BoardCreateFreezePatch
+[HarmonyPatch(typeof(BoardAction), nameof(BoardAction.CreateFreeze))]
+public static class BoardActionCreateFreezePatch
 {
     // 雪原植物类型ID列表（从反汇编代码中提取）
     // 38: SnowPea, 913: ?, 925: ?, 947: ?, 1039: ?, 1218-1220: ?, 1227: ?, 1259: ?
@@ -1625,14 +1632,14 @@ public static class BoardCreateFreezePatch
     /// 同时为全场僵尸添加冻结效果并造成伤害，为雪原植物恢复充能
     /// </summary>
     [HarmonyPrefix]
-    public static bool Prefix(Board __instance, Vector2 pos)
+    public static bool Prefix(BoardAction __instance, Vector2 pos)
     {
         // 功能关闭时，执行原版逻辑
         if (!DisableIceEffect)
             return true;
 
         // 为全场僵尸添加冻结效果
-        ApplyFreezeToAllZombies(__instance);
+        ApplyFreezeToAllZombies(__instance?.board);
         
         return false; // 阻止全屏冰冻特效
     }
@@ -2376,7 +2383,7 @@ public static class InGameBtnPatch
                 }
                 else
                 {
-                    Time.timeScale = GameAPP.gameSpeed;
+                    Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
                 }
             }
         }
@@ -3008,9 +3015,9 @@ public static class BoardUpdateCursePatch
             if (NewZombieUpdateCD > 0f && NewZombieUpdateCD <= 30f && __instance != null)
             {
                 // 确保waveInterval不超过设置的最大值
-                if (__instance.waveInterval > NewZombieUpdateCD)
+                if (__instance.config != null && __instance.config.waveInterval > NewZombieUpdateCD)
                 {
-                    __instance.waveInterval = NewZombieUpdateCD;
+                    __instance.config.waveInterval = NewZombieUpdateCD;
                 }
             }
         }
@@ -3681,23 +3688,22 @@ public static class PotatoMinePatch
 public static class BoardPatch
 {
     [HarmonyPrefix]
-    public static bool Prefix(Board __instance, ref int theColumn, ref int theRow, ref bool fromWheat,ref GameObject __result)
+    public static bool Prefix(Board __instance, ref int theColumn, ref int theRow, ref bool fromWheat, ref Plant __result)
     {
         if (fromWheat && LockWheat >= 0)
         {
-            GameObject plantObject = CreatePlant.Instance.SetPlant(
+            Plant plantObject = CreatePlant.Instance.SetPlant(
                 theColumn, 
                 theRow, 
                 (PlantType)LockWheat
             );
 
-            plantObject.TryGetComponent<Plant>(out var component);
-            if (component is not null)
+            if (plantObject is not null)
             {
-                component.wheatType = 1;
+                plantObject.wheatType = 1;
             }
             
-            if (!plantObject)
+            if (plantObject == null)
             {
                 float boxX = Mouse.Instance.GetBoxXFromColumn(theColumn);
                 float landY = Mouse.Instance.GetLandY(boxX, theRow);
@@ -3798,10 +3804,10 @@ public static class PresentPatchC
     }
 }
 
-[HarmonyPatch(typeof(ProgressMgr), "Awake")]
+[HarmonyPatch(typeof(LevelProgress), "Awake")]
 public static class ProgressMgrPatchA
 {
-    public static void Postfix(ProgressMgr __instance)
+    public static void Postfix(LevelProgress __instance)
     {
         GameObject obj = new("ModifierGameInfo");
         var text = obj.AddComponent<TextMeshProUGUI>();
@@ -3814,10 +3820,10 @@ public static class ProgressMgrPatchA
     }
 }
 
-[HarmonyPatch(typeof(ProgressMgr), "Update")]
+[HarmonyPatch(typeof(LevelProgress), "Update")]
 public static class ProgressMgrPatchB
 {
-    public static void Postfix(ProgressMgr __instance)
+    public static void Postfix(LevelProgress __instance)
     {
         try
         {
@@ -3863,29 +3869,6 @@ public static class ProgressMgrPatchB
             }
         }
         catch { }
-    }
-}
-
-[HarmonyPatch(typeof(RandomZombie), "SetRandomZombie")]
-public static class RamdomZombiePatch
-{
-    public static bool Prefix(RandomZombie __instance, ref GameObject __result)
-    {
-        if (!UltimateRamdomZombie) return true;
-        if (Board.Instance is not null && Board.Instance.isEveStarted) return true;
-        var id = Random.RandomRangeInt(200, 223);
-        if (Random.RandomRangeInt(0, 5) == 1)
-        {
-            if (!__instance.isMindControlled)
-                __result = CreateZombie.Instance.SetZombie(__instance.theZombieRow, (ZombieType)id,
-                    __instance.GameObject().transform.position.x);
-            else
-                __result = CreateZombie.Instance.SetZombieWithMindControl(__instance.theZombieRow, (ZombieType)id,
-                    __instance.GameObject().transform.position.x);
-            return false;
-        }
-
-        return true;
     }
 }
 
@@ -4017,10 +4000,10 @@ public static class SuperSnowGatlingPatchB
 public static class TravelRefreshPatch
 {
     /// <summary>
-    /// 在 TravelRefresh.Start 时设置 refreshTimes，确保旅行投资模式中也能生效
+    /// 在 TravelRefresh.Awake 时设置 refreshTimes，确保旅行投资模式中也能生效
     ///  TravelRefreshOnMouseUpAsButtonPatch.PrefixStart
     /// </summary>
-    [HarmonyPatch("Start")]
+    [HarmonyPatch("Awake")]
     [HarmonyPrefix]
     public static void PrefixStart(TravelRefresh __instance)
     {
@@ -4037,7 +4020,7 @@ public static class TravelRefreshPatch
         }
         catch (System.Exception ex)
         {
-            MLogger?.LogWarning($"[PVZRHTools] TravelRefresh.Start 补丁异常: {ex.Message}");
+            MLogger?.LogWarning($"[PVZRHTools] TravelRefresh.Awake 补丁异常: {ex.Message}");
         }
     }
 
@@ -4300,7 +4283,7 @@ public static class MousePatch
             }
             foreach (var plant in plants)
             {
-                GameObject gameObject =
+                Plant gameObject =
                     CreatePlant.Instance.SetPlant(newCol, plant.thePlantRow, plant.thePlantType);
                 if (Board.Instance.boardTag.isColumn)
                 {
@@ -4311,7 +4294,7 @@ public static class MousePatch
                 }
                 else
                 {
-                    if (gameObject != null && gameObject.TryGetComponent<Plant>(out var component) && component != null)
+                    if (gameObject != null)
                     {
                         plant.Die(Plant.DieReason.ByMix);
                     }
@@ -4338,7 +4321,7 @@ public static class MousePatch
 
 /// <summary>
 /// 究极剑仙杨桃(AbyssSwordStar)补丁 - 取消红卡种植限制
-/// 在Awake方法前临时修改GameStatus，在Start方法前临时修改BoardType为神秘模式(7)
+/// 在Awake方法前临时修改GameStatus，并临时修改BoardType为神秘模式(7)
 /// </summary>
 [HarmonyPatch(typeof(AbyssSwordStar))]
 public static class AbyssSwordStarUnlockPatch
@@ -4362,7 +4345,7 @@ public static class AbyssSwordStarUnlockPatch
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch("Start")]
+    [HarmonyPatch("Awake")]
     public static void PreStart(ref LevelType __state)
     {
         __state = GameAPP.theBoardType;
@@ -4373,7 +4356,7 @@ public static class AbyssSwordStarUnlockPatch
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch("Start")]
+    [HarmonyPatch("Awake")]
     public static void PostStart(ref LevelType __state)
     {
         GameAPP.theBoardType = __state;
@@ -4382,13 +4365,12 @@ public static class AbyssSwordStarUnlockPatch
 
 /// <summary>
 /// 究极速射樱桃射手(UltimateMinigun)补丁 - 取消红卡种植限制
-/// 在Start方法前临时修改BoardTag.isTreasure为true
+/// 在构造函数前临时修改BoardTag.isTreasure为true
 /// </summary>
-[HarmonyPatch(typeof(UltimateMinigun))]
+[HarmonyPatch(typeof(UltimateMinigun), MethodType.Constructor)]
 public static class UltimateMinigunUnlockPatch
 {
     [HarmonyPrefix]
-    [HarmonyPatch("Start")]
     public static void PreStart(ref Board.BoardTag __state)
     {
         __state = Board.Instance.boardTag;
@@ -4401,7 +4383,6 @@ public static class UltimateMinigunUnlockPatch
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch("Start")]
     public static void PostStart(ref Board.BoardTag __state)
     {
         Board.Instance.boardTag = __state;
@@ -5095,6 +5076,167 @@ public class PatchMgr : MonoBehaviour
     public static int LockPresent3 { get; set; } = -1;
     public static int LockPresent4 { get; set; } = -1;
     public static int LockPresent5 { get; set; } = -1;
+    // PvE 斗蛐蛐布阵：盲盒僵尸置顶（-1 表示不置顶，沿用游戏原始随机）
+    public static int PvEBlindBoxZombie1 { get; set; } = -1;
+    public static int PvEBlindBoxZombie2 { get; set; } = -1;
+    public static int PvEBlindBoxZombie3 { get; set; } = -1;
+    public static int PvEBlindBoxZombie4 { get; set; } = -1;
+    public static int PvEBlindBoxZombie5 { get; set; } = -1;
+    public static int PvEBlindBoxZombie6 { get; set; } = -1;
+
+    /// <summary>
+    /// PvE 斗蛐蛐布阵：记录 6 个盲盒僵尸实例ID与槽位号的映射
+    /// 仅斗蛐蛐布阵时填充，死亡后会移除对应项。
+    /// </summary>
+    public static readonly Dictionary<int, int> PveBlindBoxSlotByInstance = new();
+
+    /// <summary>
+    /// 黄金盲盒僵尸：覆盖 FirstArmorFall，在开盒时按 PvE 槽2~5 指定僵尸生成并让自身死亡
+    /// </summary>
+    [HarmonyPatch(typeof(RandomZombie), "FirstArmorFall")]
+    public static class RandomZombieFirstArmorFallPatch
+    {
+        public static bool Prefix(RandomZombie __instance)
+        {
+            if (!InGame() || Board.Instance == null || CreateZombie.Instance == null)
+                return true;
+
+            if (__instance == null)
+                return true;
+
+            int instId = __instance.GetInstanceID();
+            if (!PveBlindBoxSlotByInstance.TryGetValue(instId, out int slot))
+                return true;
+
+            // 只处理 PvE 布阵中记录的 4 个黄金盲盒 (槽2~5)
+            if (slot < 2 || slot > 5)
+                return true;
+
+            int targetId = slot switch
+            {
+                2 => PvEBlindBoxZombie2,
+                3 => PvEBlindBoxZombie3,
+                4 => PvEBlindBoxZombie4,
+                5 => PvEBlindBoxZombie5,
+                _ => -1
+            };
+
+            // 未配置则走原逻辑
+            if (targetId < 0)
+                return true;
+
+            // 用完就移除，避免后续其它逻辑再次误用
+            PveBlindBoxSlotByInstance.Remove(instId);
+
+            var axis = __instance.axis;
+            if (axis == null)
+                return true;
+
+            var pos = axis.position;
+            int row = __instance.theZombieRow;
+            var targetType = (ZombieType)targetId;
+
+            if (__instance.isMindControlled)
+                CreateZombie.Instance.SetZombieWithMindControl(row, targetType, pos.x);
+            else
+                CreateZombie.Instance.SetZombie(row, targetType, pos.x);
+
+            // 模拟原逻辑的结尾：播放粒子并让自身死亡
+            try
+            {
+                // 原逻辑中在 FirstArmorFall 里会调用 CreateParticle.SetParticle(11, pos+偏移, row, true)
+                // 这里简单复用 Lawnf/Board 的通用粒子接口（如果可用），否则忽略粒子表现
+                var go = __instance.GameObject();
+                if (go != null)
+                {
+                    var p = go.transform.position;
+                    CreateParticle.SetParticle(11, new Vector2(p.x, p.y + 1f), row, true);
+                }
+            }
+            catch
+            {
+                // 粒子失败不影响主要逻辑
+            }
+
+            __instance.Die(2);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 钻石盲盒僵尸：覆盖 SetRandomZombie，实现按 PvE 槽1 指定僵尸生成
+    /// </summary>
+    [HarmonyPatch(typeof(DiamondRandomZombie), nameof(DiamondRandomZombie.SetRandomZombie))]
+    public static class DiamondRandomZombiePatch
+    {
+        public static bool Prefix(DiamondRandomZombie __instance, ref GameObject __result, Vector3 pos)
+        {
+            if (!InGame() || Board.Instance == null || CreateZombie.Instance == null)
+                return true;
+
+            int instId = __instance.GetInstanceID();
+            if (!PveBlindBoxSlotByInstance.TryGetValue(instId, out int slot) || slot != 1)
+                return true; // 只处理 PvE 布阵中的那一个钻石盲盒
+
+            if (PvEBlindBoxZombie1 < 0)
+                return true; // 未配置则保持原逻辑
+
+            // 用完就移除，避免后续其它逻辑再次误用
+            PveBlindBoxSlotByInstance.Remove(instId);
+
+            float x = pos.x;
+            var targetType = (ZombieType)PvEBlindBoxZombie1;
+
+            if (!__instance.isMindControlled)
+                __result = CreateZombie.Instance.SetZombie(__instance.theZombieRow, targetType, x);
+            else
+                __result = CreateZombie.Instance.SetZombieWithMindControl(__instance.theZombieRow, targetType, x);
+
+            // 不再走原始随机逻辑
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 巨人盲盒僵尸：覆盖 FirstArmorFall，在盔甲掉落时按 PvE 槽6 指定僵尸生成并让自身死亡
+    /// </summary>
+    [HarmonyPatch(typeof(RandomGargantuar), nameof(RandomGargantuar.FirstArmorFall))]
+    public static class RandomGargantuarFirstArmorFallPatch
+    {
+        public static bool Prefix(RandomGargantuar __instance)
+        {
+            if (!InGame() || Board.Instance == null || CreateZombie.Instance == null)
+                return true;
+
+            int instId = __instance.GetInstanceID();
+            if (!PveBlindBoxSlotByInstance.TryGetValue(instId, out int slot) || slot != 6)
+                return true; // 只处理 PvE 布阵中的那一个巨人盲盒
+
+            if (PvEBlindBoxZombie6 < 0)
+                return true; // 未配置则保持原逻辑
+
+            // 用完就移除，避免后续其它逻辑再次误用
+            PveBlindBoxSlotByInstance.Remove(instId);
+
+            var axis = __instance.axis;
+            if (axis == null) return true;
+
+            var pos = axis.position;
+            int row = __instance.theZombieRow;
+            var targetType = (ZombieType)PvEBlindBoxZombie6;
+
+            if (__instance.isMindControlled)
+                CreateZombie.Instance.SetZombieWithMindControl(row, targetType, pos.x);
+            else
+                CreateZombie.Instance.SetZombie(row, targetType, pos.x);
+
+            // 模拟原逻辑的结尾：让巨人死亡（reason=2）
+            __instance.Die(2);
+
+            // 不再调用原始 FirstArmorFall（其中的随机逻辑和特效大部分为美术表现，可忽略）
+            return false;
+        }
+    }
     public static bool LockSun { get; set; } = false;
     public static int LockSunCount { get; set; } = 500;
     public static bool MineNoCD { get; set; } = false;
@@ -5412,7 +5554,7 @@ public class PatchMgr : MonoBehaviour
             {
                 try
                 {
-                    float currentGameSpeed = GameAPP.gameSpeed;
+                    float currentGameSpeed = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
                     if (_lastGameSpeed >= 0 && Mathf.Abs(currentGameSpeed - _lastGameSpeed) > 0.01f)
                     {
                         // 游戏内部速度改变了，且功能关闭，让游戏内部的速度生效
@@ -5428,7 +5570,7 @@ public class PatchMgr : MonoBehaviour
                 // 功能开启时，更新记录的游戏内部速度，但不自动应用
                 try
                 {
-                    _lastGameSpeed = GameAPP.gameSpeed;
+                    _lastGameSpeed = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
                 }
                 catch { }
             }
@@ -5447,7 +5589,7 @@ public class PatchMgr : MonoBehaviour
                     else
                     {
                         // 如果修改器没有设置速度，恢复为游戏内部速度
-                        Time.timeScale = GameAPP.gameSpeed;
+                        Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
                     }
                 }
                 else if (!TimeStop && TimeSlow)
@@ -5827,7 +5969,7 @@ public class PatchMgr : MonoBehaviour
             Il2CppSystem.Collections.Generic.List<PlantType> randomPlant = GameAPP.resourcesManager.allPlants;
             if (InGameUI.Instance && randomPlant != null && randomPlant.Count != 0)
             {
-                for (int i = 0; i < InGameUI.Instance.cardOnBank.Length; i++)
+                for (int i = 0; i < InGameUI.Instance.cardOnBank.Count; i++)
                 {
                     try
                     {
@@ -5948,6 +6090,12 @@ public class PatchMgr : MonoBehaviour
                GameAPP.theGameStatus is not GameStatus.OpenOptions or GameStatus.OutGame or GameStatus.Almanac;
     }
 
+    public static bool CanApplyRuntimeBuff()
+    {
+        // 部分高级词条在 OnSelect(Board board) 中直接访问 board，关卡未就绪时会 NRE。
+        return Board.Instance != null && GameAPP.board != null;
+    }
+
     public static IEnumerator PostInitBoard()
     {
         // 使用统一的 TravelMgr 获取方法
@@ -6000,7 +6148,11 @@ public class PatchMgr : MonoBehaviour
         int ultiCount = TravelDictionary.ultimateBuffsText?.Count ?? 0;
         int debuffCount = TravelDictionary.debuffData?.Count ?? 0;
 
-        int investCount = TravelMgr.InvestBuffsData?.Count ?? 0;
+        // 3.5: 直接访问 TravelMgr.InvestBuffsData 会触发 InvestBuff 泛型约束异常
+        // 这里仅根据已有状态数组决定长度，避免触发该静态字典初始化。
+        int investCount = Math.Max(
+            InGameInvestBuffs?.Length ?? 0,
+            DesiredInGameInvestBuffs?.Length ?? 0);
 
         // 记录数组之前是否已经初始化过；如果已经有值，说明是上一关/之前由修改器设置好的状态，
         // 不要在这里用游戏内状态强行覆盖（否则切换场景会把已开启的词条全部重置）。
@@ -6089,11 +6241,9 @@ public class PatchMgr : MonoBehaviour
 
         if (!hadInvest)
         {
-        for (int i = 0; i < InGameInvestBuffs.Length; i++)
-        {
-            try { InGameInvestBuffs[i] = Lawnf.TravelInvest((InvestBuff)i); }
-            catch { InGameInvestBuffs[i] = false; }
-            }
+            // 避免调用 Lawnf.TravelInvest 触发 InvestBuff 泛型约束异常
+            for (int i = 0; i < InGameInvestBuffs.Length; i++)
+                InGameInvestBuffs[i] = false;
         }
         yield return null;
         new Thread(SyncInGameBuffs).Start();
@@ -6347,12 +6497,8 @@ public class PatchMgr : MonoBehaviour
             {
                 for (int i = 0; i < InGameInvestBuffs.Length; i++)
                 {
-                    try
-                    {
-                        bool gameState = Lawnf.TravelInvest((InvestBuff)i);
-                        InGameInvestBuffs[i] = gameState;
-                    }
-                    catch { }
+                    // 3.5: 避免调用 Lawnf.TravelInvest 导致 InvestBuff 泛型约束异常。
+                    // InGameInvestBuffs 状态由 DataProcessor/UpdateInGameBuffs 维护，这里不再主动拉取游戏态。
                 }
             }
             
@@ -6590,9 +6736,9 @@ public class PatchMgr : MonoBehaviour
     {
         TravelMgr? travelMgr = null;
         try { travelMgr = TravelMgr.Instance; } catch { }
-        if (travelMgr == null && GameAPP.gameAPP != null)
+        if (travelMgr == null && GameAPP.Instance != null)
         {
-            travelMgr = GameAPP.gameAPP.GetComponent<TravelMgr>();
+            travelMgr = GameAPP.Instance.GetComponent<TravelMgr>();
         }
         if (travelMgr == null)
         {
@@ -6605,14 +6751,14 @@ public class PatchMgr : MonoBehaviour
         
         // 仅在需要修改词条时才自动创建 TravelMgr
         // GetOrAdd TravelMgr + 设置 boardTag.isTravel/enableTravelBuff
-        if (travelMgr == null && autoCreate && InGame() && GameAPP.gameAPP != null)
+        if (travelMgr == null && autoCreate && InGame() && GameAPP.Instance != null)
         {
             try
             {
-                travelMgr = GameAPP.gameAPP.GetComponent<TravelMgr>();
+                travelMgr = GameAPP.Instance.GetComponent<TravelMgr>();
                 if (travelMgr == null)
                 {
-                    travelMgr = GameAPP.gameAPP.AddComponent<TravelMgr>();
+                    travelMgr = GameAPP.Instance.AddComponent<TravelMgr>();
                     
                     // 关键修复：自动创建 TravelMgr 时，同步旗帜波状态，避免旗帜波检测失效
                     // 确保 _lastHugeWaveState 与当前游戏状态一致
@@ -6688,6 +6834,11 @@ public class PatchMgr : MonoBehaviour
 
                     if (desired && !unlocked)
                     {
+                        if (!CanApplyRuntimeBuff())
+                        {
+                            continue;
+                        }
+
                         try
                         {
                             travelMgr.GetNormalBuff(adv);
@@ -7125,25 +7276,58 @@ public static class MNEntryTravelMgrPatch
 /// <summary>
 /// MNEntry词条效果 - 坚不可摧：鱼丸受到的伤害最多为200
 /// </summary>
-[HarmonyPatch(typeof(SuperMachineNut), nameof(SuperMachineNut.TakeDamage))]
+[HarmonyPatch(typeof(SuperMachineNut), "Instead", new Type[] { typeof(int) })]
 public static class SuperMachineNutTakeDamageGameBuffPatch
 {
+    // 3.5 下该方法在 IL2CPP 环境中仍可能触发 native->managed trampoline 空引用，
+    // 临时禁用该补丁以确保插件可稳定加载。
+    [HarmonyPrepare]
+    public static bool Prepare() => false;
+
     [HarmonyPrefix]
-    public static bool Prefix(ref int damage)
+    public static bool Prefix(SuperMachineNut __instance, ref int theDamage)
     {
+        try
+        {
+            if (__instance == null)
+            {
+                return true;
+            }
+
         // 检查修改器开关（开启时两个效果都生效）
         if (PatchMgr.MNEntryEnabled)
         {
-            if (damage > 200) damage = 200;
+                if (theDamage > 200) theDamage = 200;
             return true;
         }
 
         // 检查游戏内词条是否激活（3.4.1：TravelAdvanced 接受 AdvBuff 枚举）
-        if (MNEntryTravelMgrPatch.TravelId1 >= 0 &&
-            Lawnf.TravelAdvanced((AdvBuff)MNEntryTravelMgrPatch.TravelId1))
-        {
-            if (damage > 200) damage = 200;
+            if (MNEntryTravelMgrPatch.TravelId1 >= 0)
+            {
+                bool hasBuff = false;
+                try
+                {
+                    if (Board.Instance != null)
+                    {
+                        hasBuff = Lawnf.TravelAdvanced((AdvBuff)MNEntryTravelMgrPatch.TravelId1);
+                    }
+                }
+                catch
+                {
+                    // 词条查询异常时仅降级，不影响伤害流程
+                }
+
+                if (hasBuff && theDamage > 200)
+                {
+                    theDamage = 200;
         }
+            }
+        }
+        catch (Exception ex)
+        {
+            MLogger?.LogWarning($"[PVZRHTools] SuperMachineNut.Instead 前置补丁异常: {ex.Message}");
+        }
+
         return true;
     }
 }

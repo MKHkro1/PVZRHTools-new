@@ -156,6 +156,13 @@ public partial class ModifierViewModel : ObservableObject
         InGameDebuffs = [];
         Times = 1;
         NewZombieUpdateCD = 30;
+        // PvE 斗蛐蛐布阵：盲盒僵尸置顶（默认不生效）
+        PvEBlindBoxZombie1 = -1;
+        PvEBlindBoxZombie2 = -1;
+        PvEBlindBoxZombie3 = -1;
+        PvEBlindBoxZombie4 = -1;
+        PvEBlindBoxZombie5 = -1;
+        PvEBlindBoxZombie6 = -1;
 
         // 如果 InitData 还没有加载，先初始化空列表，等待 ReloadBuffsFromInitData 被调用
         if (App.InitData != null)
@@ -408,6 +415,13 @@ public partial class ModifierViewModel : ObservableObject
         GloveFullCDEnabled = s.GloveFullCDEnabled;
         NewZombieUpdateCD = s.NewZombieUpdateCD;
         PlantUpgrade = s.PlantUpgrade;
+        // PvE 斗蛐蛐布阵：盲盒僵尸置顶，兼容旧存档（旧存档中字段默认为0）
+        PvEBlindBoxZombie1 = s.PvEBlindBoxZombie1;
+        PvEBlindBoxZombie2 = s.PvEBlindBoxZombie2;
+        PvEBlindBoxZombie3 = s.PvEBlindBoxZombie3;
+        PvEBlindBoxZombie4 = s.PvEBlindBoxZombie4;
+        PvEBlindBoxZombie5 = s.PvEBlindBoxZombie5;
+        PvEBlindBoxZombie6 = s.PvEBlindBoxZombie6;
         var bi = 0;
         foreach (var b in App.InitData.Value.AdvBuffs)
         {
@@ -946,6 +960,11 @@ public partial class ModifierViewModel : ObservableObject
             Hotkeys = Hotkeys,
             NewZombieUpdateCD = NewZombieUpdateCD,
             PlantUpgrade = PlantUpgrade,
+            PvEBlindBoxZombie1 = PvEBlindBoxZombie1,
+            PvEBlindBoxZombie2 = PvEBlindBoxZombie2,
+            PvEBlindBoxZombie3 = PvEBlindBoxZombie3,
+            PvEBlindBoxZombie4 = PvEBlindBoxZombie4,
+            PvEBlindBoxZombie5 = PvEBlindBoxZombie5,
         };
         if (ZombieSeaTypes.Count > 0) s.ZombieSeaTypes.AddRange(from zst in ZombieSeaTypes select zst.Key);
 
@@ -1574,6 +1593,36 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new BasicProperties { LockPresent5 = value });
     }
 
+    partial void OnPvEBlindBoxZombie1Changed(int value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PvEBlindBoxZombie1 = value });
+    }
+
+    partial void OnPvEBlindBoxZombie2Changed(int value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PvEBlindBoxZombie2 = value });
+    }
+
+    partial void OnPvEBlindBoxZombie3Changed(int value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PvEBlindBoxZombie3 = value });
+    }
+
+    partial void OnPvEBlindBoxZombie4Changed(int value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PvEBlindBoxZombie4 = value });
+    }
+
+    partial void OnPvEBlindBoxZombie5Changed(int value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PvEBlindBoxZombie5 = value });
+    }
+
+    partial void OnPvEBlindBoxZombie6Changed(int value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PvEBlindBoxZombie6 = value });
+    }
+
     partial void OnLockSunChanged(bool value)
     {
         App.DataSync.Value.SendData(new InGameActions
@@ -1967,6 +2016,8 @@ public partial class ModifierViewModel : ObservableObject
         get
         {
             var result = new Dictionary<int, string>();
+            // -1 表示礼盒不指定植物 / 使用游戏原始随机
+            result.Add(-1, "-1 : 不指定（默认随机）");
             if (App.InitData != null)
             {
                 foreach (var plant in App.InitData.Value.Plants)
@@ -1985,6 +2036,8 @@ public partial class ModifierViewModel : ObservableObject
         get
         {
             var result = new Dictionary<int, string>();
+            // -1 表示不指定 / 恢复游戏原始随机
+            result.Add(-1, "-1 : 默认随机（不指定）");
             if (App.InitData != null)
             {
                 foreach (var zombie in App.InitData.Value.Zombies)
@@ -2270,6 +2323,16 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial int LockPresent3 { get; set; }
     [ObservableProperty] public partial int LockPresent4 { get; set; }
     [ObservableProperty] public partial int LockPresent5 { get; set; }
+
+    /// <summary>
+    /// PvE 斗蛐蛐布阵：盲盒僵尸置顶（-1 表示不置顶，沿用游戏原始随机）
+    /// </summary>
+    [ObservableProperty] public partial int PvEBlindBoxZombie1 { get; set; }
+    [ObservableProperty] public partial int PvEBlindBoxZombie2 { get; set; }
+    [ObservableProperty] public partial int PvEBlindBoxZombie3 { get; set; }
+    [ObservableProperty] public partial int PvEBlindBoxZombie4 { get; set; }
+    [ObservableProperty] public partial int PvEBlindBoxZombie5 { get; set; }
+    [ObservableProperty] public partial int PvEBlindBoxZombie6 { get; set; }
 
     [ObservableProperty] public partial bool LockSun { get; set; }
 

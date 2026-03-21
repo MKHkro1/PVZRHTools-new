@@ -97,4 +97,11 @@ public struct ModifierSaveModel
     public bool ZombieSeaLowEnabled { get; set; }
     public List<int> ZombieSeaTypes { get; set; }
     public int ZombieType { get; set; }
+    // PvE 斗蛐蛐布阵：盲盒僵尸置顶（-1 表示不置顶，沿用游戏原始随机）
+    public int PvEBlindBoxZombie1 { get; set; }
+    public int PvEBlindBoxZombie2 { get; set; }
+    public int PvEBlindBoxZombie3 { get; set; }
+    public int PvEBlindBoxZombie4 { get; set; }
+    public int PvEBlindBoxZombie5 { get; set; }
+    public int PvEBlindBoxZombie6 { get; set; }
 }

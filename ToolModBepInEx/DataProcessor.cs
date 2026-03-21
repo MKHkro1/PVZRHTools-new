@@ -184,7 +184,7 @@ public class DataProcessor : MonoBehaviour
                     // 立即恢复游戏内部速度
                     try
                     {
-                        Time.timeScale = GameAPP.gameSpeed;
+                        Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
                     }
                     catch { }
                 }
@@ -228,6 +228,12 @@ public class DataProcessor : MonoBehaviour
             if (p1.LockPresent3 is not null) LockPresent3 = (int)p1.LockPresent3;
             if (p1.LockPresent4 is not null) LockPresent4 = (int)p1.LockPresent4;
             if (p1.LockPresent5 is not null) LockPresent5 = (int)p1.LockPresent5;
+            if (p1.PvEBlindBoxZombie1 is not null) PvEBlindBoxZombie1 = (int)p1.PvEBlindBoxZombie1;
+            if (p1.PvEBlindBoxZombie2 is not null) PvEBlindBoxZombie2 = (int)p1.PvEBlindBoxZombie2;
+            if (p1.PvEBlindBoxZombie3 is not null) PvEBlindBoxZombie3 = (int)p1.PvEBlindBoxZombie3;
+            if (p1.PvEBlindBoxZombie4 is not null) PvEBlindBoxZombie4 = (int)p1.PvEBlindBoxZombie4;
+            if (p1.PvEBlindBoxZombie5 is not null) PvEBlindBoxZombie5 = (int)p1.PvEBlindBoxZombie5;
+            if (p1.PvEBlindBoxZombie6 is not null) PvEBlindBoxZombie6 = (int)p1.PvEBlindBoxZombie6;
             if (p1.FastShooting is not null) FastShooting = (bool)p1.FastShooting;
             if (p1.HardPlant is not null) HardPlant = (bool)p1.HardPlant;
             if (p1.ImmuneForceDeduct is not null) ImmuneForceDeduct = (bool)p1.ImmuneForceDeduct;
@@ -258,7 +264,10 @@ public class DataProcessor : MonoBehaviour
                 // 设置Board的waveInterval，限制两波间最大刷怪CD
                 if (InGame() && Board.Instance != null && NewZombieUpdateCD > 0f && NewZombieUpdateCD <= 30f)
                 {
-                    Board.Instance.waveInterval = NewZombieUpdateCD;
+                    if (Board.Instance.config != null)
+                    {
+                        Board.Instance.config.waveInterval = NewZombieUpdateCD;
+                    }
                 }
             }
             if (p1.UltimateSuperGatling is not null) UltimateSuperGatling = (bool)p1.UltimateSuperGatling;
@@ -583,7 +592,10 @@ public class DataProcessor : MonoBehaviour
 
                 if (s.InvestInGame is not null || s.InvestTravelBuff is not null)
                 {
-                    int investCount = TravelMgr.InvestBuffsData?.Count ?? 0;
+                    // 3.5: 直接访问 TravelMgr.InvestBuffsData 可能触发
+                    // "BaseBuff<InvestBuff> 泛型约束" 的 TypeLoadException。
+                    // 这里改为仅依据同步数据长度进行数组分配，避免触发该静态字典初始化。
+                    int investCount = Math.Max(s.InvestInGame?.Count ?? 0, s.InvestTravelBuff?.Count ?? 0);
                     
                     if (InGameInvestBuffs == null || InGameInvestBuffs.Length < investCount)
                     {
@@ -675,7 +687,7 @@ public class DataProcessor : MonoBehaviour
             if (iga.ConveyBeltTypes is not null) ConveyBeltTypes = iga.ConveyBeltTypes;
             if (iga.AbyssCheat is not null)
             {
-                var abyssManager = GameAPP.gameAPP?.GetComponent<AbyssManager>();
+                var abyssManager = GameAPP.Instance?.GetComponent<AbyssManager>();
                 if (abyssManager != null)
                 {
                     abyssManager.Money = 99999999;
@@ -1771,13 +1783,30 @@ all");
                 CreatePlant.Instance.SetPlant(3, 2, PlantType.Present);
                 CreatePlant.Instance.SetPlant(4, 2, PlantType.Present);
                 
-                // 放置僵尸：1个巨人盲盒 + 1个钻石盲盒 + 4个黄金盲盒
-                CreateZombie.Instance.SetZombie(2, ZombieType.RandomGargantuar, 8);
-                CreateZombie.Instance.SetZombie(2, ZombieType.DiamondRandomZombie, 8);
-                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
-                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
-                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
-                CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
+                // 放置僵尸：1个巨人盲盒 + 1个钻石盲盒 + 4个黄金盲盒，并记录实例ID用于死亡时生成指定僵尸
+                var zg = CreateZombie.Instance.SetZombie(2, ZombieType.RandomGargantuar, 8);
+                if (zg != null)
+                {
+                    var comp = zg.GetComponent<Zombie>();
+                    if (comp != null) PatchMgr.PveBlindBoxSlotByInstance[comp.GetInstanceID()] = 6; // 槽6：巨人盲盒
+                }
+
+                var zd = CreateZombie.Instance.SetZombie(2, ZombieType.DiamondRandomZombie, 8);
+                if (zd != null)
+                {
+                    var comp = zd.GetComponent<Zombie>();
+                    if (comp != null) PatchMgr.PveBlindBoxSlotByInstance[comp.GetInstanceID()] = 1; // 槽1：钻石盲盒
+                }
+
+                for (int i = 0; i < 4; i++)
+                {
+                    var zp = CreateZombie.Instance.SetZombie(2, ZombieType.RandomPlusZombie, 8);
+                    if (zp != null)
+                    {
+                        var comp = zp.GetComponent<Zombie>();
+                        if (comp != null) PatchMgr.PveBlindBoxSlotByInstance[comp.GetInstanceID()] = 2 + i; // 槽2~5：四个黄金盲盒
+                    }
+                }
             }
 
             // 召唤迷你黑曜石巨人
