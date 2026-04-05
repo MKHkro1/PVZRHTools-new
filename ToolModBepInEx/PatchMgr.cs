@@ -7206,6 +7206,49 @@ public static class TravelMgrBuffLockPatch
 }
 
 /// <summary>
+/// TravelMgr 安全兜底补丁：
+/// - 在 TravelMgr.GetNormalBuff 与 UpdateSynergies 发生早期空引用时，吞掉异常并记录告警，避免崩溃
+/// - 原因：某些情况下（例如极早期恢复、MOD词条延迟注册），TravelMgr 内部数据结构未就绪
+/// </summary>
+[HarmonyPatch(typeof(TravelMgr))]
+public static class TravelMgrSafeGuardsPatch
+{
+    [HarmonyFinalizer]
+    [HarmonyPatch("GetNormalBuff", new System.Type[] { typeof(AdvBuff) })]
+    public static Exception Finalizer_GetNormalBuff(Exception __exception)
+    {
+        if (__exception != null)
+        {
+            try
+            {
+                PatchMgr.MLogger?.LogWarning($"[PVZRHTools] GetNormalBuff 发生异常，已忽略：{__exception.GetType().Name} - {__exception.Message}");
+            }
+            catch { }
+            return null; // 吞掉异常，防止崩溃
+        }
+        return null;
+    }
+
+    [HarmonyFinalizer]
+    [HarmonyPatch("UpdateSynergies")]
+    public static Exception Finalizer_UpdateSynergies(Exception __exception)
+    {
+        if (__exception != null)
+        {
+            try
+            {
+                PatchMgr.MLogger?.LogWarning($"[PVZRHTools] UpdateSynergies 发生异常，已忽略：{__exception.GetType().Name} - {__exception.Message}");
+            }
+            catch { }
+            return null; // 吞掉异常
+        }
+        return null;
+    }
+}
+
+// 跨会话恢复功能已移除
+
+/// <summary>
 /// MNEntry词条注册 - 将词条注册到游戏的旅行词条系统中
 /// 只有当修改器中开关开启时，才会注册词条到游戏中
 /// </summary>

@@ -35,6 +35,16 @@
     <s:String x:Key="Tab10.Wave9.Header">Flag 9</s:String>
     <s:String x:Key="Tab10.Wave10.Header">Flag 10</s:String>
     <s:String x:Key="Tab11.Header">Search Zone</s:String>
+
+    <!-- In-run Snapshot/Rewind -->
+    <s:String x:Key="Tab12.Header">In-Run Snapshot/Rewind</s:String>
+    <!-- Auto snapshot and auto rewind removed -->
+    <s:String x:Key="Tab12.ManualSnapshot">Save snapshot now</s:String>
+    <s:String x:Key="Tab12.RestoreLast">Restore last snapshot</s:String>
+    <s:String x:Key="Tab12.Sec">s</s:String>
+    <!-- Cross-session restore removed -->
+    <s:String x:Key="Tab12.SnapshotInfoHeader">Current Snapshot Details</s:String>
+    <s:String x:Key="Tab12.RefreshSnapshotInfo">Refresh Snapshot Info</s:String>
     <s:String x:Key="Tab11.SearchBox.Placeholder">Enter Chinese or number to search...</s:String>
     <s:String x:Key="Tab11.Results.Plants">Plants</s:String>
     <s:String x:Key="Tab11.Results.Zombies">Zombies</s:String>

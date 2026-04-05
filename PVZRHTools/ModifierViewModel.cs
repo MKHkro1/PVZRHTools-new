@@ -814,6 +814,90 @@ public partial class ModifierViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ManualSnapshot()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ManualSnapshot = true });
+        await Task.Delay(400);
+        RefreshSnapshotInfo();
+    }
+
+    [RelayCommand]
+    public void RestoreLastSnapshot()
+    {
+        App.DataSync.Value.SendData(new InGameActions { RestoreLastSnapshot = true });
+        RefreshSnapshotInfo();
+    }
+
+    // 跨会话恢复功能已移除
+
+    // --- 快照信息显示 ---
+    [ObservableProperty] public partial string SnapshotInfo { get; set; } = "";
+
+    [RelayCommand]
+    public void RefreshSnapshotInfo()
+    {
+        try
+        {
+            var baseDir = App.IsBepInEx ? "." : ".";
+            var path = System.IO.Path.Combine(baseDir, "PVZRHTools", "Snapshots", "LatestSnapshot.json");
+            if (!File.Exists(path)) { SnapshotInfo = "暂无快照文件"; return; }
+            var json = File.ReadAllText(path);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var r = doc.RootElement;
+            int GetInt(string name, int def = 0) => r.TryGetProperty(name, out var e) && e.TryGetInt32(out var v) ? v : def;
+            float GetFloat(string name, float def = 0f) => r.TryGetProperty(name, out var e) && e.TryGetSingle(out var v) ? v : def;
+            bool GetBool(string name, bool def = false) => r.TryGetProperty(name, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.True ? true :
+                                                           r.TryGetProperty(name, out e) && e.ValueKind == System.Text.Json.JsonValueKind.False ? false : def;
+            int GetArrayCount(string name) => r.TryGetProperty(name, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.Array ? e.GetArrayLength() : 0;
+            DateTime GetDate(string name)
+            {
+                if (r.TryGetProperty(name, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.String &&
+                    DateTime.TryParse(e.GetString(), out var d)) return d;
+                return DateTime.MinValue;
+            }
+            string BoardTagText()
+            {
+                if (!r.TryGetProperty("BoardTag", out var bt) || bt.ValueKind != System.Text.Json.JsonValueKind.Object) return "";
+                bool sr = bt.TryGetProperty("IsSeedRain", out var v1) && v1.ValueKind == System.Text.Json.JsonValueKind.True;
+                bool col = bt.TryGetProperty("IsColumn", out var v2) && v2.ValueKind == System.Text.Json.JsonValueKind.True;
+                bool sd = bt.TryGetProperty("IsScaredyDream", out var v3) && v3.ValueKind == System.Text.Json.JsonValueKind.True;
+                string B(bool x) => x ? "是" : "否";
+                return $"BoardTag：种子雨={B(sr)}  列种={B(col)}  胆小菇梦境={B(sd)}";
+            }
+
+            var sb = new System.Text.StringBuilder();
+            var captured = GetDate("CapturedAt");
+            if (captured != DateTime.MinValue) sb.AppendLine($"捕获时间：{captured.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+            var bt = GetInt("BoardType");
+            var lvl = GetInt("LevelNumber");
+            var round = GetInt("SurvivalRound");
+            var wave = GetInt("Wave");
+            var maxWave = GetInt("MaxWave");
+            var isHuge = GetBool("IsHugeWave");
+            var tnw = GetFloat("TimeUntilNextWave");
+            var wInt = GetFloat("WaveInterval");
+            var sun = GetInt("Sun");
+            var money = GetInt("Money");
+            sb.AppendLine($"关卡类型：{bt}    关卡编号：{lvl}    生存轮次：{round}");
+            sb.AppendLine($"波次：{wave}/{maxWave}    巨大波：{(isHuge ? "是" : "否")}");
+            sb.AppendLine($"距下波时间：{tnw:F2}    波间隔：{wInt:F2}");
+            sb.AppendLine($"阳光：{sun}    金币：{money}");
+            var btText = BoardTagText();
+            if (!string.IsNullOrEmpty(btText)) sb.AppendLine(btText);
+            sb.AppendLine("高级词条：" + GetArrayCount("AdvOn") + "    究极词条：" + GetArrayCount("UltiOn") + "    负面词条：" + GetArrayCount("DebuffOn") + "    投资词条：" + GetArrayCount("InvestOn"));
+            sb.AppendLine("格子物品：" + GetArrayCount("GridItems") + "    罐子：" + GetArrayCount("Vases"));
+            sb.AppendLine("卡槽：" + GetArrayCount("CardBank") + "    卡片冷却：" + GetArrayCount("CardCDs") + "    掉落物冷却：" + GetArrayCount("DroppedCDs"));
+            sb.AppendLine("植物血量：" + GetArrayCount("PlantHealths") + "    僵尸血量：" + GetArrayCount("ZombieHealths"));
+            sb.AppendLine("随机种子：" + GetInt("RandomSeed"));
+            SnapshotInfo = sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            SnapshotInfo = $"读取失败: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
     public void LockBullet()
     {
         App.DataSync.Value.SendData(new ValueProperties { LockBulletType = LockBulletType });
@@ -2382,6 +2466,9 @@ public partial class ModifierViewModel : ObservableObject
 
     [ObservableProperty] public partial bool ZombieStatusCoexist { get; set; }
 
+    // 局内存档/回溯
+    // 自动快照与失败自动回溯已下线
+
     [ObservableProperty] public partial bool MNEntryEnabled { get; set; }
 
     [ObservableProperty] public partial bool UnlockRedCardPlants { get; set; }
@@ -2498,6 +2585,8 @@ public partial class ModifierViewModel : ObservableObject
     {
         App.DataSync.Value.SendData(new InGameActions { PlaySoundId = soundId });
     }
+
+    // 相关回调移除
 
     /// <summary>
     /// 从更新后的InitData重新加载词条列表（包括MOD添加的词条）

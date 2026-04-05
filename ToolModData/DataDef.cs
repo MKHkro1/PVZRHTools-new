@@ -174,6 +174,7 @@ public struct GameModes : ISyncData
 [Serializable]
 public struct InGameActions : ISyncData
 {
+    // --- 基本保留字段 ---
     public bool? PvE { get; set; }
     public bool? AbyssCheat { get; set; }
     public bool? BuffRefreshNoLimit { get; set; }
@@ -234,6 +235,16 @@ public struct InGameActions : ISyncData
     public int? ZombieType { get; set; }
     public bool? ZombieVase { get; set; }
     public bool? RandomVase { get; set; }
+    
+    // --- 快照/回溯：局内存档 ---
+    /// <summary>启用自动快照（按固定间隔将场上“植物+僵尸+阳光+金币”写入环形缓冲）</summary>
+    // 自动快照已下线
+    /// <summary>手动立即保存一个快照（不改变自动快照的开关）</summary>
+    public bool? ManualSnapshot { get; set; }
+    /// <summary>手动恢复最近一次快照</summary>
+    public bool? RestoreLastSnapshot { get; set; }
+    // 失败自动回溯已下线
+    // 跨会话恢复已下线
     
     /// <summary>
     /// 召唤迷你黑曜石巨人

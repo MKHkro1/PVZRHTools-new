@@ -21,6 +21,16 @@
     <s:String x:Key="Tab9.ZombieEntry.Header">Записи зомби</s:String>
     <s:String x:Key="Tab9.ZombieEntry.Placeholder">Функции записей зомби будут добавлены...</s:String>
     <s:String x:Key="Tab11.Header">Зона поиска</s:String>
+
+    <!-- Снимок/Откат в бою -->
+    <s:String x:Key="Tab12.Header">Снимок/Откат в бою</s:String>
+    <!-- Убраны автоснимок и авто-откат при поражении -->
+    <s:String x:Key="Tab12.ManualSnapshot">Сохранить снимок сейчас</s:String>
+    <s:String x:Key="Tab12.RestoreLast">Восстановить последний снимок</s:String>
+    <s:String x:Key="Tab12.Sec">с</s:String>
+    <!-- Кнопка восстановления после перезапуска удалена -->
+    <s:String x:Key="Tab12.SnapshotInfoHeader">Текущие данные снимка</s:String>
+    <s:String x:Key="Tab12.RefreshSnapshotInfo">Обновить данные снимка</s:String>
     <s:String x:Key="Tab11.SearchBox.Placeholder">Введите китайский текст или число для поиска...</s:String>
     <s:String x:Key="Tab11.Results.Plants">Растения</s:String>
     <s:String x:Key="Tab11.Results.Zombies">Зомби</s:String>

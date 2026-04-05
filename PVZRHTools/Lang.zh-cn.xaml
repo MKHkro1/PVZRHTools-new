@@ -274,4 +274,15 @@
     <s:String x:Key="Tab0.LoadCustomPlantData.Tooltip">由于代码限制，无法保证所有条目均能生效</s:String>
     <s:String x:Key="Tab2.SetZombieIdle">僵尸全员站桩</s:String>
     <s:String x:Key="Tab2.MouseBullet">在鼠标处创建子弹 (test)</s:String>
+
+    <!-- 局内存档/回溯 -->
+    <s:String x:Key="Tab12.Header">局内存档/回溯</s:String>
+    <s:String x:Key="Tab12.AutoSnapshotEnabled">启用自动快照</s:String>
+    <!-- 自动快照/失败自动回溯已移除 -->
+    <s:String x:Key="Tab12.ManualSnapshot">立即保存快照</s:String>
+    <s:String x:Key="Tab12.RestoreLast">恢复最近快照</s:String>
+    <s:String x:Key="Tab12.Sec">秒</s:String>
+    <!-- 已移除跨会话恢复按钮 -->
+    <s:String x:Key="Tab12.SnapshotInfoHeader">当前快照信息</s:String>
+    <s:String x:Key="Tab12.RefreshSnapshotInfo">刷新快照信息</s:String>
 </ResourceDictionary>

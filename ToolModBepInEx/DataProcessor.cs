@@ -2,6 +2,8 @@
 //#define F1
 
 using System.Text.Json;
+using System.IO;
+using BepInEx;
 using System.Text.Json.Nodes;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
@@ -23,6 +25,95 @@ public class DataProcessor : MonoBehaviour
     // 若不做边沿触发，会反复执行“触发下一波”，导致 timeUntilNextWave 被反复重置（常见表现：一直卡 30 秒且不出怪）。
     // 使用上一帧的 NextWave 值来检测边沿（false->true）
     private static bool? _lastNextWaveValue = null;
+
+    // --- 局内快照/回溯（环形缓冲实现） ---
+    private class Snapshot
+    {
+        public string MixCodeCompressed = "";
+        public int Sun;
+        public int Money;
+        public int Wave;
+        public int MaxWave;
+        public bool IsHugeWave;
+        public int BoardType; // GameAPP.theBoardType (LevelType) as int
+        public int SurvivalRound; // Board.Instance.theCurrentSurvivalRound if available
+        public int LevelNumber; // 当前关卡编号
+        public List<int> AdvOn = new List<int>();
+        public List<int> UltiOn = new List<int>();
+        public List<int> DebuffOn = new List<int>();
+        public List<int> InvestOn = new List<int>();
+        public List<ToolModData.VaseInfo> Vases = new List<ToolModData.VaseInfo>();
+        // 扩展：BoardTag/计时、网格物件、小推车
+        public BoardTagSnapshot BoardTag = new BoardTagSnapshot();
+        public float TimeUntilNextWave;
+        public float WaveInterval;
+        public List<GridItemInfo> GridItems = new List<GridItemInfo>();
+        public List<MowerInfo> Mowers = new List<MowerInfo>();
+        // 卡片/物品冷却（尽力匹配）
+        public List<float> CardCDs = new List<float>();
+        public List<float> CardFullCDs = new List<float>();
+        public List<float> DroppedCDs = new List<float>();
+        public List<float> DroppedFullCDs = new List<float>();
+        public List<CardSnapshot> CardBank = new List<CardSnapshot>();
+        // 单位生命值
+        public List<PlantHealthInfo> PlantHealths = new List<PlantHealthInfo>();
+        public List<ZombieHealthInfo> ZombieHealths = new List<ZombieHealthInfo>();
+        // 随机种子
+        public int RandomSeed;
+        public DateTime CapturedAt;
+    }
+    private struct BoardTagSnapshot
+    {
+        public bool IsSeedRain;
+        public bool IsColumn;
+        public bool IsScaredyDream;
+    }
+    private struct GridItemInfo
+    {
+        public int Row;
+        public int Col;
+        public int ItemType; // (int)GridItemType
+        public int ExtraA;   // 可用于携带类型相关数据（如耐久、层数），暂未使用
+        public int ExtraB;
+    }
+    private struct MowerInfo
+    {
+        public int Row;
+        public float X;
+    }
+    private struct PlantHealthInfo
+    {
+        public int Row;
+        public int Col;
+        public int PlantType;
+        public int Health;
+    }
+    private struct ZombieHealthInfo
+    {
+        public int Row;
+        public int ZombieType;
+        public int Health;
+    }
+    private struct CardSnapshot
+    {
+        public int PlantType;
+        public float CD;
+        public float FullCD;
+        public int SeedCost;
+    }
+    private static readonly List<Snapshot> _snapshots = new();
+    // 自动快照与失败自动回溯已下线（保留占位，恒关闭）
+    private static bool _autoSnapshotEnabled = false;
+    private static int _snapshotIntervalSeconds = 5;
+    private static int _snapshotDurationSeconds = 60;
+    private static DateTime _lastSnapshotTime = DateTime.MinValue;
+    private static bool _rewindOnFailEnabled = false;
+    private static int _restoreSecondsBeforeFail = 8;
+    // 手动快照延后队列（用于首次入关尚未完全初始化时）
+    private static int _pendingManualSnapshotFrames = 0;
+    private static bool _checkedAutoRestore = false;
+    private static readonly string SnapshotDir = Path.Combine(Paths.GameRootPath, "PVZRHTools", "Snapshots");
+    private static readonly string LatestPath = Path.Combine(SnapshotDir, "LatestSnapshot.json");
 
     public DataProcessor() : base(ClassInjector.DerivedConstructorPointer<DataProcessor>())
     {
@@ -69,6 +160,599 @@ public class DataProcessor : MonoBehaviour
             if (!string.IsNullOrEmpty(Data)) ProcessData(Data);
             Data = "";
         }
+        // 自动快照与跨会话自动恢复功能已移除
+        // 延后手动快照：等待关卡初始化完成
+        if (_pendingManualSnapshotFrames > 0)
+        {
+            _pendingManualSnapshotFrames--;
+            if (IsBoardReadyForSnapshot())
+            {
+                TryCaptureSnapshot();
+                _pendingManualSnapshotFrames = 0;
+                try { InGameText.Instance?.ShowText("已保存快照", 2.0f); } catch { }
+            }
+            else if (_pendingManualSnapshotFrames == 0)
+            {
+                try { InGameText.Instance?.ShowText("当前关卡尚未初始化完成，快照失败", 2.0f); } catch { }
+            }
+        }
+    }
+
+    private static void TryCaptureSnapshot()
+    {
+        try
+        {
+            if (Board.Instance == null) return;
+            // 僵尸（高数压缩）
+            List<string> zombieDataList = [];
+            foreach (var zombie in Board.Instance.zombieArray!)
+                if (zombie is not null && zombie.gameObject is not null && !zombie.isMindControlled)
+                {
+                    var zombieData =
+                        $"{zombie.theZombieRow},{zombie.gameObject.transform.position.x},{(int)zombie.theZombieType}";
+                    zombieDataList.Add(zombieData);
+                }
+            var zombieCode = string.Join(";", zombieDataList);
+            var zombieString = CompressString(zombieCode);
+            // 植物（高数压缩）
+            List<string> lineupData = [];
+            var allPlants = Lawnf.GetAllPlants();
+            if (allPlants != null)
+            {
+                foreach (var plant in allPlants)
+                {
+                    if (plant == null) continue;
+                    var plantData = $"{plant.thePlantColumn},{plant.thePlantRow},{(int)plant.thePlantType}";
+                    lineupData.Add(plantData);
+                }
+            }
+            var plantCode = string.Join(";", lineupData);
+            var plantString = CompressString(plantCode);
+            var snap = new Snapshot
+            {
+                MixCodeCompressed = plantString + "|" + zombieString,
+                Sun = Board.Instance.theSun,
+                Money = Board.Instance.theMoney,
+                Wave = Board.Instance.theWave,
+                MaxWave = Board.Instance.theMaxWave,
+                IsHugeWave = SafeGetIsHugeWave(),
+                BoardType = (int)GameAPP.theBoardType,
+                SurvivalRound = SafeGetSurvivalRound(),
+                LevelNumber = SafeGetLevelNumber(),
+                TimeUntilNextWave = SafeGetTimeUntilNextWave(),
+                WaveInterval = SafeGetWaveInterval(),
+                CapturedAt = DateTime.UtcNow
+            };
+            // BoardTag
+            try
+            {
+                var t = Board.Instance.boardTag;
+                snap.BoardTag = new BoardTagSnapshot
+                {
+                    IsSeedRain = t.isSeedRain,
+                    IsColumn = t.isColumn,
+                    IsScaredyDream = t.isScaredyDream
+                };
+            }
+            catch { }
+            // 词条状态（从 PatchMgr 中读取当前局内状态）
+            try
+            {
+                if (ToolModBepInEx.PatchMgr.InGameAdvBuffs != null)
+                    for (int i = 0; i < ToolModBepInEx.PatchMgr.InGameAdvBuffs.Length; i++)
+                        if (ToolModBepInEx.PatchMgr.InGameAdvBuffs[i]) snap.AdvOn.Add(i);
+            }
+            catch { }
+            try
+            {
+                if (ToolModBepInEx.PatchMgr.InGameUltiBuffs != null)
+                    for (int i = 0; i < ToolModBepInEx.PatchMgr.InGameUltiBuffs.Length; i++)
+                        if (ToolModBepInEx.PatchMgr.InGameUltiBuffs[i]) snap.UltiOn.Add(i);
+            }
+            catch { }
+            try
+            {
+                if (ToolModBepInEx.PatchMgr.InGameDebuffs != null)
+                    for (int i = 0; i < ToolModBepInEx.PatchMgr.InGameDebuffs.Length; i++)
+                        if (ToolModBepInEx.PatchMgr.InGameDebuffs[i]) snap.DebuffOn.Add(i);
+            }
+            catch { }
+            try
+            {
+                if (ToolModBepInEx.PatchMgr.InGameInvestBuffs != null)
+                    for (int i = 0; i < ToolModBepInEx.PatchMgr.InGameInvestBuffs.Length; i++)
+                        if (ToolModBepInEx.PatchMgr.InGameInvestBuffs[i]) snap.InvestOn.Add(i);
+            }
+            catch { }
+            // Vases
+            try
+            {
+                foreach (var gi in Board.Instance.griditemArray)
+                {
+                    if (gi == null) continue;
+                    // 记录所有格子物件（含罐子）
+                    snap.GridItems.Add(new GridItemInfo
+                    {
+                        Row = gi.theItemRow,
+                        Col = gi.theItemColumn,
+                        ItemType = (int)gi.theItemType,
+                        ExtraA = 0,
+                        ExtraB = 0
+                    });
+                    if (gi.theItemType is (GridItemType)4 or (GridItemType)5 or (GridItemType)6)
+                    {
+                        var pot = gi.Cast<ScaryPot>();
+                        snap.Vases.Add(new ToolModData.VaseInfo
+                        {
+                            Row = gi.theItemRow,
+                            Col = gi.theItemColumn,
+                            PlantType = (int)pot.thePlantType,
+                            ZombieType = (int)pot.theZombieType
+                        });
+                    }
+                }
+            }
+            catch { }
+            // 小推车回溯已移除（不再捕获）
+            // 卡片冷却（CardUI）
+            try
+            {
+                var cards = FindObjectsOfTypeAll(Il2CppType.Of<CardUI>());
+                for (int i = 0; i < cards.Count; i++)
+                {
+                    var c = cards[i]?.Cast<CardUI>();
+                    if (c == null) continue;
+                    snap.CardCDs.Add(c.CD);
+                    snap.CardFullCDs.Add(c.fullCD);
+                }
+            }
+            catch { }
+            // 物品冷却（DroppedCard）
+            try
+            {
+                var drops = FindObjectsOfTypeAll(Il2CppType.Of<DroppedCard>());
+                for (int i = 0; i < drops.Count; i++)
+                {
+                    var d = drops[i]?.Cast<DroppedCard>();
+                    if (d == null) continue;
+                    snap.DroppedCDs.Add(d.CD);
+                    snap.DroppedFullCDs.Add(d.fullCD);
+                }
+            }
+            catch { }
+            // 卡槽（卡库顺序与CD、消耗）
+            try
+            {
+                if (InGameUI.Instance != null && InGameUI.Instance.cardOnBank != null)
+                {
+                    foreach (var card in InGameUI.Instance.cardOnBank)
+                    {
+                        if (card == null) continue;
+                        snap.CardBank.Add(new CardSnapshot
+                        {
+                            PlantType = (int)card.thePlantType,
+                            CD = card.CD,
+                            FullCD = card.fullCD,
+                            SeedCost = card.theSeedCost
+                        });
+                    }
+                }
+            }
+            catch { }
+            // 植物/僵尸生命
+            try
+            {
+                var plantsNow = Lawnf.GetAllPlants();
+                if (plantsNow != null)
+                {
+                    foreach (var pl in plantsNow)
+                    {
+                        if (pl == null) continue;
+                        snap.PlantHealths.Add(new PlantHealthInfo
+                        {
+                            Row = pl.thePlantRow,
+                            Col = pl.thePlantColumn,
+                            PlantType = (int)pl.thePlantType,
+                            Health = pl.thePlantHealth
+                        });
+                    }
+                }
+            }
+            catch { }
+            try
+            {
+                foreach (var z in Board.Instance.zombieArray)
+                {
+                    if (z == null) continue;
+                    snap.ZombieHealths.Add(new ZombieHealthInfo
+                    {
+                        Row = z.theZombieRow,
+                        ZombieType = (int)z.theZombieType,
+                        Health = z.theHealth
+                    });
+                }
+            }
+            catch { }
+            // 随机种子（用于恢复后保持一致性）
+            try
+            {
+                snap.RandomSeed = (int)(DateTime.UtcNow.Ticks & 0x7FFFFFFF);
+            }
+            catch { snap.RandomSeed = 0; }
+            _snapshots.Add(snap);
+            if (_snapshots.Count > 600)
+                _snapshots.RemoveRange(0, _snapshots.Count - 600);
+            // 写入磁盘 LatestSnapshot.json
+            try
+            {
+                Directory.CreateDirectory(SnapshotDir);
+                var json = System.Text.Json.JsonSerializer.Serialize(
+                    snap,
+                    new System.Text.Json.JsonSerializerOptions
+                    {
+                        IncludeFields = true,
+                        WriteIndented = false
+                    });
+                File.WriteAllText(LatestPath, json);
+            }
+            catch { }
+        }
+        catch { }
+    }
+
+    private static int SafeGetSurvivalRound()
+    {
+        try
+        {
+            if (Board.Instance != null)
+                return Board.Instance.theCurrentSurvivalRound;
+        }
+        catch { }
+        return 0;
+    }
+
+    private static int SafeGetLevelNumber()
+    {
+        try
+        {
+            GameLevel.LevelData levelData;
+            if (GameLevel.LevelManager.TryGetLevelData(out levelData) && levelData != null)
+            {
+                return levelData.LevelNumber;
+            }
+        }
+        catch { }
+        return 0;
+    }
+    private static float SafeGetTimeUntilNextWave()
+    {
+        try
+        {
+            if (Board.Instance != null)
+                return Board.Instance.timeUntilNextWave;
+        }
+        catch { }
+        return 0f;
+    }
+    private static bool IsBoardReadyForSnapshot()
+    {
+        try
+        {
+            if (!InGame() || Board.Instance == null) return false;
+            // 基础对象与数组可用
+            if (Board.Instance.zombieArray == null || Board.Instance.griditemArray == null) return false;
+            // 波数与配置有效（避免 0/默认态）
+            if (Board.Instance.theMaxWave <= 0) return false;
+            // UI 准备就绪
+            if (InGameUI.Instance == null) return false;
+            return true;
+        }
+        catch { return false; }
+    }
+    private static bool SafeGetIsHugeWave()
+    {
+        try
+        {
+            if (Board.Instance != null)
+                return Board.Instance.isHugeWave;
+        }
+        catch { }
+        return false;
+    }
+    private static float SafeGetWaveInterval()
+    {
+        try
+        {
+            if (Board.Instance != null && Board.Instance.config != null)
+                return Board.Instance.config.waveInterval;
+        }
+        catch { }
+        return 0f;
+    }
+
+    private static void RestoreSnapshot(Snapshot snap)
+    {
+        if (Board.Instance == null) return;
+        try
+        {
+            // 词条还原（优先）
+            TryApplyBuffsFromSnapshot(snap);
+            // 清场
+            var allPlants = Lawnf.GetAllPlants();
+            if (allPlants != null)
+            {
+                for (var i = allPlants.Count - 1; i >= 0; i--)
+                    try { allPlants[i]?.Die(); } catch { }
+            }
+            Il2CppReferenceArray<Object> zombies = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>());
+            for (var i = zombies.Count - 1; i >= 0; i--)
+                try { ((Zombie)zombies[i])?.Die(); } catch { }
+            Board.Instance.zombieArray!.Clear();
+            // 清空原有罐子
+            try
+            {
+                for (var i = Board.Instance.griditemArray.Count - 1; i >= 0; i--)
+                {
+                    var gi = Board.Instance.griditemArray[i];
+                    if (gi == null) continue;
+                    gi.gameObject.active = false;
+                    Object.Destroy(gi);
+                }
+                Board.Instance.griditemArray.Clear();
+            }
+            catch { }
+            // 还原BoardTag
+            try
+            {
+                var t = Board.Instance.boardTag;
+                t.isSeedRain = snap.BoardTag.IsSeedRain;
+                t.isColumn = snap.BoardTag.IsColumn;
+                t.isScaredyDream = snap.BoardTag.IsScaredyDream;
+                Board.Instance.boardTag = t;
+            }
+            catch { }
+            // 回写混合阵容
+            var codes = snap.MixCodeCompressed.Split('|');
+            var plantCode = DecompressString(codes[0]);
+            var plantEntries = plantCode.Split(';');
+            foreach (var entry in plantEntries)
+            {
+                var plantData = entry.Split(',');
+                if (plantData.Length == 3)
+                    if (int.TryParse(plantData[0], out var column) &&
+                        int.TryParse(plantData[1], out var row) &&
+                        int.TryParse(plantData[2], out var plantType))
+                        CreatePlant.Instance.SetPlant(column, row, (PlantType)plantType);
+            }
+            var zombieCode2 = DecompressString(codes[1]);
+            var zombieEntries = zombieCode2.Split(';');
+            foreach (var entry in zombieEntries)
+            {
+                var zombieData = entry.Split(',');
+                if (zombieData.Length == 3)
+                    if (int.TryParse(zombieData[0], out var row) &&
+                        float.TryParse(zombieData[1], out var x) &&
+                        int.TryParse(zombieData[2], out var zombieType))
+                        CreateZombie.Instance.SetZombie(row, (ZombieType)zombieType, x);
+            }
+            // 恢复单位生命（基于行列/类型匹配，尽力还原）
+            try
+            {
+                if (snap.PlantHealths != null && snap.PlantHealths.Count > 0)
+                {
+                    var plantsRestored = Lawnf.GetAllPlants();
+                    if (plantsRestored != null)
+                    {
+                        foreach (var ph in snap.PlantHealths)
+                        {
+                            foreach (var pl in plantsRestored)
+                            {
+                                if (pl == null) continue;
+                                if (pl.thePlantRow == ph.Row && pl.thePlantColumn == ph.Col && (int)pl.thePlantType == ph.PlantType)
+                                {
+                                    try
+                                    {
+                                        pl.thePlantHealth = Math.Min(ph.Health, pl.thePlantMaxHealth);
+                                        pl.UpdateText();
+                                    }
+                                    catch { }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            try
+            {
+                if (snap.ZombieHealths != null && snap.ZombieHealths.Count > 0)
+                {
+                    foreach (var zh in snap.ZombieHealths)
+                    {
+                        foreach (var z in Board.Instance.zombieArray)
+                        {
+                            if (z == null) continue;
+                            if (z.theZombieRow == zh.Row && (int)z.theZombieType == zh.ZombieType)
+                            {
+                                try
+                                {
+                                    z.theHealth = Math.Min(zh.Health, z.theMaxHealth);
+                                    z.UpdateHealthText();
+                                }
+                                catch { }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            // 回写格子物件（除去罐子特殊字段）
+            try
+            {
+                foreach (var gi in snap.GridItems)
+                {
+                    var created = GridItem.SetGridItem(gi.Col, gi.Row, (GridItemType)gi.ItemType);
+                    // 预留扩展字段（暂不设置）
+                }
+            }
+            catch { }
+            // 回写罐子内容（覆盖上一步生成的罐子，填充植物/僵尸类型）
+            try
+            {
+                foreach (var v in snap.Vases)
+                {
+                    var g = GridItem.SetGridItem(v.Col, v.Row, GridItemType.ScaryPot);
+                    g.Cast<ScaryPot>().thePlantType = (PlantType)v.PlantType;
+                    g.Cast<ScaryPot>().theZombieType = (ZombieType)v.ZombieType;
+                }
+            }
+            catch { }
+            // 小推车回溯已移除（不再还原）
+            // 恢复卡片与物品冷却（基于发现顺序，尽力匹配）
+            try
+            {
+                // 先恢复卡槽内容与顺序
+                if (InGameUI.Instance != null && InGameUI.Instance.cardOnBank != null && snap.CardBank != null && snap.CardBank.Count > 0)
+                {
+                    int k = Math.Min(InGameUI.Instance.cardOnBank.Count, snap.CardBank.Count);
+                    for (int i = 0; i < k; i++)
+                    {
+                        var card = InGameUI.Instance.cardOnBank[i];
+                        var cs = snap.CardBank[i];
+                        try
+                        {
+                            card.thePlantType = (PlantType)cs.PlantType;
+                            card.ChangeCardSprite();
+                            card.theSeedCost = cs.SeedCost;
+                            card.fullCD = cs.FullCD;
+                            card.CD = cs.CD;
+                        }
+                        catch { }
+                    }
+                }
+                var cards = FindObjectsOfTypeAll(Il2CppType.Of<CardUI>());
+                int n = Math.Min(cards.Count, snap.CardCDs?.Count ?? 0);
+                for (int i = 0; i < n; i++)
+                {
+                    var c = cards[i]?.Cast<CardUI>();
+                    if (c == null) continue;
+                    try
+                    {
+                        // 先还原 fullCD，再还原 CD
+                        if (snap.CardFullCDs != null && i < snap.CardFullCDs.Count) c.fullCD = snap.CardFullCDs[i];
+                        c.CD = (snap.CardCDs != null && i < snap.CardCDs.Count) ? snap.CardCDs[i] : c.CD;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            try
+            {
+                var drops = FindObjectsOfTypeAll(Il2CppType.Of<DroppedCard>());
+                int m = Math.Min(drops.Count, snap.DroppedCDs?.Count ?? 0);
+                for (int i = 0; i < m; i++)
+                {
+                    var d = drops[i]?.Cast<DroppedCard>();
+                    if (d == null) continue;
+                    try
+                    {
+                        if (snap.DroppedFullCDs != null && i < snap.DroppedFullCDs.Count) d.fullCD = snap.DroppedFullCDs[i];
+                        d.CD = (snap.DroppedCDs != null && i < snap.DroppedCDs.Count) ? snap.DroppedCDs[i] : d.CD;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            // 恢复随机种子（保证后续过程一致性）
+            try { if (snap.RandomSeed != 0) Random.InitState(snap.RandomSeed); } catch { }
+            Board.Instance.theSun = snap.Sun;
+            Board.Instance.theMoney = snap.Money;
+            // 恢复波次计时
+            try
+            {
+                if (snap.TimeUntilNextWave >= -10f && snap.TimeUntilNextWave <= 120f)
+                {
+                    Board.Instance.timeUntilNextWave = snap.TimeUntilNextWave;
+                }
+            }
+            catch { }
+            // 精确还原波次与旗帜状态（避免推进触发带来的偏差）
+            try
+            {
+                if (snap.MaxWave > 0) Board.Instance.theMaxWave = snap.MaxWave;
+                if (snap.Wave >= 0) Board.Instance.theWave = snap.Wave;
+                try
+                {
+                    // 3.3.1 仍存在 isHugeWave
+                    Board.Instance.isHugeWave = snap.IsHugeWave;
+                }
+                catch { }
+                // 还原两波间隔，保证刷新节奏一致
+                try
+                {
+                    if (Board.Instance.config != null && snap.WaveInterval > 0f)
+                        Board.Instance.config.waveInterval = snap.WaveInterval;
+                }
+                catch { }
+            }
+            catch { }
+            InGameText.Instance?.ShowText("已恢复局内存档", 2.0f);
+        }
+        catch { }
+    }
+
+    private static void TryApplyBuffsFromSnapshot(Snapshot snap)
+    {
+        try
+        {
+            var travelMgr = ResolveTravelMgr();
+            if (travelMgr == null) return;
+            // 高级词条
+            foreach (var id in snap.AdvOn)
+            {
+                try { travelMgr.GetNormalBuff((AdvBuff)id); } catch { }
+            }
+            // 究极词条
+            foreach (var id in snap.UltiOn)
+            {
+                try { travelMgr.GetUltiBuff((UltiBuff)id, true); } catch { }
+            }
+            // 负面词条
+            foreach (var id in snap.DebuffOn)
+            {
+                try { travelMgr.GetDebuff((TravelDebuff)id); } catch { }
+            }
+            // 投资词条
+            foreach (var id in snap.InvestOn)
+            {
+                try { travelMgr.GetInvestBuff((InvestBuff)id); } catch { }
+            }
+        }
+        catch { }
+    }
+
+    private static TravelMgr ResolveTravelMgr()
+    {
+        try
+        {
+            TravelMgr t = null;
+            try { t = TravelMgr.Instance; } catch { }
+            if (t != null) return t;
+            if (GameAPP.Instance != null)
+            {
+                t = GameAPP.Instance.GetComponent<TravelMgr>();
+                if (t != null) return t;
+            }
+            if (GameAPP.board != null)
+            {
+                t = GameAPP.board.GetComponent<TravelMgr>();
+                if (t != null) return t;
+            }
+        }
+        catch { }
+        return null;
     }
 
     public static void AddData(string d)
@@ -1221,6 +1905,34 @@ all");
                 }
             }
 
+            // --- 快照/回溯：仅保留手动保存/恢复 ---
+            if (iga.ManualSnapshot == true)
+            {
+                if (IsBoardReadyForSnapshot())
+                {
+                    TryCaptureSnapshot();
+                }
+                else
+                {
+                    // 延后到关卡初始化完成后再保存（最多约3秒）
+                    _pendingManualSnapshotFrames = Math.Max(_pendingManualSnapshotFrames, 180);
+                    try { InGameText.Instance?.ShowText("正在初始化，稍后保存快照…", 1.5f); } catch { }
+                }
+            }
+            if (iga.RestoreLastSnapshot == true && _snapshots.Count > 0)
+            {
+                RestoreSnapshot(_snapshots[^1]);
+            }
+            // 跨会话恢复功能已移除
+            // 在保存快照后给出简短提示
+            if (iga.ManualSnapshot == true && InGame() && InGameText.Instance != null)
+            {
+                try
+                {
+                    InGameText.Instance.ShowText("已保存快照", 2.0f);
+                }
+                catch { }
+            }
             if (iga.SetZombieIdle is not null)
                 foreach (var z in Board.Instance.zombieArray)
                 {
@@ -1914,6 +2626,8 @@ all");
             }
         }
     }
+    
+    // 跨会话恢复相关方法已移除
 
     public static void ProcessData(string data)
     {

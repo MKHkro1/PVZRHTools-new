@@ -1977,6 +1977,53 @@
                     </ScrollViewer>
                 </Border>
             </TabItem>
+            
+            <!-- Tab13: 局内存档/回溯 -->
+            <TabItem Header="{DynamicResource Tab12.Header}">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2" Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource ContentBorderBrush}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
+                                  CanContentScroll="False">
+                        <StackPanel Orientation="Vertical" Margin="10,10,10,10">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Label Content="{DynamicResource Tab12.Header}" HorizontalAlignment="Left"
+                                       VerticalAlignment="Top" Foreground="{DynamicResource LabelForegroundBrush}"
+                                       Style="{DynamicResource LabelBaseStyle}" FontSize="18" FontWeight="Bold" />
+                                <Rectangle Height="2" Margin="10,17,0,0" VerticalAlignment="Top" Fill="{DynamicResource LineFillBrush}"
+                                           Width="500" />
+                            </StackPanel>
+
+                            
+
+                            <hc:ElementGroup Orientation="Horizontal" Layout="Stack" Width="460"
+                                             HorizontalAlignment="Left" Margin="0,16,0,0"
+                                             Style="{DynamicResource ElementGroupSolid}">
+                                <Button Content="{DynamicResource Tab12.ManualSnapshot}"
+                                        Command="{Binding ManualSnapshotCommand}"
+                                        Height="30" Width="200" />
+                                <Button Content="{DynamicResource Tab12.RestoreLast}"
+                                        Command="{Binding RestoreLastSnapshotCommand}"
+                                        Height="30" Width="200" />
+                            </hc:ElementGroup>
+
+                            <hc:ElementGroup Orientation="Vertical" Layout="Stack" Width="600"
+                                             HorizontalAlignment="Left" Margin="0,16,0,0"
+                                             Style="{DynamicResource ElementGroupSolid}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="{DynamicResource Tab12.SnapshotInfoHeader}" Width="200" VerticalAlignment="Center" />
+                                    <Button Content="{DynamicResource Tab12.RefreshSnapshotInfo}"
+                                            Command="{Binding RefreshSnapshotInfoCommand}"
+                                            Height="26" Width="160" />
+                                </StackPanel>
+                                <TextBox Text="{Binding SnapshotInfo}" Width="560" Height="220"
+                                         FontFamily="Consolas" FontSize="12"
+                                         IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+                            </hc:ElementGroup>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>
