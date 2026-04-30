@@ -87,7 +87,9 @@ public struct ModifierSaveModel
     public List<TravelBuffVM> TravelBuffs { get; set; }
     public bool UltimateRamdomZombie { get; set; }
     public bool UltimateSuperGatling { get; set; }
+    public bool AutoRhythmGame { get; set; }
     public bool UndeadBullet { get; set; }
+    public bool OldObsidianBullet { get; set; }
     public bool UnlockAllFusions { get; set; }
     public string VasesFieldString { get; set; }
     public string ZombieFieldString { get; set; }

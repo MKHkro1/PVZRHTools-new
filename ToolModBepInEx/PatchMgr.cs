@@ -24,36 +24,6 @@ using Random = UnityEngine.Random;
 
 namespace ToolModBepInEx;
 
-[HarmonyPatch(typeof(AlmanacCardZombie), "OnMouseDown")]
-public static class AlmanacCardZombiePatch
-{
-    public static void Postfix(AlmanacCardZombie __instance)
-    {
-        AlmanacZombieType = __instance.theZombieType;
-    }
-}
-
-/// <summary>
-/// 旧版植物图鉴补丁 - AlmanacCard.OnMouseDown
-/// </summary>
-[HarmonyPatch(typeof(AlmanacCard), "OnMouseDown")]
-public static class AlmanacCardPatch
-{
-    public static void Postfix(AlmanacCard __instance)
-    {
-        AlmanacSeedType = __instance.theSeedType;
-    }
-}
-
-[HarmonyPatch(typeof(AlmanacPlantCtrl), "GetSeedType")]
-public static class AlmanacPlantCtrlPatch
-{
-    public static void Postfix(AlmanacPlantCtrl __instance)
-    {
-        AlmanacSeedType = __instance.plantSelected;
-    }
-}
-
 /// <summary>
 /// 新版图鉴UI补丁 - AlmanacCardUI.OnPointerDown
 /// </summary>
@@ -832,9 +802,36 @@ public static class BulletPatchA
 [HarmonyPatch(typeof(Bullet), "Die")]
 public static class BulletPatchB
 {
+    public static bool IsFromZombie(Bullet bullet)
+    {
+        if (bullet == null) return false;
+        try
+        {
+            return bullet.shootByZombie || bullet.from_zombie != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static bool Prefix(Bullet __instance)
     {
-        if (UndeadBullet && !__instance.fromZombie)
+        if (__instance == null) return true;
+
+        // 老版黑曜石子弹：前两次命中不销毁，实现“穿透两次”。
+        // 性能优化：先做最廉价判定，再做来源判断，避免在高频 Die 上产生额外开销。
+        if (OldObsidianBullet &&
+            __instance.theBulletType == BulletType.Bullet_steelPea &&
+            __instance.hitTimes < 2 &&
+            !__instance.shootByZombie &&
+            __instance.from_zombie == null)
+        {
+            __instance.hit = false;
+            return false;
+        }
+
+        if (UndeadBullet && !__instance.shootByZombie && __instance.from_zombie == null)
         {
             __instance.hit = false;
             __instance.penetrationTimes = int.MaxValue;
@@ -861,7 +858,7 @@ public static class ZombieBulletReflectPatch
         try
         {
             // 只处理植物发射的子弹（非僵尸子弹）
-            if (__instance == null || __instance.fromZombie) return true;
+            if (__instance == null || BulletPatchB.IsFromZombie(__instance)) return true;
             
             // 检查子弹是否已经命中过
             if (__instance.hit) return true;
@@ -1578,6 +1575,46 @@ public static class CreateBulletPatch
             theBulletType = Enum.GetValues<BulletType>()[Random.Range(0, Enum.GetValues<BulletType>().Length)];
         if (LockBulletType >= 0) theBulletType = (BulletType)LockBulletType;
     }
+
+    public static void Postfix(Bullet __result)
+    {
+        try
+        {
+            if (!OldObsidianBullet || __result == null) return;
+            if (__result.theBulletType != BulletType.Bullet_steelPea) return;
+            if (__result.shootByZombie || __result.from_zombie != null) return;
+
+            // 老版黑曜石子弹：至少穿透两次
+            if (__result.penetrationTimes < 2)
+                __result.penetrationTimes = 2;
+        }
+        catch
+        {
+        }
+    }
+}
+
+[HarmonyPatch(typeof(Bullet_steelPea), "HitZombie")]
+public static class OldObsidianBulletHitPatch
+{
+    public static void Postfix(Bullet_steelPea __instance, Zombie zombie)
+    {
+        try
+        {
+            if (!OldObsidianBullet || __instance == null || zombie == null) return;
+            if (__instance.shootByZombie || __instance.from_zombie != null) return;
+            if (zombie.theHealth <= 0) return;
+            
+            // 命中计数在不同流程里的更新时机不完全一致，这里用 <= 1 兼容首段命中。
+            if (__instance.hitTimes <= 1)
+            {
+                zombie.KnockBack(0.1f);
+            }
+        }
+        catch
+        {
+        }
+    }
 }
 
 [HarmonyPatch(typeof(CreatePlant), "SetPlant")]
@@ -2044,13 +2081,12 @@ public static class ZombieExplodeProtectionPatches
 public static class UnlimitedSunlightPatches
 {
     /// <summary>
-    /// 修改 GetSun 方法 - 移除 50000 阳光上限限制
-    /// 注意：3.4.1 中 Board.GetSun 的签名为 (float count, int r, bool save)，
-    /// 这里必须使用 float 与原方法完全一致，否则会导致 Harmony 生成的 DMD 无效（InvalidProgramException）。
+    /// 修改 GetSun 方法 - 移除阳光上限限制
+    /// 3.6：Board.GetSun 签名为 (float count, bool save = true)
     /// </summary>
     [HarmonyPatch(nameof(Board.GetSun))]
     [HarmonyPrefix]
-    public static bool Prefix_GetSun(Board __instance, float count, int r, bool save)
+    public static bool Prefix_GetSun(Board __instance, float count, bool save)
     {
         if (!UnlimitedSunlight) return true;
 
@@ -2058,21 +2094,8 @@ public static class UnlimitedSunlightPatches
         {
             if (__instance != null)
             {
-                // 原逻辑基于 count 计算新增阳光，这里将 float count 转为 int 使用，
-                // 若需要更精确可改为完全使用 float 参与计算。
-                int intCount = (int)count;
-                int count_1 = 2 * intCount;
-                int count_2 = 4 * count_1;
-                int theSun_1 = r * (count_2 + __instance.theSun);
-                int newSun = (theSun_1 - __instance.theSun) / 10 + 5;
-                __instance.theSun = __instance.theSun + newSun;
-
-                if (save)
-                {
-                    int extraSun = __instance.extraSun - theSun_1 + theSun_1;
-                    __instance.extraSun = extraSun;
-                    __instance.extraSun %= 50;
-                }
+                // 3.6：不再依赖旧版 GetSun 的中间参数，直接按 count 累加即可避免上限裁剪。
+                __instance.theSun += (int)count;
             }
             return false;
         }
@@ -2094,7 +2117,6 @@ public static class UnlimitedSunlightPatches
             {
                 int countInt = (int)count;  // 3.3.1版本UseSun参数类型为float，需要转换为int
                 __instance.theSun -= countInt;
-                __instance.theUsedSun += countInt;
             }
             return false;
         }
@@ -2193,6 +2215,81 @@ public static class BulletMagnetPatches
 }
 
 #endregion
+
+[HarmonyPatch(typeof(RhythmGame.RhythmGameManager), "Update")]
+public static class RhythmGameAutoPlayPatch
+{
+    private const float AutoRhythmLateWindow = 0.12f;
+
+    public static void Postfix(RhythmGame.RhythmGameManager __instance)
+    {
+        if (!AutoRhythmGame || __instance == null) return;
+        if (!__instance.isPlaying || __instance.isPaused) return;
+
+        try
+        {
+            float now = __instance.CurrentTime;
+            var tracks = __instance.tracks;
+            if (tracks == null) return;
+
+            foreach (var track in tracks)
+            {
+                if (track == null) continue;
+                var notes = track.GetActiveNotes();
+                if (notes == null || notes.Count == 0) continue;
+
+                // 仅在到达判定点（targetTime）后触发，不提前按。
+                RhythmGame.FallingNote? targetNote = null;
+                float bestDelay = float.MaxValue;
+
+                foreach (var note in notes)
+                {
+                    if (note == null || note.hasAutoPlayed) continue;
+                    if (!note.IsClickable()) continue;
+
+                    float delay = now - note.targetTime;
+                    // 到判定线后才按，且限制在可接受晚判范围内。
+                    if (delay < 0f || delay > AutoRhythmLateWindow) continue;
+
+                    if (delay < bestDelay)
+                    {
+                        bestDelay = delay;
+                        targetNote = note;
+                    }
+                }
+
+                if (targetNote == null) continue;
+
+                if (targetNote.noteType == RhythmGame.NoteType.Hold)
+                {
+                    targetNote.OnHoldStart();
+                }
+                else
+                {
+                    targetNote.OnClick();
+                }
+            }
+        }
+        catch
+        {
+            // 静默失败，避免影响正常局内流程。
+        }
+    }
+}
+
+[HarmonyPatch(typeof(RhythmGame.RhythmGameManager), nameof(RhythmGame.RhythmGameManager.IsHoldKeyPressed))]
+public static class RhythmGameAutoHoldKeyPatch
+{
+    public static void Postfix(RhythmGame.RhythmGameManager __instance, int trackIndex, ref bool __result)
+    {
+        if (!AutoRhythmGame || __instance == null) return;
+        if (!__instance.isPlaying || __instance.isPaused) return;
+        if (trackIndex < 0 || trackIndex >= 4) return;
+
+        // 自动音游开启时，视为对应轨道按键（S/D/J/K）持续按下，保证长按音符稳定结算。
+        __result = true;
+    }
+}
 
 [HarmonyPatch(typeof(DroppedCard), "Update")]
 public static class DroppedCardPatch
@@ -3171,7 +3268,9 @@ public static class ZombieOnTriggerStay2DTramplePatch
 
 #endregion
 
-#region ZombieStatusCoexist - 僵尸状态并存补丁
+// 3.6：僵尸红温/寒冷等状态从字段改为 Effect 体系，旧实现依赖已移除字段。
+// 先禁用该整段补丁，避免编译失败；后续若需要可按 EffectType 重新实现。
+#if false
 
 /// <summary>
 /// 僵尸状态并存补丁 - Zombie.Warm
@@ -3662,7 +3761,7 @@ public static class ZombieSetEmberedCoexistPatch
     }
 }
 
-#endregion
+#endif
 
 // 注释掉 PotatoMine.Update patch，改用 PatchMgr.Update 中的实现
 // 原因：Il2Cpp 对象池在高频 Harmony patch 中会导致栈溢出
@@ -5169,7 +5268,7 @@ public class PatchMgr : MonoBehaviour
     [HarmonyPatch(typeof(DiamondRandomZombie), nameof(DiamondRandomZombie.SetRandomZombie))]
     public static class DiamondRandomZombiePatch
     {
-        public static bool Prefix(DiamondRandomZombie __instance, ref GameObject __result, Vector3 pos)
+        public static bool Prefix(DiamondRandomZombie __instance, ref Zombie __result, Vector3 pos)
         {
             if (!InGame() || Board.Instance == null || CreateZombie.Instance == null)
                 return true;
@@ -5351,6 +5450,16 @@ public class PatchMgr : MonoBehaviour
     public static bool RandomBullet { get; set; } = false;
 
     /// <summary>
+    /// 自动音游 - 自动按击音游关卡音符
+    /// </summary>
+    public static bool AutoRhythmGame { get; set; } = false;
+    
+    /// <summary>
+    /// 老版黑曜石子弹（Bullet_steelPea）：击退 + 穿透两次
+    /// </summary>
+    public static bool OldObsidianBullet { get; set; } = false;
+
+    /// <summary>
     /// 星辉buff - 点击植物解锁星辉buff模式（如果该植物有星辉buff功能）
     /// </summary>
     public static bool StarUpBuff { get; set; } = false;
@@ -5521,10 +5630,18 @@ public class PatchMgr : MonoBehaviour
         // 因此仅在真正的局内状态下处理修改器的速度逻辑，把 Selecting 交给游戏自身（0 或 gameSpeed）。
         if (GameAPP.theGameStatus is GameStatus.InGame or GameStatus.InInterlude)
         {
+            bool timeStopKeyPressed = Input.GetKeyDown(Core.KeyTimeStop.Value.Value);
+
+            // 使用时停快捷键时，自动开启“启用游戏速度修改”。
+            if (timeStopKeyPressed && !GameSpeedEnabled)
+            {
+                GameSpeedEnabled = true;
+            }
+
             // 只有在游戏速度功能开启时才允许时停/慢速操作
             if (GameSpeedEnabled)
         {
-            if (Input.GetKeyDown(Core.KeyTimeStop.Value.Value))
+            if (timeStopKeyPressed)
             {
                 TimeStop = !TimeStop;
                 TimeSlow = false;
@@ -5969,12 +6086,12 @@ public class PatchMgr : MonoBehaviour
             Il2CppSystem.Collections.Generic.List<PlantType> randomPlant = GameAPP.resourcesManager.allPlants;
             if (InGameUI.Instance && randomPlant != null && randomPlant.Count != 0)
             {
-                for (int i = 0; i < InGameUI.Instance.cardOnBank.Count; i++)
+                for (int i = 0; i < InGameUI.Instance.cards.Count; i++)
                 {
                     try
                     {
                         var index = Random.RandomRangeInt(0, randomPlant.Count);
-                        var card = InGameUI.Instance.cardOnBank[i];
+                        var card = InGameUI.Instance.cards[i];
                         card.thePlantType = randomPlant[index];
                         card.ChangeCardSprite();
                         card.theSeedCost = 0;
@@ -5985,68 +6102,10 @@ public class PatchMgr : MonoBehaviour
             }
         }
         
-        // 僵尸状态并存 - 在每帧维护红温与寒冷状态的并存
-        if (ZombieStatusCoexist)
-        {
-            try
-            {
-                foreach (var zombie in Board.Instance!.zombieArray)
-                {
-                    if (zombie == null) continue;
-                    
-                    // 如果僵尸同时有红温状态和之前保存的寒冷状态，恢复寒冷状态
-                    int zombieId = zombie.GetInstanceID();
-                    if (zombie.isJalaed && ZombieStatusCoexistData.TryGetValue(zombieId, out var savedState))
-                    {
-                        // 如果寒冷/冻结状态被清除了，恢复它
-                        if (savedState.hadCold && zombie.coldTimer <= 0 && zombie.freezeTimer <= 0 && zombie.freezeLevel <= 0)
-                        {
-                            zombie.coldTimer = savedState.coldTimer;
-                            zombie.freezeTimer = savedState.freezeTimer;
-                            zombie.freezeLevel = savedState.freezeLevel;
-                        }
-                    }
-                    
-                    // 保存当前状态用于下一帧检查
-                    bool hasCold = zombie.coldTimer > 0 || zombie.freezeTimer > 0 || zombie.freezeLevel > 0;
-                    if (hasCold)
-                    {
-                        ZombieStatusCoexistData[zombieId] = (true, zombie.coldTimer, zombie.freezeTimer, zombie.freezeLevel);
-                    }
-                    else if (!zombie.isJalaed)
-                    {
-                        // 如果僵尸既没有红温也没有寒冷，清除缓存
-                        ZombieStatusCoexistData.Remove(zombieId);
-                    }
-                }
-                
-                // 清理已死亡僵尸的缓存
-                var deadZombieIds = ZombieStatusCoexistData.Keys.ToList();
-                foreach (var id in deadZombieIds)
-                {
-                    bool found = false;
-                    foreach (var zombie in Board.Instance.zombieArray)
-                    {
-                        if (zombie != null && zombie.GetInstanceID() == id)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found)
-                    {
-                        ZombieStatusCoexistData.Remove(id);
-                    }
-                }
-            }
-            catch { }
-        }
-        else
-        {
-            // 功能关闭时清空缓存
-            if (ZombieStatusCoexistData.Count > 0)
-                ZombieStatusCoexistData.Clear();
-        }
+        // 3.6：ZombieStatusCoexist 旧实现依赖 Zombie 字段（coldTimer/isJalaed 等），已停用。
+#if false
+        if (ZombieStatusCoexist) { }
+#endif
     }
 
     //from Gaoshu
@@ -6289,7 +6348,7 @@ public class PatchMgr : MonoBehaviour
         try
         {
             // 直接访问 InitZombieList.zombieList
-            Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieType>>? zombieList = null;
+            Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieSpawnData>>? zombieList = null;
             
             try
             {
@@ -6304,7 +6363,7 @@ public class PatchMgr : MonoBehaviour
                 
                 if (zombieListField != null)
                 {
-                    zombieList = zombieListField.GetValue(null) as Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieType>>;
+                    zombieList = zombieListField.GetValue(null) as Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieSpawnData>>;
                 }
             }
 
@@ -6336,7 +6395,9 @@ public class PatchMgr : MonoBehaviour
             }
 
             // 直接修改列表
-            wave[zombieIndex] = value;
+            var data = wave[zombieIndex];
+            if (data != null)
+                data.zombieType = value;
             
         }
         catch (Exception ex)
@@ -6354,7 +6415,7 @@ public class PatchMgr : MonoBehaviour
         {
             // 直接访问InitZombieList.zombieList（如果是public属性）
             // 如果无法直接访问，则使用反射
-            Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieType>>? zombieList = null;
+            Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieSpawnData>>? zombieList = null;
             
             try
             {
@@ -6369,7 +6430,7 @@ public class PatchMgr : MonoBehaviour
                 
                 if (zombieListField != null)
                 {
-                    zombieList = zombieListField.GetValue(null) as Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieType>>;
+                    zombieList = zombieListField.GetValue(null) as Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.List<ZombieSpawnData>>;
                 }
             }
 
@@ -6390,7 +6451,9 @@ public class PatchMgr : MonoBehaviour
                 var zombieTypes = new List<int>();
                 for (int i = 0; i < wave.Count; i++)
                 {
-                    zombieTypes.Add((int)wave[i]);
+                    var data = wave[i];
+                    if (data == null) continue;
+                    zombieTypes.Add((int)data.zombieType);
                 }
 
                 if (zombieTypes.Count > 0)

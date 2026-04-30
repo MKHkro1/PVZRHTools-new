@@ -97,6 +97,8 @@ public partial class InGameHotkeyUIVM(InGameHotkeyUI InGameHotkeyUI) : Observabl
 
 public partial class ModifierViewModel : ObservableObject
 {
+    [ObservableProperty] public partial bool IsLoading { get; set; } = true;
+
     public ModifierViewModel()
     {
         Plants = new Dictionary<int, string>
@@ -130,8 +132,8 @@ public partial class ModifierViewModel : ObservableObject
         }
 
         GameSpeed = 1;
-        ZombieSeaCD = 40;
         ZombieSeaTypes = [];
+        ZombieSeaCD = 40;
         ConveyBeltTypes = [];
         FieldString = "";
         ZombieFieldString = "";
@@ -203,6 +205,8 @@ public partial class ModifierViewModel : ObservableObject
                 InGameDebuffs.Add(new TravelBuffVM(new TravelBuff(di, d, true, true)));
                 di++;
             }
+
+            IsLoading = false;
         }
 
         // 创建合并列表，包含所有三种buff（用于旗帜波词条选择）
@@ -400,7 +404,9 @@ public partial class ModifierViewModel : ObservableObject
         InvestBuffs = s.InvestBuffs is not null ? [.. s.InvestBuffs] : new BindingList<TravelBuffVM>();
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
+        AutoRhythmGame = s.AutoRhythmGame;
         UndeadBullet = s.UndeadBullet;
+        OldObsidianBullet = s.OldObsidianBullet;
         UnlockAllFusions = s.UnlockAllFusions;
         VasesFieldString = s.VasesFieldString;
         ZombieFieldString = s.ZombieFieldString;
@@ -552,6 +558,18 @@ public partial class ModifierViewModel : ObservableObject
     public void SpawnPetSnowBoss()
     {
         App.DataSync.Value.SendData(new InGameActions { PetSnowBoss = true });
+    }
+    
+    [RelayCommand]
+    public void SpawnPetJackbox()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetJackbox = true });
+    }
+    
+    [RelayCommand]
+    public void SpawnPetDrown()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetDrown = true });
     }
 
     [RelayCommand]
@@ -1026,7 +1044,9 @@ public partial class ModifierViewModel : ObservableObject
             TravelBuffs = [.. TravelBuffs],
             UltimateRamdomZombie = UltimateRamdomZombie,
             UltimateSuperGatling = UltimateSuperGatling,
+            AutoRhythmGame = AutoRhythmGame,
             UndeadBullet = UndeadBullet,
+            OldObsidianBullet = OldObsidianBullet,
             UnlockAllFusions = UnlockAllFusions,
             VasesFieldString = VasesFieldString,
             ZombieFieldString = ZombieFieldString,
@@ -1178,7 +1198,9 @@ public partial class ModifierViewModel : ObservableObject
                 PresentFastOpen = PresentFastOpen,
                 SuperPresent = SuperPresent,
                 UltimateRamdomZombie = UltimateRamdomZombie,
+                AutoRhythmGame = AutoRhythmGame,
                 UndeadBullet = UndeadBullet,
+                OldObsidianBullet = OldObsidianBullet,
                 UnlockAllFusions = UnlockAllFusions,
                 GloveFullCD = GloveFullCDEnabled ? (int)GloveFullCD : -1,
                 HammerFullCD = HammerFullCDEnabled ? (int)HammerFullCD : -1,
@@ -1496,6 +1518,10 @@ public partial class ModifierViewModel : ObservableObject
     partial void OnRandomBulletChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { RandomBullet = value });
+    }
+    partial void OnAutoRhythmGameChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { AutoRhythmGame = value });
     }
     partial void OnStarUpBuffChanged(bool value)
     {
@@ -1971,6 +1997,11 @@ public partial class ModifierViewModel : ObservableObject
     {
         App.DataSync.Value.SendData(new BasicProperties { UndeadBullet = value });
     }
+    
+    partial void OnOldObsidianBulletChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { OldObsidianBullet = value });
+    }
 
     partial void OnUnlockAllFusionsChanged(bool value)
     {
@@ -2156,6 +2187,7 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool RandomCard { get; set; }
     [ObservableProperty] public partial bool ColumnGlove { get; set; }
     [ObservableProperty] public partial bool RandomBullet { get; set; }
+    [ObservableProperty] public partial bool AutoRhythmGame { get; set; }
     [ObservableProperty] public partial bool StarUpBuff { get; set; }
     [ObservableProperty] public partial bool RandomUpgradeMode { get; set; }
 
@@ -2539,6 +2571,8 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool UltimateSuperGatling { get; set; }
 
     [ObservableProperty] public partial bool UndeadBullet { get; set; }
+    
+    [ObservableProperty] public partial bool OldObsidianBullet { get; set; }
 
     [ObservableProperty] public partial bool UnlockAllFusions { get; set; }
 
@@ -2749,6 +2783,8 @@ public partial class ModifierViewModel : ObservableObject
             OnPropertyChanged(nameof(HealthZombies));
             
             System.Diagnostics.Debug.WriteLine($"ReloadBuffsFromInitData: 完成 - TravelBuffs={TravelBuffs.Count}, InGameBuffs={InGameBuffs.Count}, Debuffs={Debuffs.Count}, AllInGameBuffs={AllInGameBuffs.Count}");
+
+            IsLoading = false;
         }
         catch (Exception ex)
         {

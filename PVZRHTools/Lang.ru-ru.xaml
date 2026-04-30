@@ -144,6 +144,8 @@
     <s:String x:Key="Tab1.Page6.ChomperNoCD">Чомперы без перезарядки</s:String>
     <s:String x:Key="Tab1.Page6.CobCannonNoCD">Кукурузные пушки без перезарядки</s:String>
     <s:String x:Key="Tab1.Page6.UndeadBullet">Бессмертные пули</s:String>
+    <s:String x:Key="Tab1.Page6.OldObsidianBullet">Старый обсидиановый снаряд</s:String>
+    <s:String x:Key="Tab1.Page6.OldObsidianBullet.Tooltip">Применить старое поведение к Bullet_steelPea(ID=93): отбрасывание при попадании и 2 пробития</s:String>
     <s:String x:Key="Tab1.Page6.DevLour">DevLour</s:String>
     <s:String x:Key="Tab1.Page6.DevLour.Tooltip">Squalour в режиме разработчика. Создание слишком большого количества растений может вызвать баги. Эта настройка только для развлечения.</s:String>
     <s:String x:Key="Tab1.Page7.UnlimitedCardSlots">Безлимитные карты</s:String>
@@ -154,8 +156,14 @@
     <s:String x:Key="Tab1.Page7.SpawnPetFootball.Tooltip">Призвать мини чёрного оливкового генерала в позиции мыши</s:String>
     <s:String x:Key="Tab1.Page7.SpawnPetSnowBoss">Призвать мини-снежного босса</s:String>
     <s:String x:Key="Tab1.Page7.SpawnPetSnowBoss.Tooltip">Призвать мини снежного босса в позиции мыши</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetJackbox">Призвать мини-джекбокс королеву</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetJackbox.Tooltip">Призвать мини-джекбокс королеву в позиции мыши</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetDrown">Призвать мини-трезубец бездны</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetDrown.Tooltip">Призвать мини-трезубец бездны в позиции мыши</s:String>
     <s:String x:Key="Tab1.Page7.RandomBullet">Случайные пули</s:String>
     <s:String x:Key="Tab1.Page7.RandomBullet.Tooltip">При включении растения стреляют случайными типами пуль</s:String>
+    <s:String x:Key="Tab1.Page7.AutoRhythmGame">Авто-ритм игра</s:String>
+    <s:String x:Key="Tab1.Page7.AutoRhythmGame.Tooltip">При включении автоматически нажимает ноты в ритм-уровнях</s:String>
     <s:String x:Key="Tab1.Page7.StarUpBuff">Звёздный бафф</s:String>
     <s:String x:Key="Tab1.Page7.StarUpBuff.Tooltip">При включении клик по растению в игре разблокирует звёздный бафф (если у растения есть эта функция)</s:String>
     <s:String x:Key="Tab1.Page7.RandomUpgradeMode">Режим случайного улучшения</s:String>
@@ -233,6 +241,7 @@
     <s:String x:Key="Tab7.DarkModeLight">Переключить на темный режим</s:String>
     <s:String x:Key="Tab7.DarkModeDark">Переключить на светлый режим</s:String>
     <s:String x:Key="Tab7.DarkMode.Tooltip">Нажмите для переключения между светлой и темной темой с плавным переходом цветов</s:String>
+    <s:String x:Key="Tab7.ResetWindowSize">Восстановить размер окна по умолчанию</s:String>
     <s:String x:Key="Tab7.License">Лицензия и ссылки</s:String>
     <s:String x:Key="Tab5.Description1">Не устанавливайте одиночные горячие клавиши. Некоторые настройки требуют доступных данных. Все привязки клавиш здесь недействительны в любом другом приложении.</s:String>
     <s:String x:Key="Tab5.Description2">Чтобы привязать горячую клавишу, наведите курсор на поле, затем нажмите клавишу, которую хотите привязать.</s:String>

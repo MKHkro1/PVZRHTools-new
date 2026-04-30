@@ -184,14 +184,21 @@ public class DataProcessor : MonoBehaviour
         {
             if (Board.Instance == null) return;
             // 僵尸（高数压缩）
+            // 注意：魅惑僵尸在部分版本下不一定稳定出现在 Board.Instance.zombieArray，
+            // 这里统一从场景对象抓取，确保快照可记录并恢复魅惑状态。
             List<string> zombieDataList = [];
-            foreach (var zombie in Board.Instance.zombieArray!)
-                if (zombie is not null && zombie.gameObject is not null && !zombie.isMindControlled)
+            var zombiesNow = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>());
+            for (int i = 0; i < zombiesNow.Count; i++)
+            {
+                var zombie = zombiesNow[i]?.Cast<Zombie>();
+                if (zombie is not null && zombie.gameObject is not null && zombie.gameObject.activeInHierarchy)
                 {
+                    int isMindControlled = zombie.isMindControlled ? 1 : 0;
                     var zombieData =
-                        $"{zombie.theZombieRow},{zombie.gameObject.transform.position.x},{(int)zombie.theZombieType}";
+                        $"{zombie.theZombieRow},{zombie.gameObject.transform.position.x},{(int)zombie.theZombieType},{isMindControlled}";
                     zombieDataList.Add(zombieData);
                 }
+            }
             var zombieCode = string.Join(";", zombieDataList);
             var zombieString = CompressString(zombieCode);
             // 植物（高数压缩）
@@ -323,9 +330,9 @@ public class DataProcessor : MonoBehaviour
             // 卡槽（卡库顺序与CD、消耗）
             try
             {
-                if (InGameUI.Instance != null && InGameUI.Instance.cardOnBank != null)
+                if (InGameUI.Instance != null && InGameUI.Instance.cards != null)
                 {
-                    foreach (var card in InGameUI.Instance.cardOnBank)
+                    foreach (var card in InGameUI.Instance.cards)
                     {
                         if (card == null) continue;
                         snap.CardBank.Add(new CardSnapshot
@@ -398,6 +405,32 @@ public class DataProcessor : MonoBehaviour
             catch { }
         }
         catch { }
+    }
+
+    private static Snapshot TryLoadLatestSnapshotFromDisk()
+    {
+        try
+        {
+            if (!File.Exists(LatestPath))
+                return null;
+
+            var json = File.ReadAllText(LatestPath);
+            if (string.IsNullOrWhiteSpace(json))
+                return null;
+
+            var snap = System.Text.Json.JsonSerializer.Deserialize<Snapshot>(
+                json,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    IncludeFields = true
+                });
+
+            return snap;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static int SafeGetSurvivalRound()
@@ -529,11 +562,19 @@ public class DataProcessor : MonoBehaviour
             foreach (var entry in zombieEntries)
             {
                 var zombieData = entry.Split(',');
-                if (zombieData.Length == 3)
+                if (zombieData.Length >= 3)
                     if (int.TryParse(zombieData[0], out var row) &&
                         float.TryParse(zombieData[1], out var x) &&
                         int.TryParse(zombieData[2], out var zombieType))
-                        CreateZombie.Instance.SetZombie(row, (ZombieType)zombieType, x);
+                    {
+                        bool isMindControlled = zombieData.Length >= 4 &&
+                                                int.TryParse(zombieData[3], out var mindFlag) &&
+                                                mindFlag == 1;
+                        if (isMindControlled)
+                            CreateZombie.Instance.SetZombieWithMindControl(row, (ZombieType)zombieType, x);
+                        else
+                            CreateZombie.Instance.SetZombie(row, (ZombieType)zombieType, x);
+                    }
             }
             // 恢复单位生命（基于行列/类型匹配，尽力还原）
             try
@@ -614,12 +655,12 @@ public class DataProcessor : MonoBehaviour
             try
             {
                 // 先恢复卡槽内容与顺序
-                if (InGameUI.Instance != null && InGameUI.Instance.cardOnBank != null && snap.CardBank != null && snap.CardBank.Count > 0)
+                if (InGameUI.Instance != null && InGameUI.Instance.cards != null && snap.CardBank != null && snap.CardBank.Count > 0)
                 {
-                    int k = Math.Min(InGameUI.Instance.cardOnBank.Count, snap.CardBank.Count);
+                    int k = Math.Min(InGameUI.Instance.cards.Count, snap.CardBank.Count);
                     for (int i = 0; i < k; i++)
                     {
-                        var card = InGameUI.Instance.cardOnBank[i];
+                        var card = InGameUI.Instance.cards[i];
                         var cs = snap.CardBank[i];
                         try
                         {
@@ -996,6 +1037,8 @@ public class DataProcessor : MonoBehaviour
             if (p1.ZombieImmuneMindControl is not null) ZombieImmuneMindControl = (bool)p1.ZombieImmuneMindControl;
             if (p1.ZombieImmuneDevour is not null) ZombieImmuneDevour = (bool)p1.ZombieImmuneDevour;
             if (p1.RandomBullet is not null) RandomBullet = (bool)p1.RandomBullet;
+            if (p1.AutoRhythmGame is not null) AutoRhythmGame = (bool)p1.AutoRhythmGame;
+            if (p1.OldObsidianBullet is not null) OldObsidianBullet = (bool)p1.OldObsidianBullet;
             if (p1.StarUpBuff is not null) StarUpBuff = (bool)p1.StarUpBuff;
             if (p1.RandomUpgradeMode is not null) RandomUpgradeMode = (bool)p1.RandomUpgradeMode;
             return;
@@ -1013,7 +1056,20 @@ public class DataProcessor : MonoBehaviour
             // 更新初始词条数据（用于游戏开始时应用）
             if (s.AdvTravelBuff is not null) AdvBuffs = [.. s.AdvTravelBuff];
             if (s.UltiTravelBuff is not null) PatchMgr.UltiBuffs = [.. s.UltiTravelBuff];
-            if (s.InvestTravelBuff is not null) PatchMgr.InvestBuffs = [.. s.InvestTravelBuff];
+            if (s.InvestTravelBuff is not null)
+            {
+                // InvestBuff 的 ID 在 3.6 中是分段/稀疏值（如 0~13,1000~1013,2000~2013），
+                // UI 发送的是“列表顺序”，这里需要映射回“真实ID”。
+                var investIds = BuildInvestBuffIdList(s.InvestTravelBuff.Count);
+                int requiredSize = GetRequiredArraySizeFromIds(investIds, s.InvestTravelBuff.Count);
+                PatchMgr.InvestBuffs = new bool[requiredSize];
+                for (int i = 0; i < s.InvestTravelBuff.Count; i++)
+                {
+                    int actualId = i < investIds.Count ? investIds[i] : i;
+                    if (actualId >= 0 && actualId < PatchMgr.InvestBuffs.Length)
+                        PatchMgr.InvestBuffs[actualId] = s.InvestTravelBuff[i];
+                }
+            }
             if (s.Debuffs is not null) Debuffs = [.. s.Debuffs];
             
             if (InGame())
@@ -1280,13 +1336,15 @@ public class DataProcessor : MonoBehaviour
                     // "BaseBuff<InvestBuff> 泛型约束" 的 TypeLoadException。
                     // 这里改为仅依据同步数据长度进行数组分配，避免触发该静态字典初始化。
                     int investCount = Math.Max(s.InvestInGame?.Count ?? 0, s.InvestTravelBuff?.Count ?? 0);
+                    var investIds = BuildInvestBuffIdList(investCount);
+                    int requiredInvestSize = GetRequiredArraySizeFromIds(investIds, investCount);
                     
-                    if (InGameInvestBuffs == null || InGameInvestBuffs.Length < investCount)
+                    if (InGameInvestBuffs == null || InGameInvestBuffs.Length < requiredInvestSize)
                     {
-                        var newArray = new bool[investCount];
+                        var newArray = new bool[requiredInvestSize];
                         if (InGameInvestBuffs != null)
                         {
-                            Array.Copy(InGameInvestBuffs, newArray, Math.Min(InGameInvestBuffs.Length, investCount));
+                            Array.Copy(InGameInvestBuffs, newArray, Math.Min(InGameInvestBuffs.Length, requiredInvestSize));
                         }
                         InGameInvestBuffs = newArray;
                     }
@@ -1302,18 +1360,24 @@ public class DataProcessor : MonoBehaviour
                             PatchMgr.DesiredInGameInvestBuffs = newArr;
                         }
                         
-                        for (int i = 0; i < s.InvestInGame.Count && i < InGameInvestBuffs.Length; i++)
+                        for (int i = 0; i < s.InvestInGame.Count; i++)
                         {
-                            PatchMgr.DesiredInGameInvestBuffs[i] = s.InvestInGame[i];
-                            InGameInvestBuffs[i] = s.InvestInGame[i];
+                            int actualId = i < investIds.Count ? investIds[i] : i;
+                            if (actualId >= 0 && actualId < InGameInvestBuffs.Length)
+                            {
+                                PatchMgr.DesiredInGameInvestBuffs[actualId] = s.InvestInGame[i];
+                                InGameInvestBuffs[actualId] = s.InvestInGame[i];
+                            }
                         }
                     }
                     else if (s.InvestTravelBuff is not null)
                     {
                         // 初始词条：只叠加，不覆盖
-                        for (int i = 0; i < s.InvestTravelBuff.Count && i < InGameInvestBuffs.Length; i++)
+                        for (int i = 0; i < s.InvestTravelBuff.Count; i++)
                         {
-                            InGameInvestBuffs[i] = InGameInvestBuffs[i] || s.InvestTravelBuff[i];
+                            int actualId = i < investIds.Count ? investIds[i] : i;
+                            if (actualId >= 0 && actualId < InGameInvestBuffs.Length)
+                                InGameInvestBuffs[actualId] = InGameInvestBuffs[actualId] || s.InvestTravelBuff[i];
                         }
                     }
                 }
@@ -1849,14 +1913,7 @@ all");
             {
                 var uimgr = InGameUI.Instance;
                 if (uimgr is not null)
-                    uimgr.ChangeString(new Il2CppReferenceArray<TextMeshProUGUI>([
-                        uimgr.LevelName1.GetComponent<TextMeshProUGUI>(),
-                        uimgr.LevelName2.GetComponent<TextMeshProUGUI>(),
-                        uimgr.LevelName3.GetComponent<TextMeshProUGUI>(),
-                        uimgr.LevelName1.transform.GetChild(0).GameObject().GetComponent<TextMeshProUGUI>(),
-                        uimgr.LevelName2.transform.GetChild(0).GameObject().GetComponent<TextMeshProUGUI>(),
-                        uimgr.LevelName3.transform.GetChild(0).GameObject().GetComponent<TextMeshProUGUI>()
-                    ]), iga.ChangeLevelName);
+                    uimgr.SetLevelName(iga.ChangeLevelName);
             }
 
             if (iga.ShowText is not null)
@@ -1919,9 +1976,29 @@ all");
                     try { InGameText.Instance?.ShowText("正在初始化，稍后保存快照…", 1.5f); } catch { }
                 }
             }
-            if (iga.RestoreLastSnapshot == true && _snapshots.Count > 0)
+            if (iga.RestoreLastSnapshot == true)
             {
-                RestoreSnapshot(_snapshots[^1]);
+                Snapshot target = null;
+                if (_snapshots.Count > 0)
+                {
+                    target = _snapshots[^1];
+                }
+                else
+                {
+                    // 兼容跨重启场景：内存环形缓冲为空时，回退读取磁盘最近快照。
+                    target = TryLoadLatestSnapshotFromDisk();
+                    if (target != null)
+                        _snapshots.Add(target);
+                }
+
+                if (target != null)
+                {
+                    RestoreSnapshot(target);
+                }
+                else
+                {
+                    try { InGameText.Instance?.ShowText("未找到可恢复快照", 2.0f); } catch { }
+                }
             }
             // 跨会话恢复功能已移除
             // 在保存快照后给出简短提示
@@ -2541,6 +2618,20 @@ all");
                 var mousePos = Mouse.Instance.transform.position;
                 MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetSnowBoss);
             }
+            
+            // 召唤迷你玩偶匣皇后
+            if (iga.SpawnPetJackbox == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetJackbox);
+            }
+            
+            // 召唤迷你渊海三叉戟
+            if (iga.SpawnPetDrown == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetDrown);
+            }
 
             // 获取出怪列表
             if (iga.GetZombieList == true && InGame())
@@ -2693,6 +2784,42 @@ all");
         {
             Core.Instance.Value.LoggerInstance.LogError(ex + ex.StackTrace);
         }
+    }
+
+    private static List<int> BuildInvestBuffIdList(int expectedCount)
+    {
+        List<int> ids = [];
+        try
+        {
+            var values = Enum.GetValues(typeof(InvestBuff));
+            foreach (var v in values)
+            {
+                ids.Add((int)v);
+            }
+        }
+        catch
+        {
+        }
+
+        // 兜底：至少保证与输入长度匹配，避免越界
+        for (int i = ids.Count; i < expectedCount; i++)
+            ids.Add(i);
+
+        return ids;
+    }
+
+    private static int GetRequiredArraySizeFromIds(List<int> ids, int fallbackCount)
+    {
+        int maxId = -1;
+        if (ids != null)
+        {
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (ids[i] > maxId) maxId = ids[i];
+            }
+        }
+
+        return Math.Max(maxId + 1, fallbackCount);
     }
 
     protected static void EnableAll<T>(bool enabled) where T : Component

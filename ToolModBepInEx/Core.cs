@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -17,6 +17,7 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using BepInEx.Unity.IL2CPP.Utils;
+using AlmanacData;
 using HarmonyLib;
 using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime;
@@ -127,7 +128,8 @@ namespace ToolModBepInEx
         public static bool inited;
 
         public static Lazy<ConfigEntry<bool>> AlmanacZombieMindCtrl { get; set; } = new();
-        public static Lazy<Core> Instance { get; set; } = new();
+        public static Lazy<Core> Instance { get; set; } = new(() =>
+            throw new InvalidOperationException("[PVZRHTools] Core.Instance 在 Load() 之前被访问"));
         public static Lazy<ConfigEntry<KeyCode>> KeyAlmanacCreatePlant { get; set; } = new();
         public static Lazy<ConfigEntry<KeyCode>> KeyAlmanacCreatePlantVase { get; set; } = new();
         public static Lazy<ConfigEntry<KeyCode>> KeyAlmanacCreateZombie { get; set; } = new();
@@ -191,94 +193,51 @@ namespace ToolModBepInEx
                 MLogger.LogWarning("以下id信息为动态生成，仅适用于当前游戏实例！！！");
                 MLogger.LogWarning("以下id信息为动态生成，仅适用于当前游戏实例！！！");
 
+                // 3.6：优先读取图鉴中文名，失败时回退到枚举名。
                 Dictionary<int, string> plants = [];
                 Dictionary<int, string> zombies = [];
-                GameObject gameObject = new();
-                GameObject back1 = new();
-                back1.transform.SetParent(gameObject.transform);
-                GameObject name1 = new("Name");
-                GameObject shadow1 = new("Shadow");
-                shadow1.transform.SetParent(name1.transform);
-                var nameText1 = name1.AddComponent<TextMeshPro>();
-                name1.transform.SetParent(gameObject.transform);
-                GameObject info1 = new("Info");
-                info1.transform.SetParent(gameObject.transform);
-                GameObject cost1 = new("Cost");
-                cost1.transform.SetParent(gameObject.transform);
-                var alm = gameObject.AddComponent<AlmanacPlantBank>();
-                alm.cost = cost1.AddComponent<TextMeshPro>();
-                alm.plantName_shadow = shadow1.AddComponent<TextMeshPro>();
-                alm.plantName = name1.GetComponent<TextMeshPro>();
-                alm.introduce = info1.AddComponent<TextMeshPro>();
-                gameObject.AddComponent<TravelMgr>();
-#if GAR
-                var gardenIds = "";
-#endif
+
                 for (var i = 0; i < GameAPP.resourcesManager.allPlants.Count; i++)
                 {
-                    alm.theSeedType = (int)GameAPP.resourcesManager.allPlants[i];
-                    alm.InitNameAndInfoFromJson();
-                    var item =
-                        $"{alm.plantName.GetComponent<TextMeshPro>().text} ({(int)GameAPP.resourcesManager.allPlants[i]})";
+                    var pt = GameAPP.resourcesManager.allPlants[i];
+                    string displayName = null;
+                    try
+                    {
+                        var plantInfo = AlmanacDataLoader.GetPlantData(pt);
+                        if (plantInfo != null && !string.IsNullOrWhiteSpace(plantInfo.name))
+                            displayName = plantInfo.name.Trim();
+                    }
+                    catch
+                    {
+                    }
+                    var item = !string.IsNullOrWhiteSpace(displayName)
+                        ? $"{displayName} ({(int)pt})"
+                        : $"{pt} ({(int)pt})";
                     MLogger.LogInfo($"Dumping Plant String: {item}");
-                    plants.Add((int)GameAPP.resourcesManager.allPlants[i], item);
-                    HealthPlants.Add(GameAPP.resourcesManager.allPlants[i], -1);
-#if GAR
-                    if (needRegen)
-                        gardenIds = Utils.OutputGardenTexture(i, alm.plantName.GetComponent<TextMeshPro>().text, gardenIds);
-#endif
-                    alm.plantName.GetComponent<TextMeshPro>().text = "";
+                    plants[(int)pt] = item;
+                    HealthPlants[pt] = -1;
                 }
-
-                Object.Destroy(gameObject);
-#if GAR
-                if (needRegen)
-                {
-                    if (File.Exists("PVZRHTools/GardenTools/plant_id.txt"))
-                        File.Delete("PVZRHTools/GardenTools/plant_id.txt");
-                    using FileStream gid = new("PVZRHTools/GardenTools/plant_id.txt", FileMode.Create);
-                    var buffer = Encoding.UTF8.GetBytes(gardenIds);
-                    gid.Write(buffer, 0, buffer.Length);
-                    gid.Flush();
-                    Utils.GenerateGardenData();
-                }
-#endif
-                GameObject gameObject2 = new();
-                GameObject back2 = new();
-                back2.transform.SetParent(gameObject2.transform);
-                back2.AddComponent<SpriteRenderer>();
-                GameObject name2 = new("Name");
-                GameObject shadow2 = new("Name_1");
-                shadow2.transform.SetParent(name2.transform);
-                shadow2.AddComponent<TextMeshPro>();
-                name2.AddComponent<TextMeshPro>();
-                name2.transform.SetParent(gameObject2.transform);
-                name2.AddComponent<TextMeshPro>();
-                GameObject info2 = new("Info");
-                info2.transform.SetParent(gameObject2.transform);
-                var almz = gameObject2.AddComponent<AlmanacMgrZombie>();
-                almz.info = info2;
-                almz.zombieName = name2;
-                almz.introduce = info2.AddComponent<TextMeshPro>();
-                ;
 
                 for (var i = 0; i < GameAPP.resourcesManager.allZombieTypes.Count; i++)
                 {
-                    almz.theZombieType = GameAPP.resourcesManager.allZombieTypes[i];
-                    almz.InitNameAndInfoFromJson();
-                    HealthZombies.Add(GameAPP.resourcesManager.allZombieTypes[i], -1);
-
-                    if (!string.IsNullOrEmpty(almz.zombieName.GetComponent<TextMeshPro>().text))
+                    var zt = GameAPP.resourcesManager.allZombieTypes[i];
+                    string displayName = null;
+                    try
                     {
-                        var item =
-                            $"{almz.zombieName.GetComponent<TextMeshPro>().text} ({(int)GameAPP.resourcesManager.allZombieTypes[i]})";
-                        MLogger.LogInfo($"Dumping Zombie String: {item}");
-                        zombies.Add((int)GameAPP.resourcesManager.allZombieTypes[i], item);
-                        almz.zombieName.GetComponent<TextMeshPro>().text = "";
+                        var zombieInfo = AlmanacDataLoader.GetZombieData(zt);
+                        if (zombieInfo != null && !string.IsNullOrWhiteSpace(zombieInfo.name))
+                            displayName = zombieInfo.name.Trim();
                     }
+                    catch
+                    {
+                    }
+                    var item = !string.IsNullOrWhiteSpace(displayName)
+                        ? $"{displayName} ({(int)zt})"
+                        : $"{zt} ({(int)zt})";
+                    MLogger.LogInfo($"Dumping Zombie String: {item}");
+                    zombies[(int)zt] = item;
+                    HealthZombies[zt] = -1;
                 }
-
-                Object.Destroy(gameObject2);
                 //zombies.Add(54, "试验假人僵尸 (54)");
 
                 // 3.5 版本中 InvestBuffData 相关泛型在 IL2CPP 侧存在兼容性问题：
@@ -359,16 +318,25 @@ namespace ToolModBepInEx
                             if (key > maxDebuffKey) maxDebuffKey = key;
                         }
 
-                        var tempObj = new GameObject("TempTravelMgr");
-                        var tempTravelMgr = tempObj.AddComponent<TravelMgr>();
                         for (int id = 0; id <= maxDebuffKey; id++)
                         {
                             if (!TravelDictionary.debuffData.ContainsKey((TravelDebuff)id)) continue;
                             string text = null;
-                            try { text = tempTravelMgr.GetText(3, id); } catch { }
-                            debuffs.Add($"#{id} {(string.IsNullOrEmpty(text) ? $"Debuff_{id}" : text)}");
+                            try
+                            {
+                                if (TravelDictionary.debuffData != null &&
+                                    TravelDictionary.debuffData.ContainsKey((TravelDebuff)id))
+                                {
+                                    text = TravelDictionary.debuffData[(TravelDebuff)id].Item1;
+                                }
+                            }
+                            catch
+                            {
+                            }
+                            if (string.IsNullOrWhiteSpace(text))
+                                text = ((TravelDebuff)id).ToString();
+                            debuffs.Add($"#{id} {text}");
                         }
-                        Object.Destroy(tempObj);
                     }
                 }
                 catch (Exception ex)
@@ -377,57 +345,25 @@ namespace ToolModBepInEx
                 }
                 Debuffs = new bool[debuffs.Count];
 
-                // Invest：优先通过 TravelMgr.GetText 读取真实文本，不直接访问 TravelMgr.InvestBuffsData
+                // Invest：3.6 下访问 TravelMgr.InvestBuffsData 可能触发泛型约束异常，
+                // 这里避免触发该类型加载，优先稳定启动。
                 try
                 {
                     var values = Enum.GetValues(typeof(InvestBuff));
                     int maxInvestId = -1;
-                    var tempObj = new GameObject("TempTravelMgrInvest");
-                    var tempTravelMgr = tempObj.AddComponent<TravelMgr>();
-                    int? investTextType = null;
                     foreach (var val in values)
                     {
                         int id = (int)val;
                         if (id > maxInvestId) maxInvestId = id;
-
-                        string text = string.Empty;
-                        if (investTextType.HasValue)
-                        {
-                            try { text = tempTravelMgr.GetText(investTextType.Value, id); } catch { }
-                        }
-                        else
-                        {
-                            // 3.5 不同分支里 GetText 的 type 可能变化，按候选值探测一次
-                            int[] typeCandidates = [4, 3, 2, 1, 0];
-                            foreach (int candidate in typeCandidates)
-                            {
-                                try
-                                {
-                                    var t = tempTravelMgr.GetText(candidate, id);
-                                    if (!string.IsNullOrEmpty(t) && !t.StartsWith("Debuff_", StringComparison.Ordinal))
-                                    {
-                                        investTextType = candidate;
-                                        text = t;
-                                        break;
-                                    }
-                                }
-                                catch
-                                {
-                                }
-                            }
-                        }
-
-                        if (string.IsNullOrEmpty(text))
-                            text = val.ToString();
-
+                        string text = TryGetTravelTextViaReflection((InvestBuff)id);
+                        if (string.IsNullOrWhiteSpace(text) || text.StartsWith("EnumValue", StringComparison.OrdinalIgnoreCase))
+                            text = GetInvestBuffChineseName(id);
+                        if (string.IsNullOrWhiteSpace(text))
+                            text = ((InvestBuff)id).ToString();
                         investBuffs.Add($"#{id} {text}");
                     }
-                    Object.Destroy(tempObj);
                     PatchMgr.InvestBuffs = new bool[maxInvestId + 1];
-                    if (investTextType.HasValue)
-                        MLogger.LogInfo($"[PVZRHTools] Invest 词条文本读取成功（GetText type={investTextType.Value}）");
-                    else
-                        MLogger.LogWarning("[PVZRHTools] Invest 词条文本未探测到有效 type，已回退枚举名");
+                    MLogger.LogInfo("[PVZRHTools] Invest 词条文本读取：优先反射 GetText，失败回退枚举名");
                 }
                 catch (Exception ex)
                 {
@@ -505,14 +441,121 @@ namespace ToolModBepInEx
             inited = true;
         }
 
+        private static string? TryGetTravelTextViaReflection(object buff)
+        {
+            try
+            {
+                var travelMgr = ResolveTravelMgr();
+                if (travelMgr == null)
+                    return null;
+
+                var method = typeof(TravelMgr).GetMethod("GetText", new[] { typeof(object) });
+                if (method == null)
+                    return null;
+
+                var result = method.Invoke(travelMgr, new[] { buff });
+                var text = result?.ToString();
+                if (!string.IsNullOrWhiteSpace(text))
+                    return text;
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        private static string? GetInvestBuffChineseName(int id)
+        {
+            return id switch
+            {
+                0 => "完美开局",
+                1 => "气氛组",
+                2 => "无伤通关",
+                3 => "植物重组",
+                4 => "究极支援",
+                5 => "恢复生机",
+                6 => "简单模式",
+                7 => "难度修改器",
+                8 => "当头一棒",
+                9 => "榜样的力量",
+                10 => "基层贡献",
+                11 => "绝对力量奖",
+                12 => "存款回报",
+                13 => "免费刷新",
+                1000 => "现金为王",
+                1001 => "降本增效",
+                1002 => "精准暴击",
+                1003 => "百花齐放",
+                1004 => "榜样的力量II",
+                1005 => "风暴骑士",
+                1006 => "绕口令",
+                1007 => "创伤小组",
+                1008 => "打通上下游",
+                1009 => "人海战术",
+                1010 => "固定理财",
+                1011 => "星变",
+                1012 => "沙里淘金",
+                1013 => "延迟收益",
+                2000 => "幸运闪避",
+                2001 => "攻防一体",
+                2002 => "野蛮成长",
+                2003 => "鲜血阶梯",
+                2004 => "超光速提拔",
+                2005 => "幸运之子",
+                2006 => "积分大使飘飘",
+                2007 => "开源节流",
+                2008 => "概率事件",
+                2009 => "被动收入",
+                2010 => "星辉模仿卡",
+                2011 => "淘宝积分",
+                2012 => "养精蓄锐",
+                2013 => "藏一手",
+                _ => null
+            };
+        }
+
+        private static TravelMgr? ResolveTravelMgr()
+        {
+            try
+            {
+                if (TravelMgr.Instance != null)
+                    return TravelMgr.Instance;
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (GameAPP.Instance != null)
+                    return GameAPP.Instance.GetComponent<TravelMgr>();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (GameAPP.board != null)
+                    return GameAPP.board.GetComponent<TravelMgr>();
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
         public override void Load()
         {
             Console.OutputEncoding = Encoding.UTF8;
+            // 先设置 Instance，避免任何 Harmony Patch 回调中提前访问导致崩溃
+            Instance = new Lazy<Core>(() => this);
             ClassInjector.RegisterTypeInIl2Cpp<PatchMgr>();
             ClassInjector.RegisterTypeInIl2Cpp<DataProcessor>();
             ClassInjector.RegisterTypeInIl2Cpp<LateInitHelper>();
             Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
-            Instance = new Lazy<Core>(this);
             if (Time.timeScale == 0) Time.timeScale = 1;
             // 初始化时不设置 SyncSpeed，让游戏内部的速度调整功能正常工作
             // SyncSpeed = Time.timeScale; // 注释掉，避免干扰游戏内部速度调整
@@ -538,7 +581,12 @@ namespace ToolModBepInEx
             // 注意：3.4.2版本游戏新增了H键用于悬停植物时打开信息面板
             // 如果与游戏内置H键功能冲突，用户可以在插件设置中更改此快捷键
             KeyRandomCard =
-                new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyRandomCard), KeyCode.H));
+                new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyRandomCard), KeyCode.R));
+            // 兼容旧配置：历史默认值为 H，这里迁移为 R，避免与游戏内置 H 键冲突。
+            if (KeyRandomCard.Value.Value == KeyCode.H)
+            {
+                KeyRandomCard.Value.Value = KeyCode.R;
+            }
             ModsHash = new Lazy<ConfigEntry<string>>(Config.Bind("PVZRHTools", nameof(ModsHash), ""));
 
             KeyBindings = new Lazy<List<ConfigEntry<KeyCode>>>([

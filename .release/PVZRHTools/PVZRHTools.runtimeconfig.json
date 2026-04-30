@@ -1,20 +1,21 @@
 {
   "runtimeOptions": {
     "tfm": "net8.0",
-    "frameworks": [
+    "includedFrameworks": [
       {
         "name": "Microsoft.NETCore.App",
-        "version": "8.0.0"
+        "version": "8.0.26"
       },
       {
         "name": "Microsoft.WindowsDesktop.App",
-        "version": "8.0.0"
+        "version": "8.0.26"
       }
     ],
     "configProperties": {
       "MVVMTOOLKIT_ENABLE_INOTIFYPROPERTYCHANGING_SUPPORT": true,
       "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
       "System.Runtime.InteropServices.BuiltInComInterop.IsSupported": true,
+      "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": true,
       "System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault": false,
       "CSWINRT_USE_WINDOWS_UI_XAML_PROJECTIONS": false
     }

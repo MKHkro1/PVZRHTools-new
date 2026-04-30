@@ -158,6 +158,8 @@
     <s:String x:Key="Tab1.Page6.ChomperNoCD">ChomperNoCD</s:String>
     <s:String x:Key="Tab1.Page6.CobCannonNoCD">CobCannonNoCD</s:String>
     <s:String x:Key="Tab1.Page6.UndeadBullet">UndeadBullet</s:String>
+    <s:String x:Key="Tab1.Page6.OldObsidianBullet">Old Obsidian Bullet</s:String>
+    <s:String x:Key="Tab1.Page6.OldObsidianBullet.Tooltip">Apply old behavior to Bullet_steelPea(ID=93): knockback on hit and 2 penetrations</s:String>
     <s:String x:Key="Tab1.Page6.DevLour">DevLour</s:String>
     <s:String x:Key="Tab1.Page6.DevLour.Tooltip">Squalour in developer mode. Creating too much plants may cause bugs. The setting is just for fun.</s:String>
     <s:String x:Key="Tab1.Page7.UnlimitedCardSlots">UnlimitedCards</s:String>
@@ -168,8 +170,14 @@
     <s:String x:Key="Tab1.Page7.SpawnPetFootball.Tooltip">Spawn a mini black olive general pet at mouse position</s:String>
     <s:String x:Key="Tab1.Page7.SpawnPetSnowBoss">Spawn Pet Snow Boss</s:String>
     <s:String x:Key="Tab1.Page7.SpawnPetSnowBoss.Tooltip">Spawn a mini snow boss pet at mouse position</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetJackbox">Spawn Pet Jackbox</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetJackbox.Tooltip">Spawn a mini jackbox queen pet at mouse position</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetDrown">Spawn Pet Drown</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetDrown.Tooltip">Spawn a mini drown trident pet at mouse position</s:String>
     <s:String x:Key="Tab1.Page7.RandomBullet">Random Bullet</s:String>
     <s:String x:Key="Tab1.Page7.RandomBullet.Tooltip">When enabled, plants shoot random bullet types</s:String>
+    <s:String x:Key="Tab1.Page7.AutoRhythmGame">Auto Rhythm Game</s:String>
+    <s:String x:Key="Tab1.Page7.AutoRhythmGame.Tooltip">Automatically hits notes in rhythm game levels when enabled</s:String>
     <s:String x:Key="Tab1.Page7.StarUpBuff">Star Up Buff</s:String>
     <s:String x:Key="Tab1.Page7.StarUpBuff.Tooltip">When enabled, clicking plants in-game will unlock star up buff mode (if the plant has star up buff functionality)</s:String>
     <s:String x:Key="Tab1.Page7.RandomUpgradeMode">Random Upgrade Mode</s:String>
@@ -250,6 +258,7 @@
     <s:String x:Key="Tab7.DarkModeLight">Switch to Dark Mode</s:String>
     <s:String x:Key="Tab7.DarkModeDark">Switch to Light Mode</s:String>
     <s:String x:Key="Tab7.DarkMode.Tooltip">Click to toggle between light and dark theme with smooth color transition</s:String>
+    <s:String x:Key="Tab7.ResetWindowSize">Restore default window size</s:String>
     <s:String x:Key="Tab7.License">License and references</s:String>
     <s:String x:Key="Tab5.Description1">Don't set single hotkey. Some settings need availalbe data. All the key bindings here are invalid in any other app.</s:String>
     <s:String x:Key="Tab5.Description2">To bind hotkey, put the mouse on the box, then press the key you'll bind.</s:String>

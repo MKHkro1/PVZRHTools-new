@@ -18,6 +18,8 @@ D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Lang.zh-cn.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\ModifierSprite.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\AnimatedStyles.baml
+D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsDark.baml
+D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsLight.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\App.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\MainWindow.g.cs
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\ModifierSprite.g.cs
@@ -31,11 +33,9 @@ D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.AssemblyInfoInputs.cache
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.AssemblyInfo.cs
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.csproj.CoreCompileInputs.cache
+D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.sourcelink.json
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.csproj.Up2Date
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.dll
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\refint\PVZRHTools.dll
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.genruntimeconfig.cache
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\ref\PVZRHTools.dll
-D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\PVZRHTools.sourcelink.json
-D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsDark.baml
-D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsLight.baml

@@ -14,15 +14,13 @@
     Foreground="{DynamicResource WindowForegroundBrush}" BorderThickness="2,2,2,2" UseLayoutRounding="False"
     ResizeMode="CanResizeWithGrip" d:DataContext="{x:Type local:ModifierViewModel}"
     AllowsTransparency="False">
-    <Window.DataContext>
-        <local:ModifierViewModel />
-    </Window.DataContext>
     <Window.Resources>
         <ObjectDataProvider x:Key="KeyCodeEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
             <ObjectDataProvider.MethodParameters>
                 <x:Type TypeName="local:KeyCode" />
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </Window.Resources>
     <Window.BorderBrush>
         <DynamicResource ResourceKey="WindowBorderBrush"/>
@@ -658,6 +656,11 @@
                                                   Content="{DynamicResource Tab1.Page6.UndeadBullet}" Height="21"
                                                   VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0" />
+                                        <CheckBox x:Name="OldObsidianBullet" IsChecked="{Binding OldObsidianBullet}"
+                                                  Content="{DynamicResource Tab1.Page6.OldObsidianBullet}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6.OldObsidianBullet.Tooltip}" />
                                         <CheckBox x:Name="DevLour" IsChecked="{Binding DevLour}"
                                                   Content="{DynamicResource Tab1.Page6.DevLour}" Height="21"
                                                   VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
@@ -857,6 +860,11 @@
                                                   VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
                                                   HorizontalAlignment="Left" Margin="0,0,10,0"
                                                   ToolTip="{DynamicResource Tab1.Page7.RandomBullet.Tooltip}" />
+                                        <CheckBox x:Name="AutoRhythmGame" IsChecked="{Binding AutoRhythmGame}"
+                                                  Content="{DynamicResource Tab1.Page7.AutoRhythmGame}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page7.AutoRhythmGame.Tooltip}" />
                                         <CheckBox x:Name="StarUpBuff" IsChecked="{Binding StarUpBuff}"
                                                   Content="{DynamicResource Tab1.Page7.StarUpBuff}" Height="21"
                                                   VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
@@ -875,6 +883,14 @@
                                         <Button Content="{DynamicResource Tab1.Page7.SpawnPetSnowBoss}" Height="21"
                                                 Command="{Binding SpawnPetSnowBossCommand}"
                                                 ToolTip="{DynamicResource Tab1.Page7.SpawnPetSnowBoss.Tooltip}"
+                                                HorizontalAlignment="Left" Margin="0,0,10,0" Padding="8,0" />
+                                        <Button Content="{DynamicResource Tab1.Page7.SpawnPetJackbox}" Height="21"
+                                                Command="{Binding SpawnPetJackboxCommand}"
+                                                ToolTip="{DynamicResource Tab1.Page7.SpawnPetJackbox.Tooltip}"
+                                                HorizontalAlignment="Left" Margin="0,0,10,0" Padding="8,0" />
+                                        <Button Content="{DynamicResource Tab1.Page7.SpawnPetDrown}" Height="21"
+                                                Command="{Binding SpawnPetDrownCommand}"
+                                                ToolTip="{DynamicResource Tab1.Page7.SpawnPetDrown.Tooltip}"
                                                 HorizontalAlignment="Left" Margin="0,0,10,0" Padding="8,0" />
                                     </WrapPanel>
                                 </StackPanel>
@@ -1289,6 +1305,16 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
+                            <Button x:Name="ResetWindowSizeButton"
+                                    Content="{DynamicResource Tab7.ResetWindowSize}"
+                                    MinHeight="26"
+                                    VerticalAlignment="Top"
+                                    VerticalContentAlignment="Center"
+                                    Foreground="{DynamicResource TextForegroundBrush}"
+                                    BorderThickness="2,2,2,2"
+                                    Padding="8,0,8,0"
+                                    Margin="0,2,0,2"
+                                    Click="ResetWindowSizeButton_Click" />
                             <Label Height="152" Width="684" Foreground="{DynamicResource TextForegroundBrush}">
                                 <TextBlock FontSize="16" Foreground="{DynamicResource LinkForegroundBrush}" Height="129" Width="659"
                                            Text="{DynamicResource Tab1.Description}" TextWrapping="Wrap" />
@@ -2025,5 +2051,31 @@
                 </Border>
             </TabItem>
         </TabControl>
+
+        <!-- Startup loading overlay: hidden after InitData arrives -->
+        <Grid Grid.RowSpan="2"
+              Panel.ZIndex="9999"
+              Background="#88000000"
+              Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <Border Width="320" Padding="20" CornerRadius="8"
+                    Background="{DynamicResource ContentBackgroundBrush}"
+                    BorderBrush="{DynamicResource ContentBorderBrush}"
+                    BorderThickness="1"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="正在加载数据…"
+                               FontSize="16"
+                               Foreground="{DynamicResource TextForegroundBrush}"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,12" />
+                    <ProgressBar Height="10" IsIndeterminate="True" />
+                    <TextBlock Text="首次启动会稍慢，请稍候。"
+                               Foreground="{DynamicResource TextForegroundBrush}"
+                               Opacity="0.8"
+                               HorizontalAlignment="Center"
+                               Margin="0,12,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

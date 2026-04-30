@@ -148,6 +148,8 @@
     <s:String x:Key="Tab1.Page6.ChomperNoCD">大嘴花无CD</s:String>
     <s:String x:Key="Tab1.Page6.CobCannonNoCD">玉米加农炮无CD</s:String>
     <s:String x:Key="Tab1.Page6.UndeadBullet">子弹无限穿透</s:String>
+    <s:String x:Key="Tab1.Page6.OldObsidianBullet">强化黑曜石子弹</s:String>
+    <s:String x:Key="Tab1.Page6.OldObsidianBullet.Tooltip">黑曜石具有命中击退和穿透效果</s:String>
     <s:String x:Key="Tab1.Page6.DevLour">窝红温了</s:String>
     <s:String x:Key="Tab1.Page6.DevLour.Tooltip">开发者模式珞瓜，植物叠太多可能导致问题，仅供娱乐</s:String>
     <s:String x:Key="Tab1.Page7.InfFuritScore">水果忍者无限积分</s:String>
@@ -164,8 +166,14 @@
     <s:String x:Key="Tab1.Page7.SpawnPetFootball.Tooltip">在鼠标位置召唤一个迷你黑橄榄将军宠物</s:String>
     <s:String x:Key="Tab1.Page7.SpawnPetSnowBoss">召唤迷你雪皇</s:String>
     <s:String x:Key="Tab1.Page7.SpawnPetSnowBoss.Tooltip">在鼠标位置召唤一个迷你雪皇宠物</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetJackbox">召唤迷你玩偶匣皇后</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetJackbox.Tooltip">在鼠标位置召唤一个迷你玩偶匣皇后宠物</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetDrown">召唤迷你渊海三叉戟</s:String>
+    <s:String x:Key="Tab1.Page7.SpawnPetDrown.Tooltip">在鼠标位置召唤一个迷你渊海三叉戟宠物</s:String>
     <s:String x:Key="Tab1.Page7.RandomBullet">随机子弹</s:String>
     <s:String x:Key="Tab1.Page7.RandomBullet.Tooltip">启用后植物发射的子弹类型随机</s:String>
+    <s:String x:Key="Tab1.Page7.AutoRhythmGame">自动音游</s:String>
+    <s:String x:Key="Tab1.Page7.AutoRhythmGame.Tooltip">启用后自动按击音游关卡中的音符</s:String>
     <s:String x:Key="Tab1.Page7.StarUpBuff">星辉buff</s:String>
     <s:String x:Key="Tab1.Page7.StarUpBuff.Tooltip">启用后在游戏中点击植物会解锁星辉buff模式（如果该植物有星辉buff功能）</s:String>
     <s:String x:Key="Tab1.Page7.RandomUpgradeMode">随机升级模式</s:String>
@@ -248,6 +256,7 @@
     <s:String x:Key="Tab7.DarkModeLight">切换到深色模式</s:String>
     <s:String x:Key="Tab7.DarkModeDark">切换到浅色模式</s:String>
     <s:String x:Key="Tab7.DarkMode.Tooltip">点击切换深浅色模式，使用 Infinite-75 经典配色方案</s:String>
+    <s:String x:Key="Tab7.ResetWindowSize">复原修改器窗口默认大小</s:String>
     <s:String x:Key="Tab7.License">本项目及所使用开源库许可协议(LICENSE)</s:String>
     <s:String x:Key="Tab5.Description1">请不要设置单键，部分功能需提前填好数据，游戏运行时其他软件中下列键位均失效，可能导致冲突</s:String>
     <s:String x:Key="Tab5.Description2">设置方法：调节为英文输入法，将鼠标指针放在对应条目的框上，先设置Ctrl/Shift/Alt，再设置要组合的键位</s:String>

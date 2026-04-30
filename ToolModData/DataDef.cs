@@ -122,6 +122,16 @@ public struct BasicProperties : ISyncData
     /// 随机子弹 - 植物发射的子弹类型随机
     /// </summary>
     public bool? RandomBullet { get; set; }
+    
+    /// <summary>
+    /// 自动音游 - 自动按击音游关卡音符
+    /// </summary>
+    public bool? AutoRhythmGame { get; set; }
+    
+    /// <summary>
+    /// 老版黑曜石子弹（Bullet_steelPea）：击退 + 穿透两次
+    /// </summary>
+    public bool? OldObsidianBullet { get; set; }
 
     /// <summary>
     /// 星辉buff - 点击植物解锁星辉buff模式（如果该植物有星辉buff功能）
@@ -260,6 +270,16 @@ public struct InGameActions : ISyncData
     /// 召唤迷你雪皇
     /// </summary>
     public bool? PetSnowBoss { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你玩偶匣皇后
+    /// </summary>
+    public bool? SpawnPetJackbox { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你渊海三叉戟
+    /// </summary>
+    public bool? SpawnPetDrown { get; set; }
     
     /// <summary>
     /// 旗帜波词条功能 - 是否启用

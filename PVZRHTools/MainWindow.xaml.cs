@@ -43,7 +43,14 @@ namespace PVZRHTools
 {
     public partial class MainWindow : Window
     {
+        private sealed class StartupLoadingContext
+        {
+            // Keep XAML overlay visible until real VM is ready.
+            public bool IsLoading { get; } = true;
+        }
+
         // Win32 API for window resizing
+        private const int WM_NCCALCSIZE = 0x0083;
         private const int WM_NCHITTEST = 0x0084;
         private const int HTLEFT = 10;
         private const int HTRIGHT = 11;
@@ -68,23 +75,11 @@ namespace PVZRHTools
             ModifierSprite = new ModifierSprite();
             Sprite.Show(ModifierSprite);
             ModifierSprite.Hide();
-            if (File.Exists((App.IsBepInEx ? "BepInEx/config" : "UserData") + "/ModifierSettings.json"))
-                try
-                {
-                    var s = JsonSerializer.Deserialize(
-                        File.ReadAllText((App.IsBepInEx ? "BepInEx/config" : "UserData") + "/ModifierSettings.json"),
-                        ModifierSaveModelSGC.Default.ModifierSaveModel);
-                    DataContext = s.NeedSave ? new ModifierViewModel(s) : new ModifierViewModel(s.Hotkeys);
-                }
-                catch
-                {
-                    File.Delete((App.IsBepInEx ? "BepInEx/config" : "UserData") + "/ModifierSettings.json");
-                    DataContext = new ModifierViewModel();
-                }
-            else
-                DataContext = new ModifierViewModel();
+            DataContext = new StartupLoadingContext();
 
-            App.inited = true;
+            // Create real ViewModel after first frame rendered,
+            // so the loading overlay can appear immediately.
+            ContentRendered += MainWindow_ContentRendered;
             
             // 应用初始主题（如果已保存）
             if (ViewModel != null && ViewModel.IsDarkMode)
@@ -106,6 +101,42 @@ namespace PVZRHTools
             
             // 窗口激活时播放过渡动画（从后台切回前台）
             Activated += MainWindow_Activated;
+        }
+
+        private void MainWindow_ContentRendered(object? sender, EventArgs e)
+        {
+            ContentRendered -= MainWindow_ContentRendered;
+            try
+            {
+                DataContext = CreateRealViewModel();
+                App.inited = true;
+            }
+            catch
+            {
+                // Fallback: keep app usable even if save file is corrupted.
+                DataContext = new ModifierViewModel();
+                App.inited = true;
+            }
+        }
+
+        private static ModifierViewModel CreateRealViewModel()
+        {
+            var settingsPath = (App.IsBepInEx ? "BepInEx/config" : "UserData") + "/ModifierSettings.json";
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    var s = JsonSerializer.Deserialize(File.ReadAllText(settingsPath),
+                        ModifierSaveModelSGC.Default.ModifierSaveModel);
+                    return s.NeedSave ? new ModifierViewModel(s) : new ModifierViewModel(s.Hotkeys);
+                }
+                catch
+                {
+                    File.Delete(settingsPath);
+                }
+            }
+
+            return new ModifierViewModel();
         }
         
         private void MainWindow_Activated(object? sender, EventArgs e)
@@ -385,7 +416,7 @@ namespace PVZRHTools
         public static ResourceDictionary LangRU_RU => new() { Source = new Uri("/Lang.ru-ru.xaml", UriKind.Relative) };
         public static ResourceDictionary LangZH_CN => new() { Source = new Uri("/Lang.zh-cn.xaml", UriKind.Relative) };
         public ModifierSprite ModifierSprite { get; set; }
-        public ModifierViewModel ViewModel => (ModifierViewModel)DataContext;
+        public ModifierViewModel? ViewModel => DataContext as ModifierViewModel;
 
         public void ApplyThemeWithAnimation(bool isDarkMode)
         {
@@ -1478,11 +1509,22 @@ namespace PVZRHTools
                 e.MiddleButton is MouseButtonState.Released) DragMove();
         }
 
+        private void ResetWindowSizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Restore the modifier window to its default design size.
+            if (WindowState != WindowState.Normal)
+                WindowState = WindowState.Normal;
+
+            Width = 800;
+            Height = 450;
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
 
-            ViewModel.Save();
+            if (DataContext is ModifierViewModel vm)
+                vm.Save();
             GlobalHotKey.Destroy();
             Application.Current.Shutdown();
         }
@@ -1491,8 +1533,11 @@ namespace PVZRHTools
         {
             base.OnSourceInitialized(e);
             GlobalHotKey.Awake();
-            foreach (var hvm in from hvm in ViewModel.Hotkeys where hvm.CurrentKeyB != Key.None select hvm)
-                hvm.UpdateHotKey();
+            if (DataContext is ModifierViewModel vm)
+            {
+                foreach (var hvm in from hvm in vm.Hotkeys where hvm.CurrentKeyB != Key.None select hvm)
+                    hvm.UpdateHotKey();
+            }
             
             // 添加窗口消息钩子以支持边框拖拽调整大小
             var hwndSource = PresentationSource.FromVisual(this) as HwndSource;
@@ -1504,6 +1549,13 @@ namespace PVZRHTools
         /// </summary>
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            if (msg == WM_NCCALCSIZE)
+            {
+                // Remove system non-client area to avoid the white strip above custom title bar.
+                handled = true;
+                return IntPtr.Zero;
+            }
+
             if (msg == WM_NCHITTEST)
             {
                 handled = true;
@@ -1519,8 +1571,9 @@ namespace PVZRHTools
         private int GetHitTestResult(IntPtr lParam)
         {
             // 获取鼠标屏幕坐标
-            int x = (short)(lParam.ToInt32() & 0xFFFF);
-            int y = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
+            long packed = lParam.ToInt64();
+            int x = unchecked((short)(packed & 0xFFFF));
+            int y = unchecked((short)((packed >> 16) & 0xFFFF));
 
             // 转换为窗口坐标
             var point = PointFromScreen(new Point(x, y));

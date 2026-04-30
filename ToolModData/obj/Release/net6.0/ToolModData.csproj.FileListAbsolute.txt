@@ -5,8 +5,8 @@ D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolMod
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.AssemblyInfoInputs.cache
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.AssemblyInfo.cs
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.csproj.CoreCompileInputs.cache
+D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.sourcelink.json
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.dll
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\refint\ToolModData.dll
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.pdb
 D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ref\ToolModData.dll
-D:\Web\二创\插件项目Code\PVZRHTools\ToolModData\obj\Release\net6.0\ToolModData.sourcelink.json
