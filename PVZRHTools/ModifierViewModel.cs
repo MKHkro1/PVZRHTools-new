@@ -278,7 +278,7 @@ public partial class ModifierViewModel : ObservableObject
                 Text = h.Item1
             });
 
-        InGameHotkeys = [];
+        InitInGameHotkeys([]);
     }
 
     public ModifierViewModel(List<HotkeyUIVM> hotkeys) : this()
@@ -527,7 +527,7 @@ public partial class ModifierViewModel : ObservableObject
             hi++;
         }
 
-        InGameHotkeys = [];
+        InitInGameHotkeys([]);
     }
 
     #region Commands
@@ -796,20 +796,29 @@ public partial class ModifierViewModel : ObservableObject
         SyncInGameBuffs();
     }
 
+    private static readonly (string Text, KeyCode DefaultKey)[] InGameHotkeyDefaults =
+    [
+        ("高级时停 TimeStop", KeyCode.Alpha5),
+        ("卡槽栏置顶 TopMostCardBank", KeyCode.Tab),
+        ("显示CD信息 ShowCDInfo", KeyCode.BackQuote),
+        ("图鉴种植：植物 AlmanacCreatePlant", KeyCode.B),
+        ("图鉴种植：僵尸 AlmanacCreateZombie", KeyCode.N),
+        ("图鉴种植：僵尸是否魅惑 AlmanacZombieMindCtrl", KeyCode.LeftControl),
+        ("图鉴种植：植物罐子 AlmanacCreatePlantVase", KeyCode.J),
+        ("图鉴种植：僵尸罐子 AlmanacCreateZombieVase", KeyCode.K),
+        ("随机卡槽 RandomCard", KeyCode.R)
+    ];
+
     public void InitInGameHotkeys(List<int> keycodes)
     {
-        InGameHotkeys =
-        [
-            new InGameHotkeyUIVM(new InGameHotkeyUI("高级时停 TimeStop", (KeyCode)keycodes[0])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("卡槽栏置顶 TopMostCardBank", (KeyCode)keycodes[1])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("显示CD信息 ShowCDInfo", (KeyCode)keycodes[2])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("图鉴种植：植物 AlmanacCreatePlant", (KeyCode)keycodes[3])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("图鉴种植：僵尸 AlmanacCreateZombie", (KeyCode)keycodes[4])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("图鉴种植：僵尸是否魅惑 AlmanacZombieMindCtrl", (KeyCode)keycodes[5])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("图鉴种植：植物罐子 AlmanacCreatePlantVase", (KeyCode)keycodes[6])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("图鉴种植：僵尸罐子 AlmanacCreateZombieVase", (KeyCode)keycodes[7])),
-            new InGameHotkeyUIVM(new InGameHotkeyUI("随机卡槽 RandomCard", (KeyCode)keycodes[8])),
-        ];
+        keycodes ??= [];
+        InGameHotkeys = [];
+        for (var i = 0; i < InGameHotkeyDefaults.Length; i++)
+        {
+            var defaultItem = InGameHotkeyDefaults[i];
+            var resolvedKey = i < keycodes.Count ? (KeyCode)keycodes[i] : defaultItem.DefaultKey;
+            InGameHotkeys.Add(new InGameHotkeyUIVM(new InGameHotkeyUI(defaultItem.Text, resolvedKey)));
+        }
         InGameHotkeys.ListChanged += (_, _) => SyncInGameHotkeys();
     }
 
