@@ -2130,8 +2130,7 @@ public partial class ModifierViewModel : ObservableObject
         ("显示悬浮窗", () => TopMostSprite = !TopMostSprite),
         ("显示修改窗口", () =>
         {
-            MainWindow.Instance!.Topmost = true;
-            MainWindow.Instance!.Topmost = false;
+            MainWindow.Instance!.BringToFront();
         })
     ];
 

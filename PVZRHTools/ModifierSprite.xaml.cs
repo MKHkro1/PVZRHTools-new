@@ -31,8 +31,7 @@ public partial class ModifierSprite : SimplePanel
 
     private void ContentControl_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        MainWindow.Instance!.Topmost = true;
-        MainWindow.Instance!.Topmost = false;
+        MainWindow.Instance!.BringToFront();
         
         // 从悬浮窗打开主窗口时播放激活动画
         WindowAnimations.PlayActivationAnimation(MainWindow.Instance!);

@@ -52,6 +52,8 @@ namespace PVZRHTools
         // Win32 API for window resizing
         private const int WM_NCCALCSIZE = 0x0083;
         private const int WM_NCHITTEST = 0x0084;
+        private const int WM_NCPAINT = 0x0085;
+        private const int WM_NCACTIVATE = 0x0086;
         private const int HTLEFT = 10;
         private const int HTRIGHT = 11;
         private const int HTTOP = 12;
@@ -61,10 +63,27 @@ namespace PVZRHTools
         private const int HTBOTTOMLEFT = 16;
         private const int HTBOTTOMRIGHT = 17;
         private const int HTCLIENT = 1;
-        private const int BORDER_WIDTH = 15;
+        private const int BORDER_WIDTH = 8;
+        private const int SW_RESTORE = 9;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOMOVE = 0x0002;
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_NOOWNERZORDER = 0x0200;
+        private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_FRAMECHANGED = 0x0020;
         
         // 用于跟踪是否是首次激活（避免启动时重复播放动画）
         private bool _isFirstActivation = true;
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy,
+            uint uFlags);
 
         public MainWindow()
         {
@@ -101,6 +120,7 @@ namespace PVZRHTools
             
             // 窗口激活时播放过渡动画（从后台切回前台）
             Activated += MainWindow_Activated;
+            Deactivated += MainWindow_Deactivated;
         }
 
         private void MainWindow_ContentRendered(object? sender, EventArgs e)
@@ -150,6 +170,49 @@ namespace PVZRHTools
             
             // 播放激活过渡动画
             WindowAnimations.PlayActivationAnimation(this);
+            RefreshWindowFrame();
+        }
+
+        private void MainWindow_Deactivated(object? sender, EventArgs e)
+        {
+            RefreshWindowFrame();
+        }
+
+        public void BringToFront()
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                WindowState = WindowState.Normal;
+            }
+
+            Show();
+            Activate();
+            Focus();
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+                RefreshWindowFrame();
+            }
+        }
+
+        private void RefreshWindowFrame()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            // Force immediate non-client frame recalculation to remove transient white strips.
+            SetWindowPos(
+                hwnd,
+                IntPtr.Zero,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE |
+                SWP_FRAMECHANGED);
         }
         
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -1552,6 +1615,20 @@ namespace PVZRHTools
             if (msg == WM_NCCALCSIZE)
             {
                 // Remove system non-client area to avoid the white strip above custom title bar.
+                handled = true;
+                return IntPtr.Zero;
+            }
+
+            if (msg == WM_NCACTIVATE)
+            {
+                // Tell Windows NC area is handled to avoid inactive white border painting.
+                handled = true;
+                return new IntPtr(1);
+            }
+
+            if (msg == WM_NCPAINT)
+            {
+                // Prevent default non-client repaint, which can flash white edges.
                 handled = true;
                 return IntPtr.Zero;
             }
