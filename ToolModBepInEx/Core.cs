@@ -550,15 +550,8 @@ namespace ToolModBepInEx
         public override void Load()
         {
             Console.OutputEncoding = Encoding.UTF8;
-            // 先设置 Instance，避免任何 Harmony Patch 回调中提前访问导致崩溃
+            // 先设置 Instance 与配置项，避免 Harmony 补丁失败时 LateInit 访问未初始化的 Lazy
             Instance = new Lazy<Core>(() => this);
-            ClassInjector.RegisterTypeInIl2Cpp<PatchMgr>();
-            ClassInjector.RegisterTypeInIl2Cpp<DataProcessor>();
-            ClassInjector.RegisterTypeInIl2Cpp<LateInitHelper>();
-            Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
-            if (Time.timeScale == 0) Time.timeScale = 1;
-            // 初始化时不设置 SyncSpeed，让游戏内部的速度调整功能正常工作
-            // SyncSpeed = Time.timeScale; // 注释掉，避免干扰游戏内部速度调整
             Port = new Lazy<ConfigEntry<int>>(Config.Bind("PVZRHTools", "Port", 13531, "修改窗口无法出现时可尝试修改此数值，范围10000~60000"));
             AlmanacZombieMindCtrl =
                 new Lazy<ConfigEntry<bool>>(Config.Bind("PVZRHTools", nameof(AlmanacZombieMindCtrl), false));
@@ -578,23 +571,25 @@ namespace ToolModBepInEx
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreatePlantVase), KeyCode.J));
             KeyAlmanacCreateZombieVase =
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreateZombieVase), KeyCode.K));
-            // 注意：3.4.2版本游戏新增了H键用于悬停植物时打开信息面板
-            // 如果与游戏内置H键功能冲突，用户可以在插件设置中更改此快捷键
             KeyRandomCard =
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyRandomCard), KeyCode.R));
-            // 兼容旧配置：历史默认值为 H，这里迁移为 R，避免与游戏内置 H 键冲突。
             if (KeyRandomCard.Value.Value == KeyCode.H)
             {
                 KeyRandomCard.Value.Value = KeyCode.R;
             }
             ModsHash = new Lazy<ConfigEntry<string>>(Config.Bind("PVZRHTools", nameof(ModsHash), ""));
-
             KeyBindings = new Lazy<List<ConfigEntry<KeyCode>>>([
                 KeyTimeStop.Value, KeyTopMostCardBank.Value, KeyShowGameInfo.Value,
                 KeyAlmanacCreatePlant.Value, KeyAlmanacCreateZombie.Value, KeyAlmanacZombieMindCtrl.Value,
                 KeyAlmanacCreatePlantVase.Value, KeyAlmanacCreateZombieVase.Value,KeyRandomCard.Value
             ]);
             Config.Save();
+
+            ClassInjector.RegisterTypeInIl2Cpp<PatchMgr>();
+            ClassInjector.RegisterTypeInIl2Cpp<DataProcessor>();
+            ClassInjector.RegisterTypeInIl2Cpp<LateInitHelper>();
+            Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
+            if (Time.timeScale == 0) Time.timeScale = 1;
         }
 
         public override bool Unload()

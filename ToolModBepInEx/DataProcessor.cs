@@ -169,11 +169,11 @@ public class DataProcessor : MonoBehaviour
             {
                 TryCaptureSnapshot();
                 _pendingManualSnapshotFrames = 0;
-                try { InGameText.Instance?.ShowText("已保存快照", 2.0f); } catch { }
+                try { GameApiCompat.ShowInGameText("已保存快照", 2.0f); } catch { }
             }
             else if (_pendingManualSnapshotFrames == 0)
             {
-                try { InGameText.Instance?.ShowText("当前关卡尚未初始化完成，快照失败", 2.0f); } catch { }
+                try { GameApiCompat.ShowInGameText("当前关卡尚未初始化完成，快照失败", 2.0f); } catch { }
             }
         }
     }
@@ -655,12 +655,13 @@ public class DataProcessor : MonoBehaviour
             try
             {
                 // 先恢复卡槽内容与顺序
-                if (InGameUI.Instance != null && InGameUI.Instance.cards != null && snap.CardBank != null && snap.CardBank.Count > 0)
+                var inGameCards = GameApiCompat.GetInGameCards(InGameUI.Instance);
+                if (inGameCards.Count > 0 && snap.CardBank != null && snap.CardBank.Count > 0)
                 {
-                    int k = Math.Min(InGameUI.Instance.cards.Count, snap.CardBank.Count);
+                    int k = Math.Min(inGameCards.Count, snap.CardBank.Count);
                     for (int i = 0; i < k; i++)
                     {
-                        var card = InGameUI.Instance.cards[i];
+                        var card = inGameCards[i];
                         var cs = snap.CardBank[i];
                         try
                         {
@@ -739,7 +740,7 @@ public class DataProcessor : MonoBehaviour
                 catch { }
             }
             catch { }
-            InGameText.Instance?.ShowText("已恢复局内存档", 2.0f);
+            GameApiCompat.ShowInGameText("已恢复局内存档", 2.0f);
         }
         catch { }
     }
@@ -925,6 +926,7 @@ public class DataProcessor : MonoBehaviour
             }
             if (p1.GloveNoCD is not null) GloveNoCD = (bool)p1.GloveNoCD;
             if (p1.HammerNoCD is not null) HammerNoCD = (bool)p1.HammerNoCD;
+            if (p1.WheelNoCD is not null) WheelNoCD = (bool)p1.WheelNoCD;
             if (p1.PlantingNoCD is not null && Board.Instance is not null)
             {
                 FreeCD = (bool)p1.PlantingNoCD;
@@ -1505,7 +1507,7 @@ public class DataProcessor : MonoBehaviour
                 catch
                 {
                     if (id is 300)
-                        InGameText.Instance.ShowText("不支持此操作，用豌豆代替", 5);
+                        GameApiCompat.ShowInGameText("不支持此操作，用豌豆代替", 5);
                     else
                         throw;
                 }
@@ -1856,7 +1858,7 @@ all");
                         var zombie = (Zombie)zombies[i];
                         if (zombie == null || !zombie) continue;
                         
-                        zombie.TakeDamage(DmgType.MaxDamage, 2147483647);
+                        zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
                         zombie.BodyTakeDamage(2147483647);
                         zombie.Die();
                     }
@@ -1871,7 +1873,7 @@ all");
                         var zombie = Board.Instance.zombieArray[j];
                         if (zombie == null || !zombie) continue;
                         
-                        zombie.TakeDamage(DmgType.MaxDamage, 2147483647);
+                        zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
                         zombie.BodyTakeDamage(2147483647);
                         zombie.Die();
                     }
@@ -1919,7 +1921,7 @@ all");
             if (iga.ShowText is not null)
                 try
                 {
-                    InGameText.Instance.ShowText(iga.ShowText, 5);
+                    GameApiCompat.ShowInGameText(iga.ShowText, 5);
                 }
                 catch
                 {
@@ -1973,7 +1975,7 @@ all");
                 {
                     // 延后到关卡初始化完成后再保存（最多约3秒）
                     _pendingManualSnapshotFrames = Math.Max(_pendingManualSnapshotFrames, 180);
-                    try { InGameText.Instance?.ShowText("正在初始化，稍后保存快照…", 1.5f); } catch { }
+                    try { GameApiCompat.ShowInGameText("正在初始化，稍后保存快照…", 1.5f); } catch { }
                 }
             }
             if (iga.RestoreLastSnapshot == true)
@@ -1997,16 +1999,16 @@ all");
                 }
                 else
                 {
-                    try { InGameText.Instance?.ShowText("未找到可恢复快照", 2.0f); } catch { }
+                    try { GameApiCompat.ShowInGameText("未找到可恢复快照", 2.0f); } catch { }
                 }
             }
             // 跨会话恢复功能已移除
             // 在保存快照后给出简短提示
-            if (iga.ManualSnapshot == true && InGame() && InGameText.Instance != null)
+            if (iga.ManualSnapshot == true && InGame())
             {
                 try
                 {
-                    InGameText.Instance.ShowText("已保存快照", 2.0f);
+                    GameApiCompat.ShowInGameText("已保存快照", 2.0f);
                 }
                 catch { }
             }

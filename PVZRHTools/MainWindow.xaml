@@ -95,6 +95,10 @@
                                               Content="{DynamicResource Tab1.Page1.UnlockAllFusions}" Height="21"
                                               Margin="10,0,0,0" VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}"
                                               BorderThickness="2,2,2,2" HorizontalAlignment="Left" />
+                                    <CheckBox x:Name="WheelNoCD" IsChecked="{Binding WheelNoCD}"
+                                              Content="{DynamicResource Tab1.Page1.WheelNoCD}" Height="21"
+                                              Margin="10,0,0,0" VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}"
+                                              BorderThickness="2,2,2,2" HorizontalAlignment="Left" />
                                 </WrapPanel>
                                 <WrapPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <CheckBox x:Name="GloveFullCDEnabled" Height="21" Margin="10,0,0,0"

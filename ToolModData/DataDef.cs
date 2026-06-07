@@ -30,6 +30,7 @@ public struct BasicProperties : ISyncData
     public bool? GloveNoCD { get; set; }
     public double? HammerFullCD { get; set; }
     public bool? HammerNoCD { get; set; }
+    public bool? WheelNoCD { get; set; }
     public bool? HardPlant { get; set; }
     public bool? ImmuneForceDeduct { get; set; }
     public bool? CurseImmunity { get; set; }

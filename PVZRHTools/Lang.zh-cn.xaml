@@ -88,6 +88,7 @@
     <s:String x:Key="Tab1.Page1.PlantingNoCD">植物卡槽无CD</s:String>
     <s:String x:Key="Tab1.Page1.FreePlanting">自由种植</s:String>
     <s:String x:Key="Tab1.Page1.UnlockAllFusions">解锁全部融合配方</s:String>
+    <s:String x:Key="Tab1.Page1.WheelNoCD">手推车无CD</s:String>
     <s:String x:Key="Tab1.Page1.LockGloveCD">锁定手套CD</s:String>
     <s:String x:Key="Tab1.Page1.LockHammerCD">锁定锤子CD</s:String>
     <s:String x:Key="Tab1.Page1.NextWaveCD">两波间最大刷怪CD</s:String>

@@ -15,6 +15,7 @@ using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Newtonsoft.Json;
 using TMPro;
+using GameLevel.RogueShooting;
 using ToolModData;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -195,7 +196,6 @@ public static class BoardFlagWaveBuffPatch
             // 注意：即使没有词条（空括号），也要显示字幕（如果有自定义字幕的话）
             try
             {
-                if (InGameText.Instance != null)
                 {
                     string displayText = "";
                     
@@ -250,8 +250,7 @@ public static class BoardFlagWaveBuffPatch
                     
                     if (!string.IsNullOrEmpty(displayText))
                     {
-                        // 显示旗帜波文本
-                        InGameText.Instance.ShowText(displayText, 5);
+                        GameApiCompat.ShowInGameText(displayText, 5);
                     }
                 }
             }
@@ -1093,10 +1092,10 @@ public static class UnlimitedCardOnMouseDownPatch
 }
 
 /// <summary>
-/// 卡片无限制补丁 - InitBoard.RemoveUI
+/// 卡片无限制补丁 - InitBoard.HideSeedBank（3.7 替代原 RemoveUI）
 /// 在退出选卡界面时清除未被选中的复制卡片
 /// </summary>
-[HarmonyPatch(typeof(InitBoard), nameof(InitBoard.RemoveUI))]
+[HarmonyPatch(typeof(InitBoard), "HideSeedBank")]
 public static class UnlimitedCardRemoveUIPatch
 {
     [HarmonyPrefix]
@@ -1704,7 +1703,7 @@ public static class BoardActionCreateFreezePatch
                     // 为非魅惑僵尸添加冻结效果
                     zombie.SetFreeze(4f); // 冻结4秒
                     // 对非魅惑僵尸造成伤害
-                    zombie.TakeDamage(DmgType.Normal, damageAmount, PlantType.Nothing, false);
+                    zombie.ApplyDamage(DamageType.Normal, damageAmount);
                 }
             }
             
@@ -1945,7 +1944,7 @@ public static class GargantuarIgnorePotPatches
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Gargantuar), nameof(Gargantuar.AttackUpdate))]
+    [HarmonyPatch(typeof(Gargantuar), "GargantuarAttackUpdate")]
     public static bool Prefix_GargantuarAttackUpdate(Gargantuar __instance)
     {
         if (!PotSmashingFix) return true;
@@ -2335,7 +2334,7 @@ public static class GameAppPatch
     }
 }
 
-[HarmonyPatch(typeof(Glove), "Update")]
+[HarmonyPatch(typeof(Glove), "OnUpdate")]
 public static class GlovePatchA
 {
     public static void Postfix(Glove __instance)
@@ -2387,21 +2386,21 @@ public static class GridItemPatch
     }
 }
 
-[HarmonyPatch(typeof(HammerMgr), "Update")]
-public static class HammerMgrPatchA
+[HarmonyPatch(typeof(Hammer), "OnUpdate")]
+public static class HammerPatchA
 {
     public static float OriginalFullCD { get; set; }
 
-    public static void Postfix(HammerMgr __instance)
+    public static void Postfix(Hammer __instance)
     {
         try
         {
             if (__instance == null) return;
+            if (OriginalFullCD <= 0 && __instance.fullCD > 0)
+                OriginalFullCD = __instance.fullCD;
             __instance.gameObject.transform.GetChild(0).GetChild(0).gameObject.SetActive(!HammerNoCD);
             if (HammerFullCD > 0)
                 __instance.fullCD = (float)HammerFullCD;
-            else
-                __instance.fullCD = OriginalFullCD;
             if (HammerNoCD) __instance.CD = __instance.fullCD;
             var cdChild = __instance.transform.FindChild("ModifierHammerCD");
             if (cdChild == null) return;
@@ -2420,11 +2419,18 @@ public static class HammerMgrPatchA
     }
 }
 
-[HarmonyPatch(typeof(HammerMgr), "Start")]
-public static class HammerMgrPatchB
+[HarmonyPatch(typeof(Hammer), "Start")]
+public static class HammerPatchB
 {
-    public static void Postfix(HammerMgr __instance)
+    public static void Postfix(Hammer __instance)
     {
+        try
+        {
+            if (__instance != null && __instance.fullCD > 0 && HammerPatchA.OriginalFullCD <= 0)
+                HammerPatchA.OriginalFullCD = __instance.fullCD;
+        }
+        catch { }
+
         GameObject obj = new("ModifierHammerCD");
         var text = obj.AddComponent<TextMeshProUGUI>();
         text.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
@@ -2432,6 +2438,23 @@ public static class HammerMgrPatchB
         obj.transform.SetParent(__instance.GameObject().transform);
         obj.transform.localScale = new Vector3(2f, 2f, 2f);
         obj.transform.localPosition = new Vector3(107, 0, 0);
+    }
+}
+
+[HarmonyPatch(typeof(Wheel), "OnUpdate")]
+public static class WheelPatch
+{
+    public static void Postfix(Wheel __instance)
+    {
+        if (!WheelNoCD) return;
+        try
+        {
+            if (__instance == null) return;
+            __instance.CD = __instance.fullCD;
+            if (__instance.cdMask != null)
+                __instance.cdMask.gameObject.SetActive(false);
+        }
+        catch { }
     }
 }
 
@@ -2489,23 +2512,18 @@ public static class InGameBtnPatch
     }
 }
 
-[HarmonyPatch(typeof(InGameText), "ShowText")]
-public static class InGameTextPatch
+[HarmonyPatch(typeof(PlayerShootingMenu), nameof(PlayerShootingMenu.Refresh))]
+public static class PlayerShootingMenuRefreshPatch
 {
     public static void Postfix()
     {
         try
         {
-            // 使用统一的 TravelMgr 获取方法
-            var travelMgr = ResolveTravelMgr(autoCreate: true);
-            if (travelMgr == null) return;
-            
-            // 3.4.1：不再依赖 TravelMgr 的内部数组，仅在显示文本后尝试同步一次词条状态
             SyncInGameBuffs();
         }
         catch (System.Exception ex)
         {
-            MLogger?.LogError($"[PVZRHTools] InGameTextPatch 异常: {ex.Message}\n{ex.StackTrace}");
+            MLogger?.LogError($"[PVZRHTools] PlayerShootingMenuRefreshPatch 异常: {ex.Message}\n{ex.StackTrace}");
         }
     }
 }
@@ -2514,8 +2532,8 @@ public static class InGameTextPatch
 public static class InitBoardPatch
 {
     [HarmonyPrefix]
-    [HarmonyPatch("ReadySetPlant")]
-    public static void PreReadySetPlant()
+    [HarmonyPatch("ShowBottom")]
+    public static void PreShowBottom()
     {
         if (CardNoInit)
             if (SeedGroup is not null)
@@ -2527,8 +2545,8 @@ public static class InitBoardPatch
                         card.GetChild(0).gameObject.GetComponent<CardUI>().fullCD;
                 }
 
-        HammerMgrPatchA.OriginalFullCD =
-            Object.FindObjectsOfTypeAll(Il2CppType.Of<HammerMgr>())[0].Cast<HammerMgr>().fullCD;
+        if (Hammer.Instance != null)
+            HammerPatchA.OriginalFullCD = Hammer.Instance.fullCD;
     }
 
     [HarmonyPrefix]
@@ -2699,20 +2717,17 @@ public static class PlantDiePatch
 /// 诅咒免疫补丁 - UltimateHorse.GetDamage
 /// 阻止终极马僵尸的诅咒效果
 /// </summary>
-[HarmonyPatch(typeof(UltimateHorse), nameof(UltimateHorse.GetDamage))]
+[HarmonyPatch(typeof(UltimateHorse), nameof(UltimateHorse.GetDamage), new Type[] { typeof(int), typeof(DamageType), typeof(bool), typeof(PlantType) })]
 public static class UltimateHorseGetDamagePatch
 {
     [HarmonyPrefix]
-    public static bool Prefix(UltimateHorse __instance, ref int theDamage)
+    public static bool Prefix(UltimateHorse __instance)
     {
         if (!CurseImmunity) return true;
         try
         {
-            // 如果诅咒免疫激活，清空诅咒植物列表
-            if (__instance != null && __instance.cursedPlants != null && __instance.cursedPlants.Count > 0)
-            {
-                __instance.cursedPlants.Clear();
-            }
+            if (__instance != null)
+                GameApiCompat.ClearCursedPlants(__instance);
         }
         catch { }
         return true;
@@ -2720,22 +2735,28 @@ public static class UltimateHorseGetDamagePatch
 }
 
 /// <summary>
-/// 诅咒免疫补丁 - SuperLadderZombie.GetDamage
-/// 阻止超级梯子僵尸的诅咒效果
+/// 诅咒免疫补丁 - SuperLadderZombie（3.7 已移除 GetDamage 重写，改挂 Zombie.GetDamage）
+/// 有梯子时跳过诅咒相关伤害计算
 /// </summary>
-[HarmonyPatch(typeof(SuperLadderZombie), nameof(SuperLadderZombie.GetDamage))]
+[HarmonyPatch(typeof(Zombie), nameof(Zombie.GetDamage), new Type[] { typeof(int), typeof(DamageType), typeof(bool), typeof(PlantType) })]
 public static class SuperLadderZombieGetDamagePatch
 {
+    private static System.Reflection.FieldInfo? _ladderField;
+
     [HarmonyPrefix]
-    public static bool Prefix(SuperLadderZombie __instance, ref int theDamage)
+    public static bool Prefix(Zombie __instance, int theDamage, ref int __result)
     {
         if (!CurseImmunity) return true;
         try
         {
-            // 如果诅咒免疫激活且有梯子，阻止诅咒效果
-            if (__instance != null && __instance.ladder != null)
+            if (__instance is not SuperLadderZombie) return true;
+
+            _ladderField ??= typeof(SuperLadderZombie).GetField("ladder",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            if (_ladderField?.GetValue(__instance) != null)
             {
-                return false; // 阻止原方法执行
+                __result = theDamage;
+                return false;
             }
         }
         catch { }
@@ -2744,17 +2765,17 @@ public static class SuperLadderZombieGetDamagePatch
 }
 
 /// <summary>
-/// 诅咒免疫补丁 - Zombie.TakeDamage (4参数版本)
+/// 诅咒免疫补丁 - Zombie.TakeDamage (3.7 五参数版本)
 /// 通用诅咒免疫，清除僵尸的诅咒植物列表
 /// 同时处理僵尸限伤200功能和击杀升级功能
 /// </summary>
-[HarmonyPatch(typeof(Zombie), nameof(Zombie.TakeDamage), new Type[] { typeof(DmgType), typeof(int), typeof(PlantType), typeof(bool) })]
+[HarmonyPatch(typeof(Zombie), nameof(Zombie.TakeDamage), new Type[] { typeof(int), typeof(IDamageMaker), typeof(DamageType), typeof(PlantType), typeof(bool) })]
 public static class ZombieTakeDamageCursePatch
 {
     private static System.Reflection.FieldInfo? _cachedCursedPlantsField = null;
     
     [HarmonyPrefix]
-    public static bool Prefix(Zombie __instance, DmgType theDamageType, ref int theDamage, PlantType reportType, bool fix)
+    public static bool Prefix(Zombie __instance, ref int theDamage, IDamageMaker damageFrom, DamageType theDamageType, PlantType reportType, bool fix)
     {
         // 僵尸限伤功能 - 限制每次伤害最多为设定值
         if (ZombieDamageLimit200 && ZombieDamageLimitValue > 0 && theDamage > ZombieDamageLimitValue)
@@ -3229,42 +3250,15 @@ public static class TypeMgrUncrashablePlantPatch
     }
 }
 
-/// <summary>
-/// 踩踏免疫补丁 - Zombie.OnTriggerStay2D
-/// 作为备用保护，阻止驾驶类僵尸（如冰车）对植物的踩踏伤害
-/// 主要保护逻辑在 TypeMgrUncrashablePlantPatch 中实现
-/// </summary>
+// 3.7：Zombie 基类不再有 OnTriggerStay2D，踩踏免疫由 TypeMgrUncrashablePlantPatch 处理。
+#if false
 [HarmonyPatch(typeof(Zombie), nameof(Zombie.OnTriggerStay2D))]
 public static class ZombieOnTriggerStay2DTramplePatch
 {
     [HarmonyPrefix]
-    public static bool Prefix(Collider2D collision, Zombie __instance)
-    {
-        if (!TrampleImmunity) return true;
-        
-        try
-        {
-            if (__instance == null || collision == null)
-                return true;
-            
-            // 获取碰撞的植物
-            Plant plant = collision.GetComponent<Plant>();
-            if (plant == null)
-                return true;
-            
-            // 检查是否是驾驶类僵尸或巨人僵尸
-            if (plant.thePlantRow == __instance.theZombieRow && 
-                (TypeMgr.IsDriverZombie(__instance.theZombieType) || TypeMgr.IsGargantuar(__instance.theZombieType)))
-            {
-                // 阻止踩踏伤害，但让僵尸继续移动
-                return false;
-            }
-        }
-        catch { }
-        
-        return true;
-    }
+    public static bool Prefix(Collider2D collision, Zombie __instance) => true;
 }
+#endif
 
 #endregion
 
@@ -4204,13 +4198,86 @@ public static class TravelStoreUpdatePatch
 
 }
 
-[HarmonyPatch(typeof(ShootingMenu), nameof(ShootingMenu.Refresh))]
+[HarmonyPatch(typeof(PlayerShootingMenu), nameof(PlayerShootingMenu.Refresh))]
 public static class ShootingMenuPatch
 {
-    [HarmonyPostfix]
-    public static void Postfix()
+    private static System.Reflection.FieldInfo? _playerField;
+
+    [HarmonyPrefix]
+    public static void Prefix(PlayerShootingMenu __instance)
     {
-        if (UnlimitedRefresh || BuffRefreshNoLimit) ShootingManager.Instance.refreshCount = 2147483647;
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        try
+        {
+            _playerField ??= typeof(PlayerShootingMenu).GetField("player",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (_playerField?.GetValue(__instance) is Player player)
+                player.refreshCount = 9999999;
+            if (ShootingManager.Instance != null)
+                ShootingManager.Instance.refreshCount = int.MaxValue;
+        }
+        catch { }
+    }
+
+    [HarmonyPostfix]
+    public static void Postfix(PlayerShootingMenu __instance)
+    {
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        try
+        {
+            _playerField ??= typeof(PlayerShootingMenu).GetField("player",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (_playerField?.GetValue(__instance) is Player player)
+                player.refreshCount = 9999999;
+            if (ShootingManager.Instance != null)
+                ShootingManager.Instance.refreshCount = int.MaxValue;
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 诸神：进化等模式使用 MultipleChoiceMenu 刷新，3.7 需单独补丁
+/// </summary>
+[HarmonyPatch(typeof(MultipleChoiceMenu))]
+public static class MultipleChoiceMenuRefreshPatch
+{
+    private static System.Reflection.FieldInfo? _refreshCountField;
+
+    [HarmonyPrefix]
+    [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
+    public static void PrefixSetRefreshable(ref int refreshCount)
+    {
+        if (UnlimitedRefresh || BuffRefreshNoLimit)
+            refreshCount = 9999999;
+    }
+
+    [HarmonyPrefix]
+    [HarmonyPatch("Refresh")]
+    public static void PrefixRefresh(MultipleChoiceMenu __instance)
+    {
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        try
+        {
+            _refreshCountField ??= typeof(MultipleChoiceMenu).GetField("refreshCount",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            _refreshCountField?.SetValue(__instance, 9999999);
+        }
+        catch { }
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch("Refresh")]
+    public static void PostfixRefresh(MultipleChoiceMenu __instance)
+    {
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        try
+        {
+            _refreshCountField ??= typeof(MultipleChoiceMenu).GetField("refreshCount",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            _refreshCountField?.SetValue(__instance, 9999999);
+        }
+        catch { }
     }
 }
 [HarmonyPatch(typeof(FruitNinjaManager),nameof(FruitNinjaManager.LoseScore))]
@@ -4272,7 +4339,7 @@ public static class UIMgrPatch
         obj1.transform.SetParent(GameObject.Find("Leaves").transform);
         obj1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
         obj1.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
-        obj1.transform.localPosition = new Vector3(-345.5f, -70f, 0);
+        obj1.transform.localPosition = new Vector3(-345.5f, 0f, 0);
         
         /*GameObject obj2 = new("UpgradeInfo");
         var text2 = obj2.AddComponent<TextMeshProUGUI>();
@@ -4895,7 +4962,7 @@ public static class ZombieImmuneEmberedBulletDoomUltiActionPatch
             if (damage <= 0) damage = 1;
             PlantType fromType = __instance.fromType;
 
-            zombie.TakeDamage(DmgType.Normal, damage, fromType, false);
+            zombie.ApplyDamage(DamageType.Normal, damage);
             return false; // 阻止原方法，避免余烬/状态附加
         }
         catch { return true; }
@@ -4936,7 +5003,7 @@ public static class ZombieImmuneEmberedBulletDoomUltiAttackPatch
                                                  new UnityEngine.Vector2(zp.x, zp.y)) > range)
                     continue;
 
-                z.TakeDamage(DmgType.Normal, damage, fromType, false);
+                z.ApplyDamage(DamageType.Normal, damage);
             }
 
             return false; // 阻止原方法
@@ -5020,6 +5087,7 @@ public class PatchMgr : MonoBehaviour
     public static bool GloveNoCD { get; set; } = false;
     public static double HammerFullCD { get; set; } = 0;
     public static bool HammerNoCD { get; set; } = false;
+    public static bool WheelNoCD { get; set; } = false;
     public static bool HardPlant { get; set; } = false;
     public static bool ImmuneForceDeduct { get; set; } = false;
     public static bool CurseImmunity { get; set; } = false;
@@ -6086,12 +6154,13 @@ public class PatchMgr : MonoBehaviour
             Il2CppSystem.Collections.Generic.List<PlantType> randomPlant = GameAPP.resourcesManager.allPlants;
             if (InGameUI.Instance && randomPlant != null && randomPlant.Count != 0)
             {
-                for (int i = 0; i < InGameUI.Instance.cards.Count; i++)
+                var inGameCards = GameApiCompat.GetInGameCards(InGameUI.Instance);
+                for (int i = 0; i < inGameCards.Count; i++)
                 {
                     try
                     {
                         var index = Random.RandomRangeInt(0, randomPlant.Count);
-                        var card = InGameUI.Instance.cards[i];
+                        var card = inGameCards[i];
                         card.thePlantType = randomPlant[index];
                         card.ChangeCardSprite();
                         card.theSeedCost = 0;
@@ -6886,9 +6955,7 @@ public class PatchMgr : MonoBehaviour
                         continue; // 未知ID，跳过
 
                     var adv = (AdvBuff)id;
-                    bool unlocked =
-                        (data.advBuffs != null && data.advBuffs.Contains(adv)) ||
-                        (data.advBuffs_lv2 != null && data.advBuffs_lv2.Contains(adv));
+                    bool unlocked = data.advBuffs != null && data.advBuffs.Contains(adv);
 
                     // 上一次期望状态，用于判断是否从 true -> false
                     bool lastDesired = false;
@@ -6917,7 +6984,6 @@ public class PatchMgr : MonoBehaviour
                         try
                         {
                             data.advBuffs?.Remove(adv);
-                            data.advBuffs_lv2?.Remove(adv);
                             MLogger?.LogInfo($"[PVZRHTools] UpdateInGameBuffs: 关闭高级词条 {adv} (id={id})，已从当前局移除");
                         }
                         catch (System.Exception ex)

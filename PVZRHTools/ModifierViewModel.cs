@@ -358,6 +358,7 @@ public partial class ModifierViewModel : ObservableObject
         GarlicDay = s.GarlicDay;
         GloveNoCD = s.GloveNoCD;
         HammerNoCD = s.HammerNoCD;
+        WheelNoCD = s.WheelNoCD;
         HardPlant = s.HardPlant;
         ImmuneForceDeduct = s.ImmuneForceDeduct;
         CurseImmunity = s.CurseImmunity;
@@ -408,6 +409,7 @@ public partial class ModifierViewModel : ObservableObject
         UndeadBullet = s.UndeadBullet;
         OldObsidianBullet = s.OldObsidianBullet;
         UnlockAllFusions = s.UnlockAllFusions;
+        WheelNoCD = s.WheelNoCD;
         VasesFieldString = s.VasesFieldString;
         ZombieFieldString = s.ZombieFieldString;
         ZombieSeaCD = s.ZombieSeaCD;
@@ -1009,6 +1011,7 @@ public partial class ModifierViewModel : ObservableObject
             GarlicDay = GarlicDay,
             GloveNoCD = GloveNoCD,
             HammerNoCD = HammerNoCD,
+            WheelNoCD = WheelNoCD,
             HardPlant = HardPlant,
             ImmuneForceDeduct = ImmuneForceDeduct,
             CurseImmunity = CurseImmunity,
@@ -1189,6 +1192,7 @@ public partial class ModifierViewModel : ObservableObject
                 GarlicDay = GarlicDay,
                 GloveNoCD = GloveNoCD,
                 HammerNoCD = HammerNoCD,
+            WheelNoCD = WheelNoCD,
                 HardPlant = HardPlant,
                 ImmuneForceDeduct = ImmuneForceDeduct,
                 CurseImmunity = CurseImmunity,
@@ -1627,6 +1631,11 @@ public partial class ModifierViewModel : ObservableObject
     partial void OnHammerNoCDChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { HammerNoCD = value });
+    }
+
+    partial void OnWheelNoCDChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { WheelNoCD = value });
     }
 
     partial void OnHardPlantChanged(bool value)
@@ -2252,6 +2261,8 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool HammerFullCDEnabled { get; set; }
 
     [ObservableProperty] public partial bool HammerNoCD { get; set; }
+
+    [ObservableProperty] public partial bool WheelNoCD { get; set; }
 
     [ObservableProperty] public partial bool HardPlant { get; set; }
 

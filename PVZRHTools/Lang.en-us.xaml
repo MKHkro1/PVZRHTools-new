@@ -98,6 +98,7 @@
     <s:String x:Key="Tab1.Page1.PlantingNoCD">PlantingNoCD</s:String>
     <s:String x:Key="Tab1.Page1.FreePlanting">FreePlanting</s:String>
     <s:String x:Key="Tab1.Page1.UnlockAllFusions">UnlockAllFusions</s:String>
+    <s:String x:Key="Tab1.Page1.WheelNoCD">WheelNoCD</s:String>
     <s:String x:Key="Tab1.Page1.LockGloveCD">LockGloveCD</s:String>
     <s:String x:Key="Tab1.Page1.LockHammerCD">LockHammerCD</s:String>
     <s:String x:Key="Tab1.Page1.NextWaveCD">NextWaveCD</s:String>

@@ -39,6 +39,7 @@ public struct ModifierSaveModel
     public double HammerFullCD { get; set; }
     public bool HammerFullCDEnabled { get; set; }
     public bool HammerNoCD { get; set; }
+    public bool WheelNoCD { get; set; }
     public bool HardPlant { get; set; }
     public bool ImmuneForceDeduct { get; set; }
     public bool CurseImmunity { get; set; }
