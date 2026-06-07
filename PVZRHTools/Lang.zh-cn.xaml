@@ -279,6 +279,8 @@
     <s:String x:Key="Tab2.Page2.UnlimitedRefresh">无限刷新</s:String>
     <s:String x:Key="Tab2.Page2.UnlimitedScore">无限积分</s:String>
     <s:String x:Key="Tab2.Page1.VaseLineUp">罐子布阵：</s:String>
+    <s:String x:Key="Tab0.CancelGameLose">取消游戏失败</s:String>
+    <s:String x:Key="Tab0.CancelGameLose.Tooltip">游戏失败时按下：关闭失败界面、秒杀场上僵尸并继续游玩</s:String>
     <s:String x:Key="Tab0.AbyssCheat">深渊作弊</s:String>
     <s:String x:Key="Tab0.LoadCustomPlantData">加载自定义植物数值表</s:String>
     <s:String x:Key="Tab0.LoadCustomPlantData.Tooltip">由于代码限制，无法保证所有条目均能生效</s:String>

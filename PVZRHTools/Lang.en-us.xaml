@@ -278,6 +278,8 @@
     <s:String x:Key="Tab2.Page2.UnlimitedRefresh">UnlimitedRefresh</s:String>
     <s:String x:Key="Tab2.Page2.UnlimitedScore">UnlimitedScore</s:String>
     <s:String x:Key="Tab2.Page1.VaseLineUp">VaseLineUp</s:String>
+    <s:String x:Key="Tab0.CancelGameLose">Cancel Game Lose</s:String>
+    <s:String x:Key="Tab0.CancelGameLose.Tooltip">When game is lost: close lose screen, kill all zombies and continue playing</s:String>
     <s:String x:Key="Tab0.AbyssCheat">AbyssCheat</s:String>
     <s:String x:Key="Tab0.LoadCustomPlantData">LoadCustomPlantData</s:String>
     <s:String x:Key="Tab0.LoadCustomPlantData.Tooltip">Due to code limits, some settings may not be effective.</s:String>

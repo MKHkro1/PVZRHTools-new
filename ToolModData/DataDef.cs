@@ -220,6 +220,8 @@ public struct InGameActions : ISyncData
     public bool? MindControlAllZombies { get; set; }
     public bool? NextWave { get; set; }
     public bool? NoFail { get; set; }
+    /// <summary>取消游戏失败：关闭失败界面、秒杀僵尸并继续游玩</summary>
+    public bool? CancelGameLose { get; set; }
     public int? PlantType { get; set; }
     public bool? PlantVase { get; set; }
     public bool? ReadField { get; set; }

@@ -1850,38 +1850,10 @@ all");
             }
 
             if (iga.ClearAllZombies is not null)
-            {
-                Il2CppReferenceArray<Object> zombies = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>());
-                for (var i = zombies.Count - 1; i >= 0; i--)
-                {
-                    try
-                    {
-                        var zombie = (Zombie)zombies[i];
-                        if (zombie == null || !zombie) continue;
-                        
-                        zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
-                        zombie.BodyTakeDamage(2147483647);
-                        zombie.Die();
-                    }
-                    catch 
-                    {
-                    }
-                }
+                KillAllZombiesOnBoard();
 
-                for (var j = Board.Instance.zombieArray.Count - 1; j >= 0; j--)
-                    try
-                    {
-                        var zombie = Board.Instance.zombieArray[j];
-                        if (zombie == null || !zombie) continue;
-                        
-                        zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
-                        zombie.BodyTakeDamage(2147483647);
-                        zombie.Die();
-                    }
-                    catch
-                    {
-                    }
-            }
+            if (iga.CancelGameLose is not null)
+                TryCancelGameLose();
 
             if (iga.ClearAllHoles is not null)
             {
@@ -2860,6 +2832,84 @@ all");
         }
 
         return Math.Max(maxId + 1, fallbackCount);
+    }
+
+    private static void KillAllZombiesOnBoard()
+    {
+        if (Board.Instance == null) return;
+
+        Il2CppReferenceArray<Object> zombies = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>());
+        for (var i = zombies.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                var zombie = (Zombie)zombies[i];
+                if (zombie == null || !zombie) continue;
+
+                zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
+                zombie.BodyTakeDamage(2147483647);
+                zombie.Die();
+            }
+            catch
+            {
+            }
+        }
+
+        for (var j = Board.Instance.zombieArray.Count - 1; j >= 0; j--)
+            try
+            {
+                var zombie = Board.Instance.zombieArray[j];
+                if (zombie == null || !zombie) continue;
+
+                zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
+                zombie.BodyTakeDamage(2147483647);
+                zombie.Die();
+            }
+            catch
+            {
+            }
+    }
+
+    private static bool TryCancelGameLose()
+    {
+        if (Board.Instance == null)
+        {
+            try { GameApiCompat.ShowInGameText("当前未在游戏中", 2.0f); } catch { }
+            return false;
+        }
+
+        var loseMenuObj = GameObject.Find("LoseMenu(Clone)");
+        var inPause = GameAPP.theGameStatus == GameStatus.Pause;
+        var boardOver = Board.Instance.over;
+        if (loseMenuObj == null && !inPause && !boardOver)
+        {
+            try { GameApiCompat.ShowInGameText("当前未处于失败状态", 2.0f); } catch { }
+            return false;
+        }
+
+        try { UIMgr.BackToGame(); } catch { }
+
+        loseMenuObj = GameObject.Find("LoseMenu(Clone)");
+        if (loseMenuObj != null)
+        {
+            try
+            {
+                loseMenuObj.GetComponent<LoseMenu>()?.PopMenu();
+                Object.Destroy(loseMenuObj);
+            }
+            catch { }
+        }
+
+        Board.Instance.over = false;
+        GameAPP.theGameStatus = GameStatus.InGame;
+
+        if (Time.timeScale == 0f)
+            Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
+
+        KillAllZombiesOnBoard();
+
+        try { GameApiCompat.ShowInGameText("已取消失败，继续游戏", 2.0f); } catch { }
+        return true;
     }
 
     protected static void EnableAll<T>(bool enabled) where T : Component

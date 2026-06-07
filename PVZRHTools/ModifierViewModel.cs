@@ -855,6 +855,12 @@ public partial class ModifierViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void CancelGameLose()
+    {
+        App.DataSync.Value.SendData(new InGameActions { CancelGameLose = true });
+    }
+
+    [RelayCommand]
     public void LevelName()
     {
         App.DataSync.Value.SendData(new InGameActions { ChangeLevelName = NewLevelName });
@@ -2182,6 +2188,7 @@ public partial class ModifierViewModel : ObservableObject
         ("生成下一波僵尸", NextWave),
         ("暂停出怪", () => StopSummon = !StopSummon),
         ("僵尸进家不死", () => NoFail = !NoFail),
+        ("取消游戏失败", CancelGameLose),
         ("启动所有小推车", StartMower),
         ("生成小推车", CreateMower),
         ("修改关卡名称", LevelName),
