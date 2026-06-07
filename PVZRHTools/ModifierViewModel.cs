@@ -430,6 +430,30 @@ public partial class ModifierViewModel : ObservableObject
         PvEBlindBoxZombie4 = s.PvEBlindBoxZombie4;
         PvEBlindBoxZombie5 = s.PvEBlindBoxZombie5;
         PvEBlindBoxZombie6 = s.PvEBlindBoxZombie6;
+        GodEvolutionUnlimitedRefresh = s.GodEvolutionUnlimitedRefresh;
+        GodEvolutionFreeUpgradeQuality = s.GodEvolutionFreeUpgradeQuality;
+        GodEvolutionLuckyEnabled = s.GodEvolutionLuckyEnabled;
+        GodEvolutionLucky = s.GodEvolutionLucky;
+        GodEvolutionDifficultyEnabled = s.GodEvolutionDifficultyEnabled;
+        GodEvolutionDifficulty = s.GodEvolutionDifficulty;
+        GodEvolutionRefreshCountEnabled = s.GodEvolutionRefreshCountEnabled;
+        GodEvolutionRefreshCount = s.GodEvolutionRefreshCount;
+        GodEvolutionMaxPlantCountEnabled = s.GodEvolutionMaxPlantCountEnabled;
+        GodEvolutionMaxPlantCount = s.GodEvolutionMaxPlantCount;
+        GodEvolutionOptionCountEnabled = s.GodEvolutionOptionCountEnabled;
+        GodEvolutionOptionCount = s.GodEvolutionOptionCount;
+        GodEvolutionUpgradeBuffChanceEnabled = s.GodEvolutionUpgradeBuffChanceEnabled;
+        GodEvolutionUpgradeBuffChance = s.GodEvolutionUpgradeBuffChance;
+        GodEvolutionSuperUpgrade = s.GodEvolutionSuperUpgrade;
+        GodEvolutionForceSuperQuality = s.GodEvolutionForceSuperQuality;
+        GodEvolutionUncrashable = s.GodEvolutionUncrashable;
+        GodEvolutionQualityWeightEnabled = s.GodEvolutionQualityWeightEnabled;
+        GodEvolutionQualityDefault = s.GodEvolutionQualityDefault;
+        GodEvolutionQualitySilver = s.GodEvolutionQualitySilver;
+        GodEvolutionQualityGold = s.GodEvolutionQualityGold;
+        GodEvolutionQualityDiamond = s.GodEvolutionQualityDiamond;
+        GodEvolutionDamageMultiplierEnabled = s.GodEvolutionDamageMultiplierEnabled;
+        GodEvolutionDamageMultiplier = s.GodEvolutionDamageMultiplier;
         var bi = 0;
         foreach (var b in App.InitData.Value.AdvBuffs)
         {
@@ -1081,6 +1105,31 @@ public partial class ModifierViewModel : ObservableObject
             PvEBlindBoxZombie3 = PvEBlindBoxZombie3,
             PvEBlindBoxZombie4 = PvEBlindBoxZombie4,
             PvEBlindBoxZombie5 = PvEBlindBoxZombie5,
+            PvEBlindBoxZombie6 = PvEBlindBoxZombie6,
+            GodEvolutionUnlimitedRefresh = GodEvolutionUnlimitedRefresh,
+            GodEvolutionFreeUpgradeQuality = GodEvolutionFreeUpgradeQuality,
+            GodEvolutionLuckyEnabled = GodEvolutionLuckyEnabled,
+            GodEvolutionLucky = GodEvolutionLucky,
+            GodEvolutionDifficultyEnabled = GodEvolutionDifficultyEnabled,
+            GodEvolutionDifficulty = GodEvolutionDifficulty,
+            GodEvolutionRefreshCountEnabled = GodEvolutionRefreshCountEnabled,
+            GodEvolutionRefreshCount = GodEvolutionRefreshCount,
+            GodEvolutionMaxPlantCountEnabled = GodEvolutionMaxPlantCountEnabled,
+            GodEvolutionMaxPlantCount = GodEvolutionMaxPlantCount,
+            GodEvolutionOptionCountEnabled = GodEvolutionOptionCountEnabled,
+            GodEvolutionOptionCount = GodEvolutionOptionCount,
+            GodEvolutionUpgradeBuffChanceEnabled = GodEvolutionUpgradeBuffChanceEnabled,
+            GodEvolutionUpgradeBuffChance = GodEvolutionUpgradeBuffChance,
+            GodEvolutionSuperUpgrade = GodEvolutionSuperUpgrade,
+            GodEvolutionForceSuperQuality = GodEvolutionForceSuperQuality,
+            GodEvolutionUncrashable = GodEvolutionUncrashable,
+            GodEvolutionQualityWeightEnabled = GodEvolutionQualityWeightEnabled,
+            GodEvolutionQualityDefault = GodEvolutionQualityDefault,
+            GodEvolutionQualitySilver = GodEvolutionQualitySilver,
+            GodEvolutionQualityGold = GodEvolutionQualityGold,
+            GodEvolutionQualityDiamond = GodEvolutionQualityDiamond,
+            GodEvolutionDamageMultiplierEnabled = GodEvolutionDamageMultiplierEnabled,
+            GodEvolutionDamageMultiplier = GodEvolutionDamageMultiplier,
         };
         if (ZombieSeaTypes.Count > 0) s.ZombieSeaTypes.AddRange(from zst in ZombieSeaTypes select zst.Key);
 
@@ -1238,6 +1287,7 @@ public partial class ModifierViewModel : ObservableObject
         };
 
         App.DataSync.Value.SendData(syncAll);
+        SyncGodEvolution();
     }
 
     /// <summary>
@@ -2620,6 +2670,123 @@ public partial class ModifierViewModel : ObservableObject
     /// 音效ID（用于检索分区播放音效）
     /// </summary>
     [ObservableProperty] public partial string SoundId { get; set; } = "";
+
+    // 诸神：进化
+    [ObservableProperty] public partial bool GodEvolutionUnlimitedRefresh { get; set; }
+    [ObservableProperty] public partial bool GodEvolutionFreeUpgradeQuality { get; set; }
+    [ObservableProperty] public partial bool GodEvolutionLuckyEnabled { get; set; }
+    [ObservableProperty] public partial float GodEvolutionLucky { get; set; } = 1f;
+    [ObservableProperty] public partial bool GodEvolutionDifficultyEnabled { get; set; }
+    [ObservableProperty] public partial int GodEvolutionDifficulty { get; set; }
+    [ObservableProperty] public partial bool GodEvolutionRefreshCountEnabled { get; set; }
+    [ObservableProperty] public partial int GodEvolutionRefreshCount { get; set; } = 9999999;
+    [ObservableProperty] public partial bool GodEvolutionMaxPlantCountEnabled { get; set; }
+    [ObservableProperty] public partial int GodEvolutionMaxPlantCount { get; set; } = 99;
+    [ObservableProperty] public partial bool GodEvolutionOptionCountEnabled { get; set; }
+    [ObservableProperty] public partial int GodEvolutionOptionCount { get; set; } = 3;
+    [ObservableProperty] public partial bool GodEvolutionUpgradeBuffChanceEnabled { get; set; }
+    [ObservableProperty] public partial int GodEvolutionUpgradeBuffChance { get; set; } = 100;
+    [ObservableProperty] public partial bool GodEvolutionSuperUpgrade { get; set; }
+    [ObservableProperty] public partial bool GodEvolutionForceSuperQuality { get; set; }
+    [ObservableProperty] public partial bool GodEvolutionUncrashable { get; set; }
+    [ObservableProperty] public partial bool GodEvolutionQualityWeightEnabled { get; set; }
+    [ObservableProperty] public partial float GodEvolutionQualityDefault { get; set; } = 1f;
+    [ObservableProperty] public partial float GodEvolutionQualitySilver { get; set; } = 1f;
+    [ObservableProperty] public partial float GodEvolutionQualityGold { get; set; } = 1f;
+    [ObservableProperty] public partial float GodEvolutionQualityDiamond { get; set; } = 1f;
+    [ObservableProperty] public partial bool GodEvolutionDamageMultiplierEnabled { get; set; }
+    [ObservableProperty] public partial float GodEvolutionDamageMultiplier { get; set; } = 1f;
+
+    private GodEvolutionProperties BuildGodEvolutionProperties(bool applyNow = false) => new()
+    {
+        UnlimitedRefresh = GodEvolutionUnlimitedRefresh,
+        FreeUpgradeQuality = GodEvolutionFreeUpgradeQuality,
+        LuckyEnabled = GodEvolutionLuckyEnabled,
+        Lucky = GodEvolutionLucky,
+        DifficultyEnabled = GodEvolutionDifficultyEnabled,
+        Difficulty = GodEvolutionDifficulty,
+        RefreshCountEnabled = GodEvolutionRefreshCountEnabled,
+        RefreshCount = GodEvolutionRefreshCount,
+        MaxPlantCountEnabled = GodEvolutionMaxPlantCountEnabled,
+        MaxPlantCount = GodEvolutionMaxPlantCount,
+        OptionCountEnabled = GodEvolutionOptionCountEnabled,
+        OptionCount = GodEvolutionOptionCount,
+        UpgradeBuffChanceEnabled = GodEvolutionUpgradeBuffChanceEnabled,
+        UpgradeBuffChance = GodEvolutionUpgradeBuffChance,
+        SuperUpgrade = GodEvolutionSuperUpgrade,
+        ForceSuperQuality = GodEvolutionForceSuperQuality,
+        Uncrashable = GodEvolutionUncrashable,
+        QualityWeightEnabled = GodEvolutionQualityWeightEnabled,
+        QualityDefault = GodEvolutionQualityDefault,
+        QualitySilver = GodEvolutionQualitySilver,
+        QualityGold = GodEvolutionQualityGold,
+        QualityDiamond = GodEvolutionQualityDiamond,
+        DamageMultiplierEnabled = GodEvolutionDamageMultiplierEnabled,
+        DamageMultiplier = GodEvolutionDamageMultiplier,
+        ApplyNow = applyNow
+    };
+
+    private void SyncGodEvolution() =>
+        App.DataSync.Value.SendData(BuildGodEvolutionProperties());
+
+    [RelayCommand]
+    public void ApplyGodEvolutionNow() =>
+        App.DataSync.Value.SendData(BuildGodEvolutionProperties(applyNow: true));
+
+    [RelayCommand]
+    public void ResetGodEvolutionDefaults()
+    {
+        GodEvolutionUnlimitedRefresh = false;
+        GodEvolutionFreeUpgradeQuality = false;
+        GodEvolutionLuckyEnabled = false;
+        GodEvolutionLucky = 1f;
+        GodEvolutionDifficultyEnabled = false;
+        GodEvolutionDifficulty = 0;
+        GodEvolutionRefreshCountEnabled = false;
+        GodEvolutionRefreshCount = 9999999;
+        GodEvolutionMaxPlantCountEnabled = false;
+        GodEvolutionMaxPlantCount = 99;
+        GodEvolutionOptionCountEnabled = false;
+        GodEvolutionOptionCount = 3;
+        GodEvolutionUpgradeBuffChanceEnabled = false;
+        GodEvolutionUpgradeBuffChance = 100;
+        GodEvolutionSuperUpgrade = false;
+        GodEvolutionForceSuperQuality = false;
+        GodEvolutionUncrashable = false;
+        GodEvolutionQualityWeightEnabled = false;
+        GodEvolutionQualityDefault = 1f;
+        GodEvolutionQualitySilver = 1f;
+        GodEvolutionQualityGold = 1f;
+        GodEvolutionQualityDiamond = 1f;
+        GodEvolutionDamageMultiplierEnabled = false;
+        GodEvolutionDamageMultiplier = 1f;
+        SyncGodEvolution();
+    }
+
+    partial void OnGodEvolutionUnlimitedRefreshChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionFreeUpgradeQualityChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionLuckyEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionLuckyChanged(float value) => SyncGodEvolution();
+    partial void OnGodEvolutionDifficultyEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionDifficultyChanged(int value) => SyncGodEvolution();
+    partial void OnGodEvolutionRefreshCountEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionRefreshCountChanged(int value) => SyncGodEvolution();
+    partial void OnGodEvolutionMaxPlantCountEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionMaxPlantCountChanged(int value) => SyncGodEvolution();
+    partial void OnGodEvolutionOptionCountEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionOptionCountChanged(int value) => SyncGodEvolution();
+    partial void OnGodEvolutionUpgradeBuffChanceEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionUpgradeBuffChanceChanged(int value) => SyncGodEvolution();
+    partial void OnGodEvolutionSuperUpgradeChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceSuperQualityChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionUncrashableChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionQualityWeightEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionQualityDefaultChanged(float value) => SyncGodEvolution();
+    partial void OnGodEvolutionQualitySilverChanged(float value) => SyncGodEvolution();
+    partial void OnGodEvolutionQualityGoldChanged(float value) => SyncGodEvolution();
+    partial void OnGodEvolutionQualityDiamondChanged(float value) => SyncGodEvolution();
+    partial void OnGodEvolutionDamageMultiplierEnabledChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionDamageMultiplierChanged(float value) => SyncGodEvolution();
 
     #endregion Properties
 

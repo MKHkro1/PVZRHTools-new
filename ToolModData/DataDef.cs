@@ -426,6 +426,45 @@ public struct ZombieInfo
 ///     game->modifier
 ///     17 - 出怪列表数据
 /// </summary>
+/// <summary>
+/// 诸神：进化模式专用设置 (modifier-&gt;game, ID 18)
+/// </summary>
+[Serializable]
+public struct GodEvolutionProperties : ISyncData
+{
+    public readonly int ID => 18;
+    public bool? UnlimitedRefresh { get; set; }
+    public bool? FreeUpgradeQuality { get; set; }
+    public bool? LuckyEnabled { get; set; }
+    public float? Lucky { get; set; }
+    public bool? DifficultyEnabled { get; set; }
+    public int? Difficulty { get; set; }
+    public bool? RefreshCountEnabled { get; set; }
+    public int? RefreshCount { get; set; }
+    public bool? MaxPlantCountEnabled { get; set; }
+    public int? MaxPlantCount { get; set; }
+    public bool? OptionCountEnabled { get; set; }
+    public int? OptionCount { get; set; }
+    public bool? UpgradeBuffChanceEnabled { get; set; }
+    public int? UpgradeBuffChance { get; set; }
+    public bool? SuperUpgrade { get; set; }
+    public bool? ForceSuperQuality { get; set; }
+    public bool? Uncrashable { get; set; }
+    public bool? QualityWeightEnabled { get; set; }
+    public float? QualityDefault { get; set; }
+    public float? QualitySilver { get; set; }
+    public float? QualityGold { get; set; }
+    public float? QualityDiamond { get; set; }
+    public bool? DamageMultiplierEnabled { get; set; }
+    public float? DamageMultiplier { get; set; }
+    /// <summary>立即将当前设置应用到局内 ShootingManager</summary>
+    public bool? ApplyNow { get; set; }
+}
+
+/// <summary>
+///     game->modifier
+///     17 - 出怪列表数据
+/// </summary>
 [Serializable]
 public struct ZombieListData : ISyncData
 {

@@ -295,4 +295,31 @@
     <!-- 已移除跨会话恢复按钮 -->
     <s:String x:Key="Tab12.SnapshotInfoHeader">当前快照信息</s:String>
     <s:String x:Key="Tab12.RefreshSnapshotInfo">刷新快照信息</s:String>
+
+    <!-- 诸神：进化 -->
+    <s:String x:Key="Tab13.Header">诸神进化</s:String>
+    <s:String x:Key="Tab13.Description">专用于「诸神：进化」模式。进入该模式后调整生效；数值类选项需勾选启用后才会覆盖游戏默认值。</s:String>
+    <s:String x:Key="Tab13.Section.Refresh">刷新与升级</s:String>
+    <s:String x:Key="Tab13.Section.Attributes">局内属性</s:String>
+    <s:String x:Key="Tab13.Section.Quality">词条品质权重</s:String>
+    <s:String x:Key="Tab13.UnlimitedRefresh">词条无限刷新</s:String>
+    <s:String x:Key="Tab13.FreeUpgradeQuality">升级品质无消耗</s:String>
+    <s:String x:Key="Tab13.RefreshCount">锁定刷新次数</s:String>
+    <s:String x:Key="Tab13.Lucky">幸运值</s:String>
+    <s:String x:Key="Tab13.Difficulty">难度</s:String>
+    <s:String x:Key="Tab13.MaxPlantCount">最大植物数</s:String>
+    <s:String x:Key="Tab13.OptionCount">词条选项数</s:String>
+    <s:String x:Key="Tab13.UpgradeBuffChance">升级品质次数</s:String>
+    <s:String x:Key="Tab13.SuperUpgrade">强制超级升级</s:String>
+    <s:String x:Key="Tab13.ForceSuperQuality">强制超级品质词条</s:String>
+    <s:String x:Key="Tab13.Uncrashable">植物坚不可摧</s:String>
+    <s:String x:Key="Tab13.DamageMultiplier">伤害倍率</s:String>
+    <s:String x:Key="Tab13.QualityWeightEnabled">自定义品质权重</s:String>
+    <s:String x:Key="Tab13.QualityDefault">普通</s:String>
+    <s:String x:Key="Tab13.QualitySilver">白银</s:String>
+    <s:String x:Key="Tab13.QualityGold">黄金</s:String>
+    <s:String x:Key="Tab13.QualityDiamond">钻石</s:String>
+    <s:String x:Key="Tab13.QualityHint">权重越高，刷到对应品质词条的概率越大（相对权重随机）。</s:String>
+    <s:String x:Key="Tab13.ApplyNow">立即应用到局内</s:String>
+    <s:String x:Key="Tab13.ResetDefaults">恢复默认</s:String>
 </ResourceDictionary>

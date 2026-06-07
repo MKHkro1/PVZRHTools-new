@@ -131,3 +131,10 @@ internal partial class ZombieListDataSGC : JsonSerializerContext
 
 {
 }
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(GodEvolutionProperties))]
+internal partial class GodEvolutionPropertiesSGC : JsonSerializerContext
+
+{
+}

@@ -12,6 +12,7 @@ using TMPro;
 using ToolModData;
 using Unity.VisualScripting;
 using UnityEngine;
+using GameLevel.RogueShooting;
 using static ToolModBepInEx.PatchMgr;
 using static ToolModData.Modifier;
 using Object = UnityEngine.Object;
@@ -2718,6 +2719,38 @@ all");
                 Board.Instance!.boardTag = t;
             }
         }
+
+        if (data is GodEvolutionProperties ge)
+        {
+            if (ge.UnlimitedRefresh is not null) GodEvolutionUnlimitedRefresh = (bool)ge.UnlimitedRefresh;
+            if (ge.FreeUpgradeQuality is not null) GodEvolutionFreeUpgradeQuality = (bool)ge.FreeUpgradeQuality;
+            if (ge.LuckyEnabled is not null) GodEvolutionLuckyEnabled = (bool)ge.LuckyEnabled;
+            if (ge.Lucky is not null) GodEvolutionLucky = (float)ge.Lucky;
+            if (ge.DifficultyEnabled is not null) GodEvolutionDifficultyEnabled = (bool)ge.DifficultyEnabled;
+            if (ge.Difficulty is not null) GodEvolutionDifficulty = (int)ge.Difficulty;
+            if (ge.RefreshCountEnabled is not null) GodEvolutionRefreshCountEnabled = (bool)ge.RefreshCountEnabled;
+            if (ge.RefreshCount is not null) GodEvolutionRefreshCount = (int)ge.RefreshCount;
+            if (ge.MaxPlantCountEnabled is not null) GodEvolutionMaxPlantCountEnabled = (bool)ge.MaxPlantCountEnabled;
+            if (ge.MaxPlantCount is not null) GodEvolutionMaxPlantCount = (int)ge.MaxPlantCount;
+            if (ge.OptionCountEnabled is not null) GodEvolutionOptionCountEnabled = (bool)ge.OptionCountEnabled;
+            if (ge.OptionCount is not null) GodEvolutionOptionCount = (int)ge.OptionCount;
+            if (ge.UpgradeBuffChanceEnabled is not null)
+                GodEvolutionUpgradeBuffChanceEnabled = (bool)ge.UpgradeBuffChanceEnabled;
+            if (ge.UpgradeBuffChance is not null) GodEvolutionUpgradeBuffChance = (int)ge.UpgradeBuffChance;
+            if (ge.SuperUpgrade is not null) GodEvolutionSuperUpgrade = (bool)ge.SuperUpgrade;
+            if (ge.ForceSuperQuality is not null) GodEvolutionForceSuperQuality = (bool)ge.ForceSuperQuality;
+            if (ge.Uncrashable is not null) GodEvolutionUncrashable = (bool)ge.Uncrashable;
+            if (ge.QualityWeightEnabled is not null) GodEvolutionQualityWeightEnabled = (bool)ge.QualityWeightEnabled;
+            if (ge.QualityDefault is not null) GodEvolutionQualityDefault = (float)ge.QualityDefault;
+            if (ge.QualitySilver is not null) GodEvolutionQualitySilver = (float)ge.QualitySilver;
+            if (ge.QualityGold is not null) GodEvolutionQualityGold = (float)ge.QualityGold;
+            if (ge.QualityDiamond is not null) GodEvolutionQualityDiamond = (float)ge.QualityDiamond;
+            if (ge.DamageMultiplierEnabled is not null)
+                GodEvolutionDamageMultiplierEnabled = (bool)ge.DamageMultiplierEnabled;
+            if (ge.DamageMultiplier is not null) GodEvolutionDamageMultiplier = (float)ge.DamageMultiplier;
+            if (ShootingManager.Instance != null)
+                GodEvolutionHelper.ApplySettings(ShootingManager.Instance);
+        }
     }
     
     // 跨会话恢复相关方法已移除
@@ -2774,6 +2807,11 @@ all");
                 case 16:
                 {
                     Application.Quit();
+                    break;
+                }
+                case 18:
+                {
+                    ProcessData(json.Deserialize<GodEvolutionProperties>());
                     break;
                 }
             }

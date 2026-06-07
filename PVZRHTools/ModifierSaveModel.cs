@@ -107,4 +107,30 @@ public struct ModifierSaveModel
     public int PvEBlindBoxZombie4 { get; set; }
     public int PvEBlindBoxZombie5 { get; set; }
     public int PvEBlindBoxZombie6 { get; set; }
+
+    // 诸神：进化
+    public bool GodEvolutionUnlimitedRefresh { get; set; }
+    public bool GodEvolutionFreeUpgradeQuality { get; set; }
+    public bool GodEvolutionLuckyEnabled { get; set; }
+    public float GodEvolutionLucky { get; set; }
+    public bool GodEvolutionDifficultyEnabled { get; set; }
+    public int GodEvolutionDifficulty { get; set; }
+    public bool GodEvolutionRefreshCountEnabled { get; set; }
+    public int GodEvolutionRefreshCount { get; set; }
+    public bool GodEvolutionMaxPlantCountEnabled { get; set; }
+    public int GodEvolutionMaxPlantCount { get; set; }
+    public bool GodEvolutionOptionCountEnabled { get; set; }
+    public int GodEvolutionOptionCount { get; set; }
+    public bool GodEvolutionUpgradeBuffChanceEnabled { get; set; }
+    public int GodEvolutionUpgradeBuffChance { get; set; }
+    public bool GodEvolutionSuperUpgrade { get; set; }
+    public bool GodEvolutionForceSuperQuality { get; set; }
+    public bool GodEvolutionUncrashable { get; set; }
+    public bool GodEvolutionQualityWeightEnabled { get; set; }
+    public float GodEvolutionQualityDefault { get; set; }
+    public float GodEvolutionQualitySilver { get; set; }
+    public float GodEvolutionQualityGold { get; set; }
+    public float GodEvolutionQualityDiamond { get; set; }
+    public bool GodEvolutionDamageMultiplierEnabled { get; set; }
+    public float GodEvolutionDamageMultiplier { get; set; }
 }

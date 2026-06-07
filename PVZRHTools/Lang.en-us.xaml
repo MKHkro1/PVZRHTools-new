@@ -282,4 +282,30 @@
     <s:String x:Key="Tab0.LoadCustomPlantData">LoadCustomPlantData</s:String>
     <s:String x:Key="Tab0.LoadCustomPlantData.Tooltip">Due to code limits, some settings may not be effective.</s:String>
     <s:String x:Key="Tab2.SetZombieIdle">SetZombiesIdle</s:String>
+
+    <s:String x:Key="Tab13.Header">Gods Evolution</s:String>
+    <s:String x:Key="Tab13.Description">For Gods: Evolution mode. Enable each numeric override before it takes effect.</s:String>
+    <s:String x:Key="Tab13.Section.Refresh">Refresh &amp; Upgrade</s:String>
+    <s:String x:Key="Tab13.Section.Attributes">Run Attributes</s:String>
+    <s:String x:Key="Tab13.Section.Quality">Buff Quality Weights</s:String>
+    <s:String x:Key="Tab13.UnlimitedRefresh">Unlimited Buff Refresh</s:String>
+    <s:String x:Key="Tab13.FreeUpgradeQuality">Free Quality Upgrade</s:String>
+    <s:String x:Key="Tab13.RefreshCount">Lock Refresh Count</s:String>
+    <s:String x:Key="Tab13.Lucky">Lucky</s:String>
+    <s:String x:Key="Tab13.Difficulty">Difficulty</s:String>
+    <s:String x:Key="Tab13.MaxPlantCount">Max Plants</s:String>
+    <s:String x:Key="Tab13.OptionCount">Option Count</s:String>
+    <s:String x:Key="Tab13.UpgradeBuffChance">Upgrade Quality Count</s:String>
+    <s:String x:Key="Tab13.SuperUpgrade">Force Super Upgrade</s:String>
+    <s:String x:Key="Tab13.ForceSuperQuality">Force Super Quality</s:String>
+    <s:String x:Key="Tab13.Uncrashable">Plants Uncrashable</s:String>
+    <s:String x:Key="Tab13.DamageMultiplier">Damage Multiplier</s:String>
+    <s:String x:Key="Tab13.QualityWeightEnabled">Custom Quality Weights</s:String>
+    <s:String x:Key="Tab13.QualityDefault">Default</s:String>
+    <s:String x:Key="Tab13.QualitySilver">Silver</s:String>
+    <s:String x:Key="Tab13.QualityGold">Gold</s:String>
+    <s:String x:Key="Tab13.QualityDiamond">Diamond</s:String>
+    <s:String x:Key="Tab13.QualityHint">Higher weight = higher chance for that quality tier.</s:String>
+    <s:String x:Key="Tab13.ApplyNow">Apply In-Game Now</s:String>
+    <s:String x:Key="Tab13.ResetDefaults">Reset Defaults</s:String>
 </ResourceDictionary>

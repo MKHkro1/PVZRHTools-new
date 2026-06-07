@@ -2054,6 +2054,100 @@
                     </ScrollViewer>
                 </Border>
             </TabItem>
+
+            <!-- Tab14: 诸神：进化 -->
+            <TabItem Header="{DynamicResource Tab13.Header}">
+                <Border Margin="0,8,0,0" BorderThickness="2,2,2,2" Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource ContentBorderBrush}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
+                                  CanContentScroll="False">
+                        <StackPanel Orientation="Vertical" Margin="10,10,10,10">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Label Content="{DynamicResource Tab13.Header}" HorizontalAlignment="Left"
+                                       VerticalAlignment="Top" Foreground="{DynamicResource LabelForegroundBrush}"
+                                       Style="{DynamicResource LabelBaseStyle}" FontSize="18" FontWeight="Bold" />
+                                <Rectangle Height="2" Margin="10,17,0,0" VerticalAlignment="Top" Fill="{DynamicResource LineFillBrush}"
+                                           Width="500" />
+                            </StackPanel>
+                            <TextBlock Text="{DynamicResource Tab13.Description}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextForegroundBrush}" Margin="0,0,0,12" Opacity="0.85" />
+
+                            <Label Content="{DynamicResource Tab13.Section.Refresh}" Foreground="{DynamicResource LabelForegroundBrush}" FontWeight="Bold" />
+                            <WrapPanel Margin="0,4,0,12">
+                                <CheckBox IsChecked="{Binding GodEvolutionUnlimitedRefresh}" Height="21" Margin="10,0,16,0"
+                                          Content="{DynamicResource Tab13.UnlimitedRefresh}" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <CheckBox IsChecked="{Binding GodEvolutionFreeUpgradeQuality}" Height="21" Margin="0,0,16,0"
+                                          Content="{DynamicResource Tab13.FreeUpgradeQuality}" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <CheckBox IsChecked="{Binding GodEvolutionRefreshCountEnabled}" Height="21" Margin="0,0,8,0"
+                                          Content="{DynamicResource Tab13.RefreshCount}" Foreground="{DynamicResource TextForegroundBrush}" VerticalAlignment="Center" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionRefreshCountEnabled}" Minimum="0" Maximum="99999999"
+                                                  Value="{Binding GodEvolutionRefreshCount}" Width="120" Height="22" Margin="0,0,0,0" />
+                            </WrapPanel>
+
+                            <Label Content="{DynamicResource Tab13.Section.Attributes}" Foreground="{DynamicResource LabelForegroundBrush}" FontWeight="Bold" />
+                            <WrapPanel Margin="0,4,0,12">
+                                <CheckBox IsChecked="{Binding GodEvolutionLuckyEnabled}" Height="21" Margin="10,0,8,0"
+                                          Content="{DynamicResource Tab13.Lucky}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionLuckyEnabled}" Minimum="0" Maximum="9999" DecimalPlaces="2"
+                                                  Value="{Binding GodEvolutionLucky}" Width="100" Height="22" Margin="0,0,16,0" />
+                                <CheckBox IsChecked="{Binding GodEvolutionDifficultyEnabled}" Height="21" Margin="0,0,8,0"
+                                          Content="{DynamicResource Tab13.Difficulty}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionDifficultyEnabled}" Minimum="0" Maximum="99"
+                                                  Value="{Binding GodEvolutionDifficulty}" Width="80" Height="22" Margin="0,0,16,0" />
+                                <CheckBox IsChecked="{Binding GodEvolutionMaxPlantCountEnabled}" Height="21" Margin="0,0,8,0"
+                                          Content="{DynamicResource Tab13.MaxPlantCount}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionMaxPlantCountEnabled}" Minimum="1" Maximum="999"
+                                                  Value="{Binding GodEvolutionMaxPlantCount}" Width="80" Height="22" Margin="0,0,16,0" />
+                                <CheckBox IsChecked="{Binding GodEvolutionOptionCountEnabled}" Height="21" Margin="0,0,8,0"
+                                          Content="{DynamicResource Tab13.OptionCount}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionOptionCountEnabled}" Minimum="1" Maximum="10"
+                                                  Value="{Binding GodEvolutionOptionCount}" Width="80" Height="22" Margin="0,0,16,0" />
+                                <CheckBox IsChecked="{Binding GodEvolutionUpgradeBuffChanceEnabled}" Height="21" Margin="0,0,8,0"
+                                          Content="{DynamicResource Tab13.UpgradeBuffChance}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionUpgradeBuffChanceEnabled}" Minimum="0" Maximum="999999"
+                                                  Value="{Binding GodEvolutionUpgradeBuffChance}" Width="100" Height="22" />
+                            </WrapPanel>
+                            <WrapPanel Margin="10,0,0,12">
+                                <CheckBox IsChecked="{Binding GodEvolutionSuperUpgrade}" Height="21" Margin="0,0,16,0"
+                                          Content="{DynamicResource Tab13.SuperUpgrade}" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <CheckBox IsChecked="{Binding GodEvolutionForceSuperQuality}" Height="21" Margin="0,0,16,0"
+                                          Content="{DynamicResource Tab13.ForceSuperQuality}" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <CheckBox IsChecked="{Binding GodEvolutionUncrashable}" Height="21" Margin="0,0,16,0"
+                                          Content="{DynamicResource Tab13.Uncrashable}" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <CheckBox IsChecked="{Binding GodEvolutionDamageMultiplierEnabled}" Height="21" Margin="0,0,8,0"
+                                          Content="{DynamicResource Tab13.DamageMultiplier}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionDamageMultiplierEnabled}" Minimum="0.1" Maximum="100" DecimalPlaces="2"
+                                                  Value="{Binding GodEvolutionDamageMultiplier}" Width="100" Height="22" Increment="0.1" />
+                            </WrapPanel>
+
+                            <Label Content="{DynamicResource Tab13.Section.Quality}" Foreground="{DynamicResource LabelForegroundBrush}" FontWeight="Bold" />
+                            <WrapPanel Margin="0,4,0,12">
+                                <CheckBox IsChecked="{Binding GodEvolutionQualityWeightEnabled}" Height="21" Margin="10,0,16,0"
+                                          Content="{DynamicResource Tab13.QualityWeightEnabled}" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <Label Content="{DynamicResource Tab13.QualityDefault}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionQualityWeightEnabled}" Minimum="0" Maximum="9999" DecimalPlaces="1"
+                                                  Value="{Binding GodEvolutionQualityDefault}" Width="80" Height="22" Margin="4,0,12,0" />
+                                <Label Content="{DynamicResource Tab13.QualitySilver}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionQualityWeightEnabled}" Minimum="0" Maximum="9999" DecimalPlaces="1"
+                                                  Value="{Binding GodEvolutionQualitySilver}" Width="80" Height="22" Margin="4,0,12,0" />
+                                <Label Content="{DynamicResource Tab13.QualityGold}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionQualityWeightEnabled}" Minimum="0" Maximum="9999" DecimalPlaces="1"
+                                                  Value="{Binding GodEvolutionQualityGold}" Width="80" Height="22" Margin="4,0,12,0" />
+                                <Label Content="{DynamicResource Tab13.QualityDiamond}" VerticalAlignment="Center" Foreground="{DynamicResource TextForegroundBrush}" />
+                                <hc:NumericUpDown IsEnabled="{Binding GodEvolutionQualityWeightEnabled}" Minimum="0" Maximum="9999" DecimalPlaces="1"
+                                                  Value="{Binding GodEvolutionQualityDiamond}" Width="80" Height="22" Margin="4,0,0,0" />
+                            </WrapPanel>
+                            <TextBlock Text="{DynamicResource Tab13.QualityHint}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextForegroundBrush}" Margin="10,0,0,12" Opacity="0.75" FontSize="11" />
+
+                            <hc:ElementGroup Orientation="Horizontal" Layout="Stack" HorizontalAlignment="Left" Style="{DynamicResource ElementGroupSolid}">
+                                <Button Content="{DynamicResource Tab13.ApplyNow}" Command="{Binding ApplyGodEvolutionNowCommand}" Height="30" Width="160" />
+                                <Button Content="{DynamicResource Tab13.ResetDefaults}" Command="{Binding ResetGodEvolutionDefaultsCommand}" Height="30" Width="160" />
+                            </hc:ElementGroup>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
         </TabControl>
 
         <!-- Startup loading overlay: hidden after InitData arrives -->

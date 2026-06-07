@@ -401,6 +401,7 @@ public class DataSync
             15 => SyncAllSGC.Default.SyncAll,
             16 => ExitSGC.Default.Exit,
             17 => ZombieListDataSGC.Default.ZombieListData,
+            18 => GodEvolutionPropertiesSGC.Default.GodEvolutionProperties,
             _ => throw new InvalidOperationException()
         };
         modifierSocket.Send(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(data, jti)));

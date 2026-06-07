@@ -261,4 +261,30 @@
     <s:String x:Key="Tab2.Page2.UnlimitedRefresh">Безлимитное обновление</s:String>
     <s:String x:Key="Tab2.Page2.UnlimitedScore">Безлимитные очки</s:String>
     <s:String x:Key="Tab2.Page1.VaseLineUp">Расстановка ваз</s:String>
+
+    <s:String x:Key="Tab13.Header">Эволюция богов</s:String>
+    <s:String x:Key="Tab13.Description">Для режима «Эволюция богов». Включите переключатель у числовых параметров.</s:String>
+    <s:String x:Key="Tab13.Section.Refresh">Обновление</s:String>
+    <s:String x:Key="Tab13.Section.Attributes">Атрибуты</s:String>
+    <s:String x:Key="Tab13.Section.Quality">Веса качества</s:String>
+    <s:String x:Key="Tab13.UnlimitedRefresh">Безлимитное обновление</s:String>
+    <s:String x:Key="Tab13.FreeUpgradeQuality">Бесплатное улучшение качества</s:String>
+    <s:String x:Key="Tab13.RefreshCount">Количество обновлений</s:String>
+    <s:String x:Key="Tab13.Lucky">Удача</s:String>
+    <s:String x:Key="Tab13.Difficulty">Сложность</s:String>
+    <s:String x:Key="Tab13.MaxPlantCount">Макс. растений</s:String>
+    <s:String x:Key="Tab13.OptionCount">Число вариантов</s:String>
+    <s:String x:Key="Tab13.UpgradeBuffChance">Шанс улучшения качества</s:String>
+    <s:String x:Key="Tab13.SuperUpgrade">Супер-улучшение</s:String>
+    <s:String x:Key="Tab13.ForceSuperQuality">Супер-качество</s:String>
+    <s:String x:Key="Tab13.Uncrashable">Неразрушимые растения</s:String>
+    <s:String x:Key="Tab13.DamageMultiplier">Множитель урона</s:String>
+    <s:String x:Key="Tab13.QualityWeightEnabled">Свои веса качества</s:String>
+    <s:String x:Key="Tab13.QualityDefault">Обычное</s:String>
+    <s:String x:Key="Tab13.QualitySilver">Серебро</s:String>
+    <s:String x:Key="Tab13.QualityGold">Золото</s:String>
+    <s:String x:Key="Tab13.QualityDiamond">Алмаз</s:String>
+    <s:String x:Key="Tab13.QualityHint">Больший вес — выше шанс соответствующего качества.</s:String>
+    <s:String x:Key="Tab13.ApplyNow">Применить сейчас</s:String>
+    <s:String x:Key="Tab13.ResetDefaults">Сброс</s:String>
 </ResourceDictionary>

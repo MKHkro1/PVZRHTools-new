@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using TMPro;
 using GameLevel.RogueShooting;
 using ToolModData;
+using UI;
 using Unity.VisualScripting;
 using UnityEngine;
 using static ToolModBepInEx.PatchMgr;
@@ -4250,8 +4251,8 @@ public static class MultipleChoiceMenuRefreshPatch
     [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
     public static void PrefixSetRefreshable(ref int refreshCount, ref bool interactable)
     {
-        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
-        refreshCount = 9999999;
+        if (!ShouldFixGodEvolutionRefreshButton) return;
+        refreshCount = GetGodEvolutionMenuRefreshCount();
         interactable = true;
     }
 
@@ -4259,7 +4260,7 @@ public static class MultipleChoiceMenuRefreshPatch
     [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
     public static void PostfixSetRefreshable(MultipleChoiceMenu __instance)
     {
-        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        if (!ShouldFixGodEvolutionRefreshButton) return;
         try
         {
             if (__instance?.refreshButton != null)
@@ -4272,12 +4273,12 @@ public static class MultipleChoiceMenuRefreshPatch
     [HarmonyPatch("Refresh")]
     public static void PrefixRefresh(MultipleChoiceMenu __instance)
     {
-        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        if (!ShouldFixGodEvolutionRefreshButton) return;
         try
         {
             _refreshCountField ??= typeof(MultipleChoiceMenu).GetField("refreshCount",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            _refreshCountField?.SetValue(__instance, 9999999);
+            _refreshCountField?.SetValue(__instance, GetGodEvolutionMenuRefreshCount());
         }
         catch { }
     }
@@ -4286,12 +4287,13 @@ public static class MultipleChoiceMenuRefreshPatch
     [HarmonyPatch("Refresh")]
     public static void PostfixRefresh(MultipleChoiceMenu __instance)
     {
-        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        if (!ShouldFixGodEvolutionRefreshButton) return;
         try
         {
             _refreshCountField ??= typeof(MultipleChoiceMenu).GetField("refreshCount",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            _refreshCountField?.SetValue(__instance, 9999999);
+            var count = GetGodEvolutionMenuRefreshCount();
+            _refreshCountField?.SetValue(__instance, count);
             if (__instance?.refreshButton != null)
                 __instance.refreshButton.Interactable = true;
         }
@@ -4305,11 +4307,104 @@ public static class ShootingManagerShowBuffRefreshPatch
     [HarmonyPrefix]
     public static void Prefix(ShootingManager __instance)
     {
-        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
-        if (__instance != null)
-            __instance.refreshCount = 9999999;
+        if (!ShouldFixGodEvolutionRefreshButton || __instance == null) return;
+        __instance.refreshCount = GetGodEvolutionMenuRefreshCount();
     }
 }
+
+#region GodEvolution - 诸神：进化
+
+public static class GodEvolutionHelper
+{
+    private static FieldInfo? _appearSuperQualitativeField;
+    private static FieldInfo? _uncrashableField;
+
+    public static void ApplySettings(ShootingManager mgr)
+    {
+        if (mgr == null) return;
+        try
+        {
+            if (GodEvolutionLuckyEnabled)
+                mgr.Lucky = GodEvolutionLucky;
+            if (GodEvolutionDifficultyEnabled)
+                mgr.difficulty = GodEvolutionDifficulty;
+            if (ShouldFixGodEvolutionRefreshButton)
+                mgr.refreshCount = GetGodEvolutionMenuRefreshCount();
+            if (GodEvolutionMaxPlantCountEnabled)
+                mgr.maxPlantCount = GodEvolutionMaxPlantCount;
+            if (GodEvolutionOptionCountEnabled)
+                mgr.optionCount = GodEvolutionOptionCount;
+            if (GodEvolutionUpgradeBuffChanceEnabled || GodEvolutionFreeUpgradeQuality)
+                mgr.upgradeBuffChance = GodEvolutionFreeUpgradeQuality ? 999999 : GodEvolutionUpgradeBuffChance;
+            if (GodEvolutionSuperUpgrade)
+                mgr.superUpgrade = true;
+            if (GodEvolutionForceSuperQuality)
+                (_appearSuperQualitativeField ??= typeof(ShootingManager).GetField("appearSuperQualitative",
+                    BindingFlags.Instance | BindingFlags.NonPublic))?.SetValue(mgr, true);
+            if (GodEvolutionUncrashable)
+                (_uncrashableField ??= typeof(ShootingManager).GetField("uncrashable",
+                    BindingFlags.Instance | BindingFlags.NonPublic))?.SetValue(mgr, true);
+        }
+        catch { }
+    }
+
+    public static Quality RollQuality()
+    {
+        float total = GodEvolutionQualityDefault + GodEvolutionQualitySilver + GodEvolutionQualityGold +
+                      GodEvolutionQualityDiamond;
+        if (total <= 0f) return Quality.Default;
+        var r = Random.Range(0f, total);
+        if (r < GodEvolutionQualityDefault) return Quality.Default;
+        r -= GodEvolutionQualityDefault;
+        if (r < GodEvolutionQualitySilver) return Quality.silver;
+        r -= GodEvolutionQualitySilver;
+        if (r < GodEvolutionQualityGold) return Quality.gold;
+        return Quality.diamond;
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "Update")]
+public static class GodEvolutionUpdatePatch
+{
+    public static void Postfix(ShootingManager __instance)
+    {
+        GodEvolutionHelper.ApplySettings(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "GetRandomQuality")]
+public static class GodEvolutionGetRandomQualityPatch
+{
+    public static bool Prefix(ref Quality __result)
+    {
+        if (!GodEvolutionQualityWeightEnabled) return true;
+        __result = GodEvolutionHelper.RollQuality();
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "GetQualityValue", new[] { typeof(float), typeof(Quality) })]
+public static class GodEvolutionGetQualityValueFloatPatch
+{
+    public static void Postfix(ref float __result)
+    {
+        if (GodEvolutionDamageMultiplierEnabled)
+            __result *= GodEvolutionDamageMultiplier;
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "GetQualityValue", new[] { typeof(int), typeof(Quality) })]
+public static class GodEvolutionGetQualityValueIntPatch
+{
+    public static void Postfix(ref int __result)
+    {
+        if (GodEvolutionDamageMultiplierEnabled)
+            __result = Mathf.RoundToInt(__result * GodEvolutionDamageMultiplier);
+    }
+}
+
+#endregion
+
 [HarmonyPatch(typeof(FruitNinjaManager),nameof(FruitNinjaManager.LoseScore))]
 public static class FruitNinjaManagerPatch
 {
@@ -5095,6 +5190,48 @@ public class PatchMgr : MonoBehaviour
     public static bool BuffRefreshNoLimit { get; set; } = false;
     /// <summary>无限刷新 - 旅行词条/诸神进化无限刷新</summary>
     public static bool UnlimitedRefresh { get; set; } = false;
+    /// <summary>诸神：进化专用无限刷新</summary>
+    public static bool GodEvolutionUnlimitedRefresh { get; set; } = false;
+    public static bool GodEvolutionFreeUpgradeQuality { get; set; } = false;
+    public static bool GodEvolutionLuckyEnabled { get; set; } = false;
+    public static float GodEvolutionLucky { get; set; } = 1f;
+    public static bool GodEvolutionDifficultyEnabled { get; set; } = false;
+    public static int GodEvolutionDifficulty { get; set; } = 0;
+    public static bool GodEvolutionRefreshCountEnabled { get; set; } = false;
+    public static int GodEvolutionRefreshCount { get; set; } = 9999999;
+    public static bool GodEvolutionMaxPlantCountEnabled { get; set; } = false;
+    public static int GodEvolutionMaxPlantCount { get; set; } = 99;
+    public static bool GodEvolutionOptionCountEnabled { get; set; } = false;
+    public static int GodEvolutionOptionCount { get; set; } = 3;
+    public static bool GodEvolutionUpgradeBuffChanceEnabled { get; set; } = false;
+    public static int GodEvolutionUpgradeBuffChance { get; set; } = 100;
+    public static bool GodEvolutionSuperUpgrade { get; set; } = false;
+    public static bool GodEvolutionForceSuperQuality { get; set; } = false;
+    public static bool GodEvolutionUncrashable { get; set; } = false;
+    public static bool GodEvolutionQualityWeightEnabled { get; set; } = false;
+    public static float GodEvolutionQualityDefault { get; set; } = 1f;
+    public static float GodEvolutionQualitySilver { get; set; } = 1f;
+    public static float GodEvolutionQualityGold { get; set; } = 1f;
+    public static float GodEvolutionQualityDiamond { get; set; } = 1f;
+    public static bool GodEvolutionDamageMultiplierEnabled { get; set; } = false;
+    public static float GodEvolutionDamageMultiplier { get; set; } = 1f;
+    public static bool IsRefreshUnlimited =>
+        UnlimitedRefresh || BuffRefreshNoLimit || GodEvolutionUnlimitedRefresh;
+
+    /// <summary>诸神进化「锁定刷新次数」生效且次数大于 0</summary>
+    public static bool GodEvolutionRefreshOverrideActive =>
+        GodEvolutionRefreshCountEnabled && GodEvolutionRefreshCount > 0;
+
+    /// <summary>需要修复诸神进化刷新按钮可点击性（无限刷新或锁定刷新次数）</summary>
+    public static bool ShouldFixGodEvolutionRefreshButton =>
+        IsRefreshUnlimited || GodEvolutionRefreshOverrideActive;
+
+    public static int GetGodEvolutionMenuRefreshCount()
+    {
+        if (IsRefreshUnlimited) return 9999999;
+        if (GodEvolutionRefreshOverrideActive) return GodEvolutionRefreshCount;
+        return 0;
+    }
     /// <summary>无限积分 - 水果忍者无限积分</summary>
     public static bool UnlimitedScore { get; set; } = false;
     public static Dictionary<BulletType, int> BulletDamage { get; set; } = [];
