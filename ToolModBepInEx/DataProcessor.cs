@@ -1587,7 +1587,7 @@ public class DataProcessor : MonoBehaviour
             if (iga.Row is not null && iga.Column is not null && iga.PlantType is not null &&
                 iga.PlantVase is not null)
             {
-                var id = (int)iga.PlantType;
+                var plantType = ResolvePlantType((int)iga.PlantType);
                 var r = (int)iga.Row;
                 var c = (int)iga.Column;
                 if (PvPPotRange)
@@ -1595,8 +1595,8 @@ public class DataProcessor : MonoBehaviour
                     
                     for (var i = 0; i < Board.Instance!.rowNum; i++)
                     for (var j = 3; j < Board.Instance.columnNum; j++)
-                        GridItem.SetGridItem(j, i, GridItemType.ScaryPot).Cast<ScaryPot>().thePlantType =
-                            (PlantType)id;
+                        GridItem.SetGridItem(j, i, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
+                            plantType;
                     
                 }
                 else
@@ -1604,59 +1604,59 @@ public class DataProcessor : MonoBehaviour
                     if (r * r + c * c == 0)
                         for (var i = 0; i < Board.Instance!.rowNum; i++)
                         for (var j = 0; j < Board.Instance.columnNum; j++)
-                            GridItem.SetGridItem(j, i, GridItemType.ScaryPot).Cast<ScaryPot>().thePlantType =
-                                (PlantType)id;
+                            GridItem.SetGridItem(j, i, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
+                                plantType;
 
                     if (r == 0 && c != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
-                            GridItem.SetGridItem(c - 1, j, GridItemType.ScaryPot).Cast<ScaryPot>().thePlantType =
-                                (PlantType)id;
+                            GridItem.SetGridItem(c - 1, j, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
+                                plantType;
 
                     if (c == 0 && r != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
-                            GridItem.SetGridItem(j, r - 1, GridItemType.ScaryPot).Cast<ScaryPot>().thePlantType =
-                                (PlantType)id;
+                            GridItem.SetGridItem(j, r - 1, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
+                                plantType;
 
                     if (c > 0 && r > 0 && c <= Board.Instance!.columnNum && r <= Board.Instance.rowNum)
-                        GridItem.SetGridItem(c - 1, r - 1, GridItemType.ScaryPot).Cast<ScaryPot>().thePlantType =
-                            (PlantType)id;
+                        GridItem.SetGridItem(c - 1, r - 1, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
+                            plantType;
                 }
             }
 
             if (iga.Row is not null && iga.Column is not null && iga.ZombieType is not null &&
                 iga.ZombieVase is not null)
             {
-                var id = (int)iga.ZombieType;
+                var zombieType = ResolveZombieType((int)iga.ZombieType);
                 var r = (int)iga.Row;
                 var c = (int)iga.Column;
                 if (PvPPotRange)
                 {
                     for (var i = 0; i < Board.Instance!.rowNum; i++)
                     for (var j = 3; j < Board.Instance.columnNum; j++)
-                        GridItem.SetGridItem(j, i, GridItemType.ScaryPot).Cast<ScaryPot>().theZombieType =
-                            (ZombieType)id;
+                        GridItem.SetGridItem(j, i, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
+                            zombieType;
                 }
                 else
                 {
                     if (r * r + c * c == 0)
                         for (var i = 0; i < Board.Instance!.rowNum; i++)
                         for (var j = 0; j < Board.Instance.columnNum; j++)
-                            GridItem.SetGridItem(j, i, GridItemType.ScaryPot).Cast<ScaryPot>().theZombieType =
-                                (ZombieType)id;
+                            GridItem.SetGridItem(j, i, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
+                                zombieType;
 
                     if (r == 0 && c != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
-                            GridItem.SetGridItem(c - 1, j, GridItemType.ScaryPot).Cast<ScaryPot>().theZombieType =
-                                (ZombieType)id;
+                            GridItem.SetGridItem(c - 1, j, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
+                                zombieType;
 
                     if (c == 0 && r != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
-                            GridItem.SetGridItem(j, r - 1, GridItemType.ScaryPot).Cast<ScaryPot>().theZombieType =
-                                (ZombieType)id;
+                            GridItem.SetGridItem(j, r - 1, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
+                                zombieType;
 
                     if (c > 0 && r > 0 && c <= Board.Instance!.columnNum && r <= Board.Instance.rowNum)
-                        GridItem.SetGridItem(c - 1, r - 1, GridItemType.ScaryPot).Cast<ScaryPot>().theZombieType =
-                            (ZombieType)id;
+                        GridItem.SetGridItem(c - 1, r - 1, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
+                            zombieType;
                 }
             }
 
@@ -2838,4 +2838,31 @@ all");
 
     // 已移除：不再在游戏开局自动生成小推车，因此不再需要此变量
     // private static bool _mowerEnsured = false;
+
+    /// <summary>下拉框 -1（不指定/默认随机）对应 Nothing，需从游戏列表中随机选取。</summary>
+    private static PlantType ResolvePlantType(int id)
+    {
+        if (id != (int)PlantType.Nothing)
+            return (PlantType)id;
+        var plants = GameAPP.resourcesManager?.allPlants;
+        if (plants == null || plants.Count == 0)
+            return PlantType.Peashooter;
+        return plants[Random.Range(0, plants.Count)];
+    }
+
+    private static ZombieType ResolveZombieType(int id)
+    {
+        if (id != (int)ZombieType.Nothing)
+            return (ZombieType)id;
+        var candidates = new List<ZombieType>();
+        foreach (var t in GameAPP.resourcesManager.allZombieTypes)
+        {
+            if (t is ZombieType.ZombieBoss or ZombieType.ZombieBoss2 or ZombieType.TrainingDummy)
+                continue;
+            candidates.Add(t);
+        }
+        if (candidates.Count == 0)
+            return ZombieType.NormalZombie;
+        return candidates[Random.Range(0, candidates.Count)];
+    }
 }

@@ -4365,11 +4365,11 @@ public static class UIMgrPatch
         var text1 = obj1.AddComponent<TextMeshProUGUI>();
         text1.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
         text1.color = new Color(1f, 0.41f, 0.71f, 1);
-        text1.text = "原作者@Infinite75已停更，\n这是@梧萱梦汐X从@听雨夜荷的fork接手的适配工作\n若存在任何付费/要求三连+关注/私信发链接的情况\n说明你被盗版骗了，请注意隐私和财产安全！！！\n此信息仅在游戏主菜单和修改窗口显示";
+        text1.text = "修改器原创@Infinite75，\n这是@梧萱梦汐X从@听雨夜荷的fork接手的分支\n若存在任何付费/要求三连+关注/私信发链接的情况\n说明你被盗版骗了，请注意隐私和财产安全！！！\n此信息仅在游戏主菜单和修改窗口显示";
         obj1.transform.SetParent(GameObject.Find("Leaves").transform);
         obj1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
         obj1.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
-        obj1.transform.localPosition = new Vector3(-345.5f, 0f, 0);
+        obj1.transform.localPosition = new Vector3(-345.5f, 20f, 0);
         
         /*GameObject obj2 = new("UpgradeInfo");
         var text2 = obj2.AddComponent<TextMeshProUGUI>();
