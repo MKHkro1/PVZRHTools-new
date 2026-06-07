@@ -4237,7 +4237,9 @@ public static class ShootingMenuPatch
 }
 
 /// <summary>
-/// 诸神：进化等模式使用 MultipleChoiceMenu 刷新，3.7 需单独补丁
+/// 诸神：进化等模式使用 MultipleChoiceMenu 刷新，3.7 需单独补丁。
+/// 无尽模式 ShowBuff 在 OptionCount 不超过 maxPlantCount 时会传 interactable=false，
+/// SetRefreshable 会直接禁用按钮；Refresh 只更新次数文本，不会重新启用按钮。
 /// </summary>
 [HarmonyPatch(typeof(MultipleChoiceMenu))]
 public static class MultipleChoiceMenuRefreshPatch
@@ -4246,10 +4248,24 @@ public static class MultipleChoiceMenuRefreshPatch
 
     [HarmonyPrefix]
     [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
-    public static void PrefixSetRefreshable(ref int refreshCount)
+    public static void PrefixSetRefreshable(ref int refreshCount, ref bool interactable)
     {
-        if (UnlimitedRefresh || BuffRefreshNoLimit)
-            refreshCount = 9999999;
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        refreshCount = 9999999;
+        interactable = true;
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
+    public static void PostfixSetRefreshable(MultipleChoiceMenu __instance)
+    {
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        try
+        {
+            if (__instance?.refreshButton != null)
+                __instance.refreshButton.Interactable = true;
+        }
+        catch { }
     }
 
     [HarmonyPrefix]
@@ -4276,8 +4292,22 @@ public static class MultipleChoiceMenuRefreshPatch
             _refreshCountField ??= typeof(MultipleChoiceMenu).GetField("refreshCount",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             _refreshCountField?.SetValue(__instance, 9999999);
+            if (__instance?.refreshButton != null)
+                __instance.refreshButton.Interactable = true;
         }
         catch { }
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "ShowBuff")]
+public static class ShootingManagerShowBuffRefreshPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ShootingManager __instance)
+    {
+        if (!UnlimitedRefresh && !BuffRefreshNoLimit) return;
+        if (__instance != null)
+            __instance.refreshCount = 9999999;
     }
 }
 [HarmonyPatch(typeof(FruitNinjaManager),nameof(FruitNinjaManager.LoseScore))]
