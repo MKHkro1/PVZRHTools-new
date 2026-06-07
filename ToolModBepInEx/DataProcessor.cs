@@ -1587,7 +1587,7 @@ public class DataProcessor : MonoBehaviour
             if (iga.Row is not null && iga.Column is not null && iga.PlantType is not null &&
                 iga.PlantVase is not null)
             {
-                var plantType = ResolvePlantType((int)iga.PlantType);
+                var plantTypeId = (int)iga.PlantType;
                 var r = (int)iga.Row;
                 var c = (int)iga.Column;
                 if (PvPPotRange)
@@ -1596,7 +1596,7 @@ public class DataProcessor : MonoBehaviour
                     for (var i = 0; i < Board.Instance!.rowNum; i++)
                     for (var j = 3; j < Board.Instance.columnNum; j++)
                         GridItem.SetGridItem(j, i, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
-                            plantType;
+                            ResolvePlantType(plantTypeId);
                     
                 }
                 else
@@ -1605,28 +1605,28 @@ public class DataProcessor : MonoBehaviour
                         for (var i = 0; i < Board.Instance!.rowNum; i++)
                         for (var j = 0; j < Board.Instance.columnNum; j++)
                             GridItem.SetGridItem(j, i, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
-                                plantType;
+                                ResolvePlantType(plantTypeId);
 
                     if (r == 0 && c != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
                             GridItem.SetGridItem(c - 1, j, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
-                                plantType;
+                                ResolvePlantType(plantTypeId);
 
                     if (c == 0 && r != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
                             GridItem.SetGridItem(j, r - 1, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
-                                plantType;
+                                ResolvePlantType(plantTypeId);
 
                     if (c > 0 && r > 0 && c <= Board.Instance!.columnNum && r <= Board.Instance.rowNum)
                         GridItem.SetGridItem(c - 1, r - 1, GridItemType.ScaryPot_plant).Cast<ScaryPot>().thePlantType =
-                            plantType;
+                            ResolvePlantType(plantTypeId);
                 }
             }
 
             if (iga.Row is not null && iga.Column is not null && iga.ZombieType is not null &&
                 iga.ZombieVase is not null)
             {
-                var zombieType = ResolveZombieType((int)iga.ZombieType);
+                var zombieTypeId = (int)iga.ZombieType;
                 var r = (int)iga.Row;
                 var c = (int)iga.Column;
                 if (PvPPotRange)
@@ -1634,7 +1634,7 @@ public class DataProcessor : MonoBehaviour
                     for (var i = 0; i < Board.Instance!.rowNum; i++)
                     for (var j = 3; j < Board.Instance.columnNum; j++)
                         GridItem.SetGridItem(j, i, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
-                            zombieType;
+                            ResolveZombieType(zombieTypeId);
                 }
                 else
                 {
@@ -1642,21 +1642,21 @@ public class DataProcessor : MonoBehaviour
                         for (var i = 0; i < Board.Instance!.rowNum; i++)
                         for (var j = 0; j < Board.Instance.columnNum; j++)
                             GridItem.SetGridItem(j, i, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
-                                zombieType;
+                                ResolveZombieType(zombieTypeId);
 
                     if (r == 0 && c != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
                             GridItem.SetGridItem(c - 1, j, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
-                                zombieType;
+                                ResolveZombieType(zombieTypeId);
 
                     if (c == 0 && r != 0)
                         for (var j = 0; j < Board.Instance!.columnNum; j++)
                             GridItem.SetGridItem(j, r - 1, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
-                                zombieType;
+                                ResolveZombieType(zombieTypeId);
 
                     if (c > 0 && r > 0 && c <= Board.Instance!.columnNum && r <= Board.Instance.rowNum)
                         GridItem.SetGridItem(c - 1, r - 1, GridItemType.ScaryPot_zombie).Cast<ScaryPot>().theZombieType =
-                            zombieType;
+                            ResolveZombieType(zombieTypeId);
                 }
             }
 
