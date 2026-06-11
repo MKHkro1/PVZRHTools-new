@@ -485,6 +485,8 @@ public struct ZombieListData : ISyncData
 
 public static class Modifier
 {
+    public const string PipeName = "infinite75_pvzrhtools";
+    public const string RunModifierArgument = "--run_modifier";
     public static string CommandLineToken => "PVZRHTools";
     public static bool Dev { get; set; } = false;
 }

@@ -143,6 +143,14 @@ if (Test-Path $RuntimesSource) {
     Write-Host "  Copied: runtimes folder"
 }
 
+# Also copy modifier exe to game root for new layout
+$RootExe = Join-Path $ReleaseDir "PVZRHTools.exe"
+$SubExe = Join-Path $PVZRHToolsReleaseDir "PVZRHTools.exe"
+if (Test-Path $SubExe) {
+    Copy-Item $SubExe -Destination $RootExe -Force
+    Write-Host "  Copied: PVZRHTools.exe -> release root"
+}
+
 Write-Host ""
 Write-Host "========================================"
 Write-Host "Build completed! Output: $ReleaseDir"

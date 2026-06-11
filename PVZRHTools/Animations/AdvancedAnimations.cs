@@ -58,30 +58,31 @@ namespace PVZRHTools.Animations
             transformGroup.Children.Add(_windowSkew);
             content.RenderTransformOrigin = new Point(0.5, 0.5);
 
-            window.LocationChanged += (s, e) =>
+            window.PreviewMouseMove += (s, e) =>
             {
-                if (!IsAnimationEnabled()) return;
-                if (_isDragging && _windowSkew != null)
+                if (!IsAnimationEnabled() || !_isDragging || _windowSkew == null)
                 {
-                    var currentPos = Mouse.GetPosition(window);
-                    var deltaX = currentPos.X - _lastMousePosition.X;
-                    var targetSkewX = Math.Clamp(deltaX * 0.15, -5, 5);
-                    
-                    var skewAnim = new DoubleAnimation
-                    {
-                        To = targetSkewX,
-                        Duration = TimeSpan.FromMilliseconds(50),
-                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                    };
-                    _windowSkew.BeginAnimation(SkewTransform.AngleXProperty, skewAnim);
-                    _lastMousePosition = currentPos;
+                    return;
                 }
+
+                var currentPos = e.GetPosition(window);
+                var deltaX = currentPos.X - _lastMousePosition.X;
+                var targetSkewX = Math.Clamp(deltaX * 0.15, -5, 5);
+
+                var skewAnim = new DoubleAnimation
+                {
+                    To = targetSkewX,
+                    Duration = TimeSpan.FromMilliseconds(50),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                _windowSkew.BeginAnimation(SkewTransform.AngleXProperty, skewAnim);
+                _lastMousePosition = currentPos;
             };
 
             window.PreviewMouseLeftButtonDown += (s, e) =>
             {
                 _isDragging = true;
-                _lastMousePosition = Mouse.GetPosition(window);
+                _lastMousePosition = e.GetPosition(window);
             };
 
             window.PreviewMouseLeftButtonUp += (s, e) =>

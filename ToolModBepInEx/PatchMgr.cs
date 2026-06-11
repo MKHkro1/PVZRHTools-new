@@ -6960,11 +6960,12 @@ public class PatchMgr : MonoBehaviour
             // 读取现有的InitData（仅保留Plants、Zombies、Bullets等非词条数据）
             try
             {
-                if (File.Exists("./PVZRHTools/InitData.json"))
+                string existingInitDataPath = ToolModData.ModifierPaths.GetInitDataPath();
+                if (File.Exists(existingInitDataPath))
                 {
                     try
                     {
-                        var existingJson = File.ReadAllText("./PVZRHTools/InitData.json");
+                        var existingJson = File.ReadAllText(existingInitDataPath);
                         var existingData = System.Text.Json.JsonSerializer.Deserialize<InitData>(existingJson);
                         // 只保留非词条数据，词条数据使用上面最新读取的
                         if (existingData.Plants != null && existingData.Plants.Count > 0)
@@ -7008,8 +7009,10 @@ public class PatchMgr : MonoBehaviour
             }
 
             // 保存更新后的InitData
-            Directory.CreateDirectory("./PVZRHTools");
-            File.WriteAllText("./PVZRHTools/InitData.json", System.Text.Json.JsonSerializer.Serialize(initData));
+            ToolModData.ModifierPaths.EnsureInitDataDirectory();
+            string initDataJson = System.Text.Json.JsonSerializer.Serialize(initData);
+            File.WriteAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), ToolModData.ModifierPaths.InitDataPath), initDataJson);
+            File.WriteAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), ToolModData.ModifierPaths.LegacyInitDataPath), initDataJson);
 
             // 发送更新后的词条数据给UI
             try

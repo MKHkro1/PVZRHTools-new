@@ -156,11 +156,6 @@ namespace ToolModBepInEx
             try
             {
                 LoggerInstance.LogInfo("[PVZRHTools] LateInit 开始执行");
-                if (Port.Value.Value < 10000 || Port.Value.Value > 60000)
-                {
-                    MessageBox(0, "Port值无效，已使用默认值13531", "修改器警告", 0);
-                    Port.Value.Value = 13531;
-                }
 
 #if GAR
                 var needRegen = false;
@@ -413,8 +408,12 @@ namespace ToolModBepInEx
                     Debuffs = [.. debuffs],
                     InvestBuffs = [.. investBuffs]
                 };
-                Directory.CreateDirectory("./PVZRHTools");
-                File.WriteAllText("./PVZRHTools/InitData.json", JsonSerializer.Serialize(initData));
+                ModifierPaths.EnsureInitDataDirectory();
+                string initDataPath = Path.Combine(Directory.GetCurrentDirectory(), ModifierPaths.InitDataPath);
+                string legacyInitDataPath = Path.Combine(Directory.GetCurrentDirectory(), ModifierPaths.LegacyInitDataPath);
+                string initDataJson = JsonSerializer.Serialize(initData);
+                File.WriteAllText(initDataPath, initDataJson);
+                File.WriteAllText(legacyInitDataPath, initDataJson);
                 
                 // 在 LateInit 完成后，初始化 DataSync（这会启动修改器）
                 MLogger.LogInfo("[PVZRHTools] LateInit: 数据准备完成，现在启动修改器");
@@ -600,9 +599,9 @@ namespace ToolModBepInEx
                 try
                 {
                     DataSync.Instance.SendData(new Exit());
-                Thread.Sleep(100);
-                    DataSync.Instance.modifierSocket.Shutdown(SocketShutdown.Both);
-                    DataSync.Instance.modifierSocket.Close();
+                    Thread.Sleep(100);
+                    DataSync.Instance.Stop();
+                    DataSync.Instance.Dispose();
                 }
                 catch (System.Exception ex)
                 {
