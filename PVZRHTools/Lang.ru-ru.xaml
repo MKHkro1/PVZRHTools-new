@@ -90,6 +90,8 @@
     <s:String x:Key="Tab1.Page1.NextWaveCD">Волны через сек</s:String>
     <s:String x:Key="Tab1.Page1.NextWaveCD.Tootip">Перезарядка длительнее 30 секунд обязательно приведет к крашу игры.</s:String>
     <s:String x:Key="Tab1.Page1.GameSpeed">Скорость игры</s:String>
+    <s:String x:Key="Tab1.Page1.UnlockAllPlants">Разблокировать все растения</s:String>
+    <s:String x:Key="Tab1.Page1.UnlockAllPlants.Tooltip">Разблокировать все растения в альманахе и разрешить посадку travel-растений</s:String>
     <s:String x:Key="Tab1.Page2.SuperPresent">Супер-подарок</s:String>
     <s:String x:Key="Tab1.Page2.UltimateRamdomZombie">Зомби лидеры</s:String>
     <s:String x:Key="Tab1.Page2.PresentFastOpen">Быстрое открытие подарков</s:String>

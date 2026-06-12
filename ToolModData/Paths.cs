@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 
 namespace ToolModData;
@@ -21,8 +20,18 @@ public static class ModifierPaths
             return primary;
         }
 
-        string legacy = Path.Combine(gameRoot, LegacyInitDataPath);
-        return legacy;
+        return Path.Combine(gameRoot, LegacyInitDataPath);
+    }
+
+    public static string GetSaveSettingsPath(string? gameRoot = null)
+    {
+        gameRoot ??= Directory.GetCurrentDirectory();
+        if (Directory.Exists(Path.Combine(gameRoot, "BepInEx")))
+        {
+            return Path.Combine(gameRoot, SaveSettingsPath);
+        }
+
+        return Path.Combine(gameRoot, "UserData", "ModifierSettings.json");
     }
 
     public static string ResolveModifierExe(string? gameRoot = null)
@@ -46,7 +55,7 @@ public static class ModifierPaths
             if (File.Exists(bootPath))
             {
                 string json = File.ReadAllText(bootPath);
-                BootConfig boot = System.Text.Json.JsonSerializer.Deserialize<BootConfig>(json);
+                BootConfig boot = System.Text.Json.JsonSerializer.Deserialize<BootConfig>(json)!;
                 if (!string.IsNullOrWhiteSpace(boot.ModifierPath) && File.Exists(boot.ModifierPath))
                 {
                     return boot.ModifierPath;
@@ -65,6 +74,16 @@ public static class ModifierPaths
         gameRoot ??= Directory.GetCurrentDirectory();
         Directory.CreateDirectory(Path.Combine(gameRoot, "BepInEx", "config"));
         Directory.CreateDirectory(Path.Combine(gameRoot, LegacyModifierSubDir));
+    }
+
+    public static void EnsureSaveSettingsDirectory(string? gameRoot = null)
+    {
+        string path = GetSaveSettingsPath(gameRoot);
+        string? dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
     }
 }
 

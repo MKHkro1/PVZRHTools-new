@@ -158,6 +158,11 @@
                                                       Increment="0.1" Minimum="0" SelectionOpacity="0.1" Maximum="16"
                                                       Style="{DynamicResource NumericUpDownExtend}"
                                                       IsEnabled="{Binding GameSpeedEnabled}" />
+                                    <Button x:Name="UnlockAllPlants"
+                                            Content="{DynamicResource Tab1.Page1.UnlockAllPlants}"
+                                            Command="{Binding UnlockAllPlantsCommand}"
+                                            Height="30" VerticalAlignment="Center" Margin="10,0,0,0"
+                                            ToolTip="{DynamicResource Tab1.Page1.UnlockAllPlants.Tooltip}" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
                                     <Label Content="{DynamicResource Tab2.Page2.Header}" HorizontalAlignment="Left"

@@ -2443,17 +2443,45 @@ public static class HammerPatchB
 }
 
 [HarmonyPatch(typeof(Wheel), "OnUpdate")]
-public static class WheelPatch
+public static class WheelPatchA
 {
     public static void Postfix(Wheel __instance)
     {
-        if (!WheelNoCD) return;
         try
         {
             if (__instance == null) return;
-            __instance.CD = __instance.fullCD;
-            if (__instance.cdMask != null)
-                __instance.cdMask.gameObject.SetActive(false);
+            __instance.gameObject.transform.GetChild(0).gameObject.SetActive(!WheelNoCD);
+            if (WheelNoCD)
+            {
+                __instance.CD = __instance.fullCD;
+                if (__instance.cdMask != null)
+                    __instance.cdMask.gameObject.SetActive(false);
+            }
+
+            var cdChild = __instance.transform.FindChild("ModifierWheelCD");
+            if (cdChild == null)
+            {
+                GameObject obj = new("ModifierWheelCD");
+                var text = obj.AddComponent<TextMeshProUGUI>();
+                text.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
+                text.color = new Color(0.5f, 0.8f, 1f);
+                obj.transform.SetParent(__instance.GameObject().transform);
+                obj.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+                obj.transform.localPosition = new Vector3(27.653f, 0, 0);
+                cdChild = __instance.transform.FindChild("ModifierWheelCD");
+            }
+
+            if (cdChild == null) return;
+            if (__instance.avaliable || !ShowGameInfo)
+            {
+                cdChild.GameObject().active = false;
+            }
+            else
+            {
+                cdChild.GameObject().active = true;
+                cdChild.GameObject().GetComponent<TextMeshProUGUI>().text =
+                    $"{__instance.CD:N1}/{__instance.fullCD}";
+            }
         }
         catch { }
     }
@@ -3909,7 +3937,7 @@ public static class ProgressMgrPatchA
         text.color = new Color(0, 1, 1);
         obj.transform.SetParent(__instance.GameObject().transform);
         obj.transform.localScale = new Vector3(0.4f, 0.2f, 0.2f);
-        obj.transform.localPosition = new Vector3(100f, 2.2f, 0);
+        obj.transform.localPosition = new Vector3(9f, 15f, 0);
         obj.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
     }
 }
@@ -4437,6 +4465,30 @@ public static class FrFruitObjectPatch
         catch { }
     }
 }
+[HarmonyPatch(typeof(Lawnf), nameof(Lawnf.CheckIfPlantUnlock))]
+public static class LawnfCheckIfPlantUnlockPatch
+{
+    public static void Postfix(ref UnlockType __result)
+    {
+        if (UnlockAllPlants)
+        {
+            __result = UnlockType.Unlocked;
+        }
+    }
+}
+
+[HarmonyPatch(typeof(CreatePlant), nameof(CreatePlant.LimTravel))]
+public static class CreatePlantLimTravelUnlockAllPlantsPatch
+{
+    public static void Postfix(ref bool __result)
+    {
+        if (UnlockAllPlants)
+        {
+            __result = false;
+        }
+    }
+}
+
 /*
 [HarmonyPatch(typeof(CreatePlant), "Lim")]
 public static class CreatePlantPatchA
@@ -4617,40 +4669,60 @@ public static class MousePatch
 [HarmonyPatch(typeof(AbyssSwordStar))]
 public static class AbyssSwordStarUnlockPatch
 {
-    [HarmonyPrefix]
-    [HarmonyPatch("Awake")]
-    public static void PreAwake(ref GameStatus __state)
+    public struct AwakeState
     {
-        __state = GameAPP.theGameStatus;
-        if (UnlockRedCardPlants)
-        {
-            GameAPP.theGameStatus = (GameStatus)(-1);
-        }
-    }
-
-    [HarmonyPostfix]
-    [HarmonyPatch("Awake")]
-    public static void PostAwake(ref GameStatus __state)
-    {
-        GameAPP.theGameStatus = __state;
+        public GameStatus GameStatus;
+        public LevelType BoardType;
     }
 
     [HarmonyPrefix]
     [HarmonyPatch("Awake")]
-    public static void PreStart(ref LevelType __state)
+    public static void PreAwake(AbyssSwordStar __instance, ref AwakeState __state)
     {
-        __state = GameAPP.theBoardType;
-        if (UnlockRedCardPlants)
+        __state = new AwakeState
         {
-            GameAPP.theBoardType = (LevelType)7; // 神秘模式
+            GameStatus = GameAPP.theGameStatus,
+            BoardType = GameAPP.theBoardType
+        };
+        if (!UnlockRedCardPlants) return;
+
+        try
+        {
+            var existing = AbyssSwordStar.Instance;
+            if (existing != null && existing != __instance && existing.gameObject != null)
+                existing.Die(Plant.DieReason.Default);
         }
+        catch { }
+
+        GameAPP.theGameStatus = (GameStatus)(-1);
+        GameAPP.theBoardType = (LevelType)7; // 神秘模式
     }
 
     [HarmonyPostfix]
     [HarmonyPatch("Awake")]
-    public static void PostStart(ref LevelType __state)
+    public static void PostAwake(ref AwakeState __state)
     {
-        GameAPP.theBoardType = __state;
+        GameAPP.theGameStatus = __state.GameStatus;
+        GameAPP.theBoardType = __state.BoardType;
+    }
+
+    [HarmonyFinalizer]
+    [HarmonyPatch("Awake")]
+    public static Exception FinalizerAwake(Exception __exception)
+    {
+        if (__exception != null && UnlockRedCardPlants)
+        {
+            try
+            {
+                MLogger?.LogWarning(
+                    $"[PVZRHTools] AbyssSwordStar.Awake 异常已忽略: {__exception.GetType().Name} - {__exception.Message}");
+            }
+            catch { }
+
+            return null;
+        }
+
+        return __exception;
     }
 }
 
@@ -5612,6 +5684,7 @@ public class PatchMgr : MonoBehaviour
     public static bool UltimateSuperGatling { get; set; } = false;
     public static bool UndeadBullet { get; set; } = false;
     public static bool UnlockAllFusions { get; set; } = false;
+    public static bool UnlockAllPlants { get; set; } = false;
     public static bool ZombieSea { get; set; } = false;
     public static int ZombieSeaCD { get; set; } = 40;
     public static bool ZombieSeaLow { get; set; } = false;
@@ -6960,12 +7033,11 @@ public class PatchMgr : MonoBehaviour
             // 读取现有的InitData（仅保留Plants、Zombies、Bullets等非词条数据）
             try
             {
-                string existingInitDataPath = ToolModData.ModifierPaths.GetInitDataPath();
-                if (File.Exists(existingInitDataPath))
+                if (File.Exists("./PVZRHTools/InitData.json"))
                 {
                     try
                     {
-                        var existingJson = File.ReadAllText(existingInitDataPath);
+                        var existingJson = File.ReadAllText("./PVZRHTools/InitData.json");
                         var existingData = System.Text.Json.JsonSerializer.Deserialize<InitData>(existingJson);
                         // 只保留非词条数据，词条数据使用上面最新读取的
                         if (existingData.Plants != null && existingData.Plants.Count > 0)
@@ -7009,10 +7081,8 @@ public class PatchMgr : MonoBehaviour
             }
 
             // 保存更新后的InitData
-            ToolModData.ModifierPaths.EnsureInitDataDirectory();
-            string initDataJson = System.Text.Json.JsonSerializer.Serialize(initData);
-            File.WriteAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), ToolModData.ModifierPaths.InitDataPath), initDataJson);
-            File.WriteAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), ToolModData.ModifierPaths.LegacyInitDataPath), initDataJson);
+            Directory.CreateDirectory("./PVZRHTools");
+            File.WriteAllText("./PVZRHTools/InitData.json", System.Text.Json.JsonSerializer.Serialize(initData));
 
             // 发送更新后的词条数据给UI
             try

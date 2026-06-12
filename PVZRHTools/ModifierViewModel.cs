@@ -93,10 +93,15 @@ public partial class InGameHotkeyUIVM(InGameHotkeyUI InGameHotkeyUI) : Observabl
         get => InGameHotkeyUI.KeyCode;
         set { SetProperty(InGameHotkeyUI.KeyCode, value, InGameHotkeyUI, (t, e) => t.KeyCode = e); }
     }
+
+    public void NotifyKeyCodeChanged() => OnPropertyChanged(nameof(KeyCode));
 }
 
 public partial class ModifierViewModel : ObservableObject
 {
+    private ModifierSaveModel? _loadedSaveModel;
+    private bool _inGameHotkeysLoadedFromSave;
+
     [ObservableProperty] public partial bool IsLoading { get; set; } = true;
 
     public ModifierViewModel()
@@ -278,7 +283,7 @@ public partial class ModifierViewModel : ObservableObject
                 Text = h.Item1
             });
 
-        InitInGameHotkeys([]);
+        InGameHotkeys = [];
     }
 
     public ModifierViewModel(List<HotkeyUIVM> hotkeys) : this()
@@ -553,7 +558,209 @@ public partial class ModifierViewModel : ObservableObject
             hi++;
         }
 
-        InitInGameHotkeys([]);
+        _loadedSaveModel = s;
+    }
+
+    public void ApplyPendingSaveIfNeeded()
+    {
+        if (App.PendingSaveModel is not ModifierSaveModel pending)
+        {
+            return;
+        }
+
+        App.PendingSaveModel = null;
+        if (App.InitData == null)
+        {
+            App.PendingSaveModel = pending;
+            return;
+        }
+
+        ApplySavedSettings(pending);
+        _loadedSaveModel = pending;
+        if (NeedSave)
+        {
+            SyncAll();
+        }
+    }
+
+    private void ApplySavedSettings(ModifierSaveModel s)
+    {
+        NeedSync = false;
+        BuffRefreshNoLimit = s.BuffRefreshNoLimit;
+        UnlimitedRefresh = s.UnlimitedRefresh;
+        UnlimitedScore = s.UnlimitedScore;
+        CardNoInit = s.CardNoInit;
+        ChomperNoCD = s.ChomperNoCD;
+        SuperStarNoCD = s.SuperStarNoCD;
+        AutoCutFruit = s.AutoCutFruit;
+        RandomCard = s.RandomCard;
+        ClearOnWritingField = s.ClearOnWritingField;
+        ClearOnWritingZombies = s.ClearOnWritingZombies;
+        ClearOnWritingVases = s.ClearOnWritingVases;
+        ClearOnWritingMix = s.ClearOnWritingMix;
+        GaoShuMode = s.GaoShuMode;
+        CobCannonNoCD = s.CobCannonNoCD;
+        Col = s.Col;
+        ColumnPlanting = s.ColumnPlanting;
+        ConveyBeltModify = s.ConveyBeltModify;
+        DeveloperMode = s.DeveloperMode;
+        DevLour = s.DevLour;
+        Exchange = s.Exchange;
+        FastShooting = s.FastShooting;
+        FieldString = s.FieldString;
+        FreeCD = s.FreeCD;
+        FreePlanting = s.FreePlanting;
+        GameSpeed = s.GameSpeed;
+        GameSpeedEnabled = s.GameSpeedEnabled;
+        GarlicDay = s.GarlicDay;
+        GloveNoCD = s.GloveNoCD;
+        HammerNoCD = s.HammerNoCD;
+        WheelNoCD = s.WheelNoCD;
+        HardPlant = s.HardPlant;
+        ImmuneForceDeduct = s.ImmuneForceDeduct;
+        CurseImmunity = s.CurseImmunity;
+        CrushImmunity = s.CrushImmunity;
+        TrampleImmunity = s.TrampleImmunity;
+        HyponoEmperorNoCD = s.HyponoEmperorNoCD;
+        IsMindCtrl = s.IsMindCtrl;
+        ItemExistForever = s.ItemExistForever;
+        ItemType = s.ItemType;
+        JackboxNotExplode = s.JackboxNotExplode;
+        LockBulletType = s.LockBulletType;
+        LockMoney = s.LockMoney;
+        LockPresent = s.LockPresent;
+        LockWheat = s.LockWheat;
+        LockSun = s.LockSun;
+        MineNoCD = s.MineNoCD;
+        NeedSave = s.NeedSave;
+        NewLevelName = s.NewLevelName;
+        NewMoney = s.NewMoney;
+        NewSun = s.NewSun;
+        NoFail = s.NoFail;
+        NoHole = s.NoHole;
+        NoIceRoad = s.NoIceRoad;
+        DisableIceEffect = s.DisableIceEffect;
+        UnlockRedCardPlants = s.UnlockRedCardPlants;
+        PlantingNoCD = s.PlantingNoCD;
+        PlantType = s.PlantType;
+        PresentFastOpen = s.PresentFastOpen;
+        Row = s.Row;
+        ScaredyDream = s.ScaredyDream;
+        SeedRain = s.SeedRain;
+        Shooting1 = s.Shooting1;
+        Shooting2 = s.Shooting2;
+        Shooting3 = s.Shooting3;
+        Shooting4 = s.Shooting4;
+        ShowText = s.ShowText;
+        StopSummon = s.StopSummon;
+        SuperPresent = s.SuperPresent;
+        Times = s.Times;
+        TopMostSprite = s.TopMostSprite;
+        EnableAnimations = s.EnableAnimations;
+        IsDarkMode = s.IsDarkMode;
+        UltimateRamdomZombie = s.UltimateRamdomZombie;
+        UltimateSuperGatling = s.UltimateSuperGatling;
+        AutoRhythmGame = s.AutoRhythmGame;
+        UndeadBullet = s.UndeadBullet;
+        OldObsidianBullet = s.OldObsidianBullet;
+        UnlockAllFusions = s.UnlockAllFusions;
+        VasesFieldString = s.VasesFieldString;
+        ZombieFieldString = s.ZombieFieldString;
+        MixFieldString = s.MixFieldString;
+        ZombieSeaCD = s.ZombieSeaCD;
+        ZombieSeaEnabled = s.ZombieSeaEnabled;
+        ZombieType = s.ZombieType;
+        ZombieSeaLowEnabled = s.ZombieSeaLowEnabled;
+        HammerFullCD = s.HammerFullCD;
+        HammerFullCDEnabled = s.HammerFullCDEnabled;
+        GloveFullCD = s.GloveFullCD;
+        GloveFullCDEnabled = s.GloveFullCDEnabled;
+        NewZombieUpdateCD = s.NewZombieUpdateCD;
+        PlantUpgrade = s.PlantUpgrade;
+        PvEBlindBoxZombie1 = s.PvEBlindBoxZombie1;
+        PvEBlindBoxZombie2 = s.PvEBlindBoxZombie2;
+        PvEBlindBoxZombie3 = s.PvEBlindBoxZombie3;
+        PvEBlindBoxZombie4 = s.PvEBlindBoxZombie4;
+        PvEBlindBoxZombie5 = s.PvEBlindBoxZombie5;
+        PvEBlindBoxZombie6 = s.PvEBlindBoxZombie6;
+        GodEvolutionUnlimitedRefresh = s.GodEvolutionUnlimitedRefresh;
+        GodEvolutionFreeUpgradeQuality = s.GodEvolutionFreeUpgradeQuality;
+        GodEvolutionLuckyEnabled = s.GodEvolutionLuckyEnabled;
+        GodEvolutionLucky = s.GodEvolutionLucky;
+        GodEvolutionDifficultyEnabled = s.GodEvolutionDifficultyEnabled;
+        GodEvolutionDifficulty = s.GodEvolutionDifficulty;
+        GodEvolutionRefreshCountEnabled = s.GodEvolutionRefreshCountEnabled;
+        GodEvolutionRefreshCount = s.GodEvolutionRefreshCount;
+        GodEvolutionMaxPlantCountEnabled = s.GodEvolutionMaxPlantCountEnabled;
+        GodEvolutionMaxPlantCount = s.GodEvolutionMaxPlantCount;
+        GodEvolutionOptionCountEnabled = s.GodEvolutionOptionCountEnabled;
+        GodEvolutionOptionCount = s.GodEvolutionOptionCount;
+        GodEvolutionUpgradeBuffChanceEnabled = s.GodEvolutionUpgradeBuffChanceEnabled;
+        GodEvolutionUpgradeBuffChance = s.GodEvolutionUpgradeBuffChance;
+        GodEvolutionSuperUpgrade = s.GodEvolutionSuperUpgrade;
+        GodEvolutionForceSuperQuality = s.GodEvolutionForceSuperQuality;
+        GodEvolutionUncrashable = s.GodEvolutionUncrashable;
+        GodEvolutionQualityWeightEnabled = s.GodEvolutionQualityWeightEnabled;
+        GodEvolutionQualityDefault = s.GodEvolutionQualityDefault;
+        GodEvolutionQualitySilver = s.GodEvolutionQualitySilver;
+        GodEvolutionQualityGold = s.GodEvolutionQualityGold;
+        GodEvolutionQualityDiamond = s.GodEvolutionQualityDiamond;
+        GodEvolutionDamageMultiplierEnabled = s.GodEvolutionDamageMultiplierEnabled;
+        GodEvolutionDamageMultiplier = s.GodEvolutionDamageMultiplier;
+
+        if (s.ConveyBeltTypes is { Count: > 0 })
+        {
+            ConveyBeltTypes = [];
+            foreach (var cbt in s.ConveyBeltTypes)
+            {
+                if (Plants2.ContainsKey(cbt))
+                {
+                    ConveyBeltTypes.Add(new KeyValuePair<int, string>(cbt, Plants2[cbt]));
+                }
+            }
+        }
+
+        if (s.ZombieSeaTypes is { Count: > 0 })
+        {
+            ZombieSeaTypes = [];
+            foreach (var zst in s.ZombieSeaTypes)
+            {
+                if (Zombies.ContainsKey(zst))
+                {
+                    ZombieSeaTypes.Add(new KeyValuePair<int, string>(zst, Zombies[zst]));
+                }
+            }
+        }
+
+        RestoreSavedTravelBuffStates(s);
+        NeedSync = true;
+    }
+
+    private void RestoreSavedTravelBuffStates(ModifierSaveModel s)
+    {
+        if (s.TravelBuffs is { Count: > 0 })
+        {
+            for (var i = 0; i < TravelBuffs.Count && i < s.TravelBuffs.Count; i++)
+            {
+                TravelBuffs[i].Enabled = s.TravelBuffs[i].Enabled;
+            }
+        }
+
+        if (s.Debuffs is { Count: > 0 })
+        {
+            for (var i = 0; i < Debuffs.Count && i < s.Debuffs.Count; i++)
+            {
+                Debuffs[i].Enabled = s.Debuffs[i].Enabled;
+            }
+        }
+
+        if (s.InvestBuffs is { Count: > 0 })
+        {
+            for (var i = 0; i < InvestBuffs.Count && i < s.InvestBuffs.Count; i++)
+            {
+                InvestBuffs[i].Enabled = s.InvestBuffs[i].Enabled;
+            }
+        }
     }
 
     #region Commands
@@ -566,6 +773,12 @@ public partial class ModifierViewModel : ObservableObject
     public void AbyssCheat()
     {
         App.DataSync.Value.SendData(new InGameActions { AbyssCheat = true });
+    }
+
+    [RelayCommand]
+    public void UnlockAllPlants()
+    {
+        App.DataSync.Value.SendData(new InGameActions { UnlockAllPlants = true });
     }
 
     [RelayCommand]
@@ -824,20 +1037,41 @@ public partial class ModifierViewModel : ObservableObject
 
     private static readonly (string Text, KeyCode DefaultKey)[] InGameHotkeyDefaults =
     [
-        ("高级时停 TimeStop", KeyCode.Alpha5),
+        ("高级时停 TimeStop", KeyCode.Alpha6),
         ("卡槽栏置顶 TopMostCardBank", KeyCode.Tab),
         ("显示CD信息 ShowCDInfo", KeyCode.BackQuote),
-        ("图鉴种植：植物 AlmanacCreatePlant", KeyCode.B),
-        ("图鉴种植：僵尸 AlmanacCreateZombie", KeyCode.N),
+        ("图鉴种植：植物 AlmanacCreatePlant", KeyCode.N),
+        ("图鉴种植：僵尸 AlmanacCreateZombie", KeyCode.M),
         ("图鉴种植：僵尸是否魅惑 AlmanacZombieMindCtrl", KeyCode.LeftControl),
         ("图鉴种植：植物罐子 AlmanacCreatePlantVase", KeyCode.J),
         ("图鉴种植：僵尸罐子 AlmanacCreateZombieVase", KeyCode.K),
         ("随机卡槽 RandomCard", KeyCode.R)
     ];
 
-    public void InitInGameHotkeys(List<int> keycodes)
+    public bool ShouldAcceptGameInGameHotkeys() => !_inGameHotkeysLoadedFromSave;
+
+    public void RestoreInGameHotkeys(List<int>? savedCodes, List<int>? gameCodes)
+    {
+        if (savedCodes is { Count: > 0 })
+        {
+            InitInGameHotkeys(savedCodes, fromSave: true);
+            SyncInGameHotkeys();
+            return;
+        }
+
+        if (gameCodes is { Count: > 0 })
+        {
+            InitInGameHotkeys(gameCodes);
+            return;
+        }
+
+        InitInGameHotkeys([]);
+    }
+
+    public void InitInGameHotkeys(List<int> keycodes, bool fromSave = false)
     {
         keycodes ??= [];
+        _inGameHotkeysLoadedFromSave = fromSave && keycodes.Count > 0;
         InGameHotkeys = [];
         for (var i = 0; i < InGameHotkeyDefaults.Length; i++)
         {
@@ -845,7 +1079,56 @@ public partial class ModifierViewModel : ObservableObject
             var resolvedKey = i < keycodes.Count ? (KeyCode)keycodes[i] : defaultItem.DefaultKey;
             InGameHotkeys.Add(new InGameHotkeyUIVM(new InGameHotkeyUI(defaultItem.Text, resolvedKey)));
         }
-        InGameHotkeys.ListChanged += (_, _) => SyncInGameHotkeys();
+
+        InGameHotkeys.ListChanged += (_, e) =>
+        {
+            if (e.ListChangedType == ListChangedType.ItemAdded && e.NewIndex >= 0 &&
+                e.NewIndex < InGameHotkeys.Count)
+            {
+                BindInGameHotkeyPropertyChanged(InGameHotkeys[e.NewIndex]);
+            }
+
+            SyncInGameHotkeys();
+        };
+
+        foreach (var hotkey in InGameHotkeys)
+        {
+            BindInGameHotkeyPropertyChanged(hotkey);
+        }
+
+        OnPropertyChanged(nameof(InGameHotkeys));
+        foreach (var hotkey in InGameHotkeys)
+        {
+            hotkey.NotifyKeyCodeChanged();
+        }
+    }
+
+    private void BindInGameHotkeyPropertyChanged(InGameHotkeyUIVM hotkey)
+    {
+        hotkey.PropertyChanged -= OnInGameHotkeyPropertyChanged;
+        hotkey.PropertyChanged += OnInGameHotkeyPropertyChanged;
+    }
+
+    private void OnInGameHotkeyPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(InGameHotkeyUIVM.KeyCode))
+        {
+            SyncInGameHotkeys();
+        }
+    }
+
+    private List<int> CollectInGameHotkeyCodes()
+    {
+        List<int> keys = [];
+        if (InGameHotkeys != null)
+        {
+            foreach (var igh in InGameHotkeys)
+            {
+                keys.Add((int)igh.InGameHotkeyUI.KeyCode);
+            }
+        }
+
+        return keys;
     }
 
     [RelayCommand]
@@ -1104,6 +1387,7 @@ public partial class ModifierViewModel : ObservableObject
             HammerFullCD = HammerFullCD,
             HammerFullCDEnabled = HammerFullCDEnabled,
             Hotkeys = Hotkeys,
+            InGameHotkeyCodes = CollectInGameHotkeyCodes(),
             NewZombieUpdateCD = NewZombieUpdateCD,
             PlantUpgrade = PlantUpgrade,
             PvEBlindBoxZombie1 = PvEBlindBoxZombie1,
@@ -1141,7 +1425,8 @@ public partial class ModifierViewModel : ObservableObject
 
         if (ConveyBeltTypes.Count > 0) s.ConveyBeltTypes.AddRange(from cbt in ConveyBeltTypes select cbt.Key);
 
-        File.WriteAllText(App.IsBepInEx ? "BepInEx/config/ModifierSettings.json" : "UserData/ModifierSettings.json",
+        ModifierPaths.EnsureSaveSettingsDirectory();
+        File.WriteAllText(ModifierPaths.GetSaveSettingsPath(),
             JsonSerializer.Serialize(s, ModifierSaveModelSGC.Default.ModifierSaveModel));
     }
 
@@ -2977,6 +3262,12 @@ public partial class ModifierViewModel : ObservableObject
             
             System.Diagnostics.Debug.WriteLine($"ReloadBuffsFromInitData: 完成 - TravelBuffs={TravelBuffs.Count}, InGameBuffs={InGameBuffs.Count}, Debuffs={Debuffs.Count}, AllInGameBuffs={AllInGameBuffs.Count}");
 
+            if (_loadedSaveModel is ModifierSaveModel loadedSave)
+            {
+                RestoreSavedTravelBuffStates(loadedSave);
+            }
+
+            ApplyPendingSaveIfNeeded();
             IsLoading = false;
         }
         catch (Exception ex)

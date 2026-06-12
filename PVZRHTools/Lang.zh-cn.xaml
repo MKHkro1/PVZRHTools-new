@@ -94,6 +94,8 @@
     <s:String x:Key="Tab1.Page1.NextWaveCD">两波间最大刷怪CD</s:String>
     <s:String x:Key="Tab1.Page1.NextWaveCD.Tootip">30s以上CD由于必定崩溃无法实现</s:String>
     <s:String x:Key="Tab1.Page1.GameSpeed">游戏速度</s:String>
+    <s:String x:Key="Tab1.Page1.UnlockAllPlants">解锁全部植物</s:String>
+    <s:String x:Key="Tab1.Page1.UnlockAllPlants.Tooltip">解锁图鉴中全部植物，并允许旅行植物在普通模式种植</s:String>
     <s:String x:Key="Tab1.Page2.SuperPresent">超级礼盒</s:String>
     <s:String x:Key="Tab1.Page2.UltimateRamdomZombie">盒子僵尸概率出究极僵尸</s:String>
     <s:String x:Key="Tab1.Page2.PresentFastOpen">礼盒快速打开</s:String>

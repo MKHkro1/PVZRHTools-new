@@ -46,6 +46,7 @@ public struct ModifierSaveModel
     public bool CrushImmunity { get; set; }
     public bool TrampleImmunity { get; set; }
     public List<HotkeyUIVM> Hotkeys { get; set; }
+    public List<int> InGameHotkeyCodes { get; set; }
     public bool HyponoEmperorNoCD { get; set; }
     public bool IsMindCtrl { get; set; }
     public bool ItemExistForever { get; set; }

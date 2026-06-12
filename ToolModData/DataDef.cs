@@ -318,6 +318,11 @@ public struct InGameActions : ISyncData
     /// 修改出怪列表 - 格式：waveIndex,zombieIndex,zombieType
     /// </summary>
     public string? ModifyZombieList { get; set; }
+
+    /// <summary>
+    /// 解锁全部植物（图鉴解锁 + 旅行植物可种植）
+    /// </summary>
+    public bool? UnlockAllPlants { get; set; }
 }
 
 public struct InGameHotkeys : ISyncData
@@ -485,8 +490,6 @@ public struct ZombieListData : ISyncData
 
 public static class Modifier
 {
-    public const string PipeName = "infinite75_pvzrhtools";
-    public const string RunModifierArgument = "--run_modifier";
     public static string CommandLineToken => "PVZRHTools";
     public static bool Dev { get; set; } = false;
 }

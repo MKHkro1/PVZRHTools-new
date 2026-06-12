@@ -4,5 +4,5 @@ namespace PVZRHTools;
 public static class ModifierVersion
 {
     public static string GameVersion => "3.7";
-    public static string Version => "4.1.0";
+    public static string Version => "4.0.1";
 } 

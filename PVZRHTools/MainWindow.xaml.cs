@@ -126,10 +126,91 @@ namespace PVZRHTools
         private void MainWindow_ContentRendered(object? sender, EventArgs e)
         {
             ContentRendered -= MainWindow_ContentRendered;
+            BeginViewModelInitialization();
+        }
+
+        private void BeginViewModelInitialization()
+        {
+            if (ShouldWaitForInitDataBeforeLoad())
+            {
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+                var attempts = 0;
+                timer.Tick += (_, _) =>
+                {
+                    attempts++;
+                    if (App.InitData != null || attempts >= 100)
+                    {
+                        timer.Stop();
+                        FinishViewModelInitialization();
+                    }
+                };
+                timer.Start();
+                return;
+            }
+
+            FinishViewModelInitialization();
+        }
+
+        private static bool ShouldWaitForInitDataBeforeLoad()
+        {
+            var settingsPath = ModifierPaths.GetSaveSettingsPath();
+            if (!File.Exists(settingsPath))
+            {
+                return false;
+            }
+
             try
             {
-                DataContext = CreateRealViewModel();
+                var s = JsonSerializer.Deserialize(File.ReadAllText(settingsPath),
+                    ModifierSaveModelSGC.Default.ModifierSaveModel);
+                return s.NeedSave && App.InitData == null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void FinishViewModelInitialization()
+        {
+            try
+            {
+                var pendingSaveCodes = App.PendingSaveModel?.InGameHotkeyCodes;
+                var (vm, loadedSettings) = CreateRealViewModel();
+                DataContext = vm;
                 App.inited = true;
+                if (ViewModel != null)
+                {
+                    ViewModel.ApplyPendingSaveIfNeeded();
+
+                    List<int>? savedCodes = null;
+                    if (pendingSaveCodes is { Count: > 0 })
+                    {
+                        savedCodes = pendingSaveCodes;
+                    }
+                    else if (loadedSettings?.InGameHotkeyCodes is { Count: > 0 })
+                    {
+                        savedCodes = loadedSettings.Value.InGameHotkeyCodes;
+                    }
+
+                    var gameCodes = App.PendingGameInGameHotkeys;
+                    App.PendingGameInGameHotkeys = null;
+
+                    // 等 DataGrid/ComboBox 完成绑定后再恢复快捷键，避免界面仍显示默认值
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (ViewModel == null)
+                        {
+                            return;
+                        }
+
+                        ViewModel.RestoreInGameHotkeys(savedCodes, gameCodes);
+                        if (ViewModel.NeedSave)
+                        {
+                            ViewModel.SyncAll();
+                        }
+                    }), DispatcherPriority.Loaded);
+                }
             }
             catch
             {
@@ -139,16 +220,29 @@ namespace PVZRHTools
             }
         }
 
-        private static ModifierViewModel CreateRealViewModel()
+        private static (ModifierViewModel Vm, ModifierSaveModel? Settings) CreateRealViewModel()
         {
-            var settingsPath = (App.IsBepInEx ? "BepInEx/config" : "UserData") + "/ModifierSettings.json";
+            var settingsPath = ModifierPaths.GetSaveSettingsPath();
             if (File.Exists(settingsPath))
             {
                 try
                 {
                     var s = JsonSerializer.Deserialize(File.ReadAllText(settingsPath),
                         ModifierSaveModelSGC.Default.ModifierSaveModel);
-                    return s.NeedSave ? new ModifierViewModel(s) : new ModifierViewModel(s.Hotkeys);
+                    if (s.NeedSave && App.InitData == null)
+                    {
+                        App.PendingSaveModel = s;
+                        var vm = new ModifierViewModel(s.Hotkeys);
+                        vm.NeedSave = s.NeedSave;
+                        return (vm, s);
+                    }
+
+                    if (s.NeedSave)
+                    {
+                        return (new ModifierViewModel(s), s);
+                    }
+
+                    return (new ModifierViewModel(s.Hotkeys), s);
                 }
                 catch
                 {
@@ -156,7 +250,7 @@ namespace PVZRHTools
                 }
             }
 
-            return new ModifierViewModel();
+            return (new ModifierViewModel(), null);
         }
         
         private void MainWindow_Activated(object? sender, EventArgs e)

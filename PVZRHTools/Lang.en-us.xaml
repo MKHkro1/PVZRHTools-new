@@ -104,6 +104,8 @@
     <s:String x:Key="Tab1.Page1.NextWaveCD">NextWaveCD</s:String>
     <s:String x:Key="Tab1.Page1.NextWaveCD.Tootip">The CD longer than 30s will definitely makes the game crash.</s:String>
     <s:String x:Key="Tab1.Page1.GameSpeed">GameSpeed</s:String>
+    <s:String x:Key="Tab1.Page1.UnlockAllPlants">UnlockAllPlants</s:String>
+    <s:String x:Key="Tab1.Page1.UnlockAllPlants.Tooltip">Unlock all plants in almanac and allow travel plants in normal mode</s:String>
     <s:String x:Key="Tab1.Page2.SuperPresent">SuperPresent</s:String>
     <s:String x:Key="Tab1.Page2.UltimateRamdomZombie">UltimateRamdomZombie</s:String>
     <s:String x:Key="Tab1.Page2.PresentFastOpen">PresentFastOpen</s:String>

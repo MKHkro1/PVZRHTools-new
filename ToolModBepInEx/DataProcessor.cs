@@ -1051,6 +1051,7 @@ public class DataProcessor : MonoBehaviour
         {
             for (var index = 0; index < h.KeyCodes.Count; index++)
                 Core.KeyBindings.Value[index].Value = (KeyCode)h.KeyCodes[index];
+            Core.Instance.Value.Config.Save();
             return;
         }
 
@@ -1436,6 +1437,11 @@ public class DataProcessor : MonoBehaviour
             }
             if (iga.StopSummon is not null) StopSummon = (bool)iga.StopSummon;
             if (iga.ConveyBeltTypes is not null) ConveyBeltTypes = iga.ConveyBeltTypes;
+            if (iga.UnlockAllPlants is true)
+            {
+                UnlockAllPlants = true;
+            }
+
             if (iga.AbyssCheat is not null)
             {
                 var abyssManager = GameAPP.Instance?.GetComponent<AbyssManager>();

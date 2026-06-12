@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PVZRHTools")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8e020eb7999fcb54244e6434cf48a530cba583e5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9565efe9c7dd83c1407ecfb6ed7ac0d199a57052")]
 [assembly: System.Reflection.AssemblyProductAttribute("PVZRHTools")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PVZRHTools")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

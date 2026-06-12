@@ -156,6 +156,11 @@ namespace ToolModBepInEx
             try
             {
                 LoggerInstance.LogInfo("[PVZRHTools] LateInit 开始执行");
+                if (Port.Value.Value < 10000 || Port.Value.Value > 60000)
+                {
+                    MessageBox(0, "Port值无效，已使用默认值13531", "修改器警告", 0);
+                    Port.Value.Value = 13531;
+                }
 
 #if GAR
                 var needRegen = false;
@@ -408,12 +413,8 @@ namespace ToolModBepInEx
                     Debuffs = [.. debuffs],
                     InvestBuffs = [.. investBuffs]
                 };
-                ModifierPaths.EnsureInitDataDirectory();
-                string initDataPath = Path.Combine(Directory.GetCurrentDirectory(), ModifierPaths.InitDataPath);
-                string legacyInitDataPath = Path.Combine(Directory.GetCurrentDirectory(), ModifierPaths.LegacyInitDataPath);
-                string initDataJson = JsonSerializer.Serialize(initData);
-                File.WriteAllText(initDataPath, initDataJson);
-                File.WriteAllText(legacyInitDataPath, initDataJson);
+                Directory.CreateDirectory("./PVZRHTools");
+                File.WriteAllText("./PVZRHTools/InitData.json", JsonSerializer.Serialize(initData));
                 
                 // 在 LateInit 完成后，初始化 DataSync（这会启动修改器）
                 MLogger.LogInfo("[PVZRHTools] LateInit: 数据准备完成，现在启动修改器");
@@ -554,13 +555,13 @@ namespace ToolModBepInEx
             Port = new Lazy<ConfigEntry<int>>(Config.Bind("PVZRHTools", "Port", 13531, "修改窗口无法出现时可尝试修改此数值，范围10000~60000"));
             AlmanacZombieMindCtrl =
                 new Lazy<ConfigEntry<bool>>(Config.Bind("PVZRHTools", nameof(AlmanacZombieMindCtrl), false));
-            KeyTimeStop = new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyTimeStop), KeyCode.Alpha5));
+            KeyTimeStop = new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyTimeStop), KeyCode.Alpha6));
             KeyShowGameInfo =
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyShowGameInfo), KeyCode.BackQuote));
             KeyAlmanacCreatePlant =
-                new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreatePlant), KeyCode.B));
+                new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreatePlant), KeyCode.N));
             KeyAlmanacCreateZombie =
-                new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreateZombie), KeyCode.N));
+                new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacCreateZombie), KeyCode.M));
             KeyAlmanacZombieMindCtrl =
                 new Lazy<ConfigEntry<KeyCode>>(Config.Bind("PVZRHTools", nameof(KeyAlmanacZombieMindCtrl),
                     KeyCode.LeftControl));
@@ -576,6 +577,23 @@ namespace ToolModBepInEx
             {
                 KeyRandomCard.Value.Value = KeyCode.R;
             }
+
+            // 旧版默认快捷键迁移到新默认值
+            if (KeyTimeStop.Value.Value == KeyCode.Alpha5)
+            {
+                KeyTimeStop.Value.Value = KeyCode.Alpha6;
+            }
+
+            if (KeyAlmanacCreatePlant.Value.Value == KeyCode.B)
+            {
+                KeyAlmanacCreatePlant.Value.Value = KeyCode.N;
+            }
+
+            if (KeyAlmanacCreateZombie.Value.Value == KeyCode.N)
+            {
+                KeyAlmanacCreateZombie.Value.Value = KeyCode.M;
+            }
+
             ModsHash = new Lazy<ConfigEntry<string>>(Config.Bind("PVZRHTools", nameof(ModsHash), ""));
             KeyBindings = new Lazy<List<ConfigEntry<KeyCode>>>([
                 KeyTimeStop.Value, KeyTopMostCardBank.Value, KeyShowGameInfo.Value,
@@ -599,9 +617,9 @@ namespace ToolModBepInEx
                 try
                 {
                     DataSync.Instance.SendData(new Exit());
-                    Thread.Sleep(100);
-                    DataSync.Instance.Stop();
-                    DataSync.Instance.Dispose();
+                Thread.Sleep(100);
+                    DataSync.Instance.modifierSocket.Shutdown(SocketShutdown.Both);
+                    DataSync.Instance.modifierSocket.Close();
                 }
                 catch (System.Exception ex)
                 {
