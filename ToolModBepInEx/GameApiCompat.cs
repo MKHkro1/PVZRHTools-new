@@ -53,4 +53,23 @@ internal static class GameApiCompat
             // ignored
         }
     }
+
+    /// <summary>
+    /// 3.7：诅咒改为 Plant 上的 EffectType.Curse（PlantCurseEffect）。
+    /// </summary>
+    internal static void RemovePlantCurseEffect(Plant? plant)
+    {
+        if (plant == null)
+            return;
+
+        try
+        {
+            if (plant.HasBuff(EffectType.Curse))
+                plant.RemoveBuff(EffectType.Curse);
+        }
+        catch
+        {
+            // ignored
+        }
+    }
 }

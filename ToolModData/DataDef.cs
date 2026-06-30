@@ -73,6 +73,11 @@ public struct BasicProperties : ISyncData
     public bool? PickaxeImmunity { get; set; }
     public bool? ZombieBulletReflectEnabled { get; set; }
     public float? ZombieBulletReflectChance { get; set; }
+    /// <summary>自定义阴魂不散（Debuff #1005）复活概率</summary>
+    public bool? ZombieReviveDebuffCustomEnabled { get; set; }
+    public float? ZombieReviveDebuffChance { get; set; }
+    public bool? ZombieFreeReviveEnabled { get; set; }
+    public float? ZombieFreeReviveChance { get; set; }
     public bool? UnlimitedCardSlots { get; set; }
     /// <summary>
     /// 僵尸状态并存 - 允许红温与寒冰、蒜毒状态同时存在

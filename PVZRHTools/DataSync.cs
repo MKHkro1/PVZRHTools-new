@@ -237,34 +237,37 @@ public class DataSync
                     var s = json.Deserialize(SyncTravelBuffSGC.Default.SyncTravelBuff);
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        if (s.AdvInGame is not null && s.UltiInGame is not null)
+                        var vm = MainWindow.Instance?.ViewModel;
+                        if (vm == null)
+                            return;
+
+                        if (s.AdvInGame is not null && s.UltiInGame is not null && vm.InGameBuffs != null)
                         {
                             Enabled = false;
-                            var inGameBuffsCount = MainWindow.Instance!.ViewModel.InGameBuffs.Count;
+                            var inGameBuffsCount = vm.InGameBuffs.Count;
                             for (var i = 0; i < s.AdvInGame.Count && i < inGameBuffsCount; i++)
-                                MainWindow.Instance!.ViewModel.InGameBuffs[i].Enabled = s.AdvInGame[i];
+                                vm.InGameBuffs[i].Enabled = s.AdvInGame[i];
                             for (var i = 0; i < s.UltiInGame.Count && i + s.AdvInGame.Count < inGameBuffsCount; i++)
-                                MainWindow.Instance!.ViewModel.InGameBuffs[i + s.AdvInGame.Count].Enabled =
-                                    s.UltiInGame[i];
+                                vm.InGameBuffs[i + s.AdvInGame.Count].Enabled = s.UltiInGame[i];
                             Enabled = true;
                         }
 
                         // 投资词条局内同步
-                        if (s.InvestInGame is not null)
+                        if (s.InvestInGame is not null && vm.InGameInvestBuffs != null)
                         {
                             Enabled = false;
-                            var inGameInvestCount = MainWindow.Instance!.ViewModel.InGameInvestBuffs.Count;
+                            var inGameInvestCount = vm.InGameInvestBuffs.Count;
                             for (var i = 0; i < s.InvestInGame.Count && i < inGameInvestCount; i++)
-                                MainWindow.Instance!.ViewModel.InGameInvestBuffs[i].Enabled = s.InvestInGame[i];
+                                vm.InGameInvestBuffs[i].Enabled = s.InvestInGame[i];
                             Enabled = true;
                         }
 
-                        if (s.DebuffsInGame is not null)
+                        if (s.DebuffsInGame is not null && vm.InGameDebuffs != null)
                         {
                             Enabled = false;
-                            var inGameDebuffsCount = MainWindow.Instance!.ViewModel.InGameDebuffs.Count;
+                            var inGameDebuffsCount = vm.InGameDebuffs.Count;
                             for (var i = 0; i < s.DebuffsInGame.Count && i < inGameDebuffsCount; i++)
-                                MainWindow.Instance!.ViewModel.InGameDebuffs[i].Enabled = s.DebuffsInGame[i];
+                                vm.InGameDebuffs[i].Enabled = s.DebuffsInGame[i];
 
                             Enabled = true;
                         }
@@ -274,18 +277,21 @@ public class DataSync
                 case 6:
                 {
                     var iga = json.Deserialize(InGameActionsSGC.Default.InGameActions);
-                    if (iga.WriteField is not null)
-                        Application.Current.Dispatcher.Invoke(() =>
-                            MainWindow.Instance!.ViewModel.FieldString = iga.WriteField);
-                    if (iga.WriteZombies is not null)
-                        Application.Current.Dispatcher.Invoke(() =>
-                            MainWindow.Instance!.ViewModel.ZombieFieldString = iga.WriteZombies);
-                    if (iga.WriteVases is not null)
-                        Application.Current.Dispatcher.Invoke(() =>
-                            MainWindow.Instance!.ViewModel.VasesFieldString = iga.WriteVases);
-                    if (iga.WriteMix is not null)
-                        Application.Current.Dispatcher.Invoke(() =>
-                            MainWindow.Instance!.ViewModel.MixFieldString = iga.WriteMix);
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var vm = MainWindow.Instance?.ViewModel;
+                        if (vm == null)
+                            return;
+
+                        if (iga.WriteField is not null)
+                            vm.FieldString = iga.WriteField;
+                        if (iga.WriteZombies is not null)
+                            vm.ZombieFieldString = iga.WriteZombies;
+                        if (iga.WriteVases is not null)
+                            vm.VasesFieldString = iga.WriteVases;
+                        if (iga.WriteMix is not null)
+                            vm.MixFieldString = iga.WriteMix;
+                    });
 
                     break;
                 }
@@ -348,8 +354,8 @@ public class DataSync
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.ToString());
-            Application.Current.Dispatcher.Invoke(Application.Current.Shutdown);
+            // 局内同步异常不应导致整个修改器退出，否则取消失败等功能会表现为“游戏冻结”
+            System.Diagnostics.Debug.WriteLine($"[DataSync] ProcessData error: {ex}");
         }
     }
 

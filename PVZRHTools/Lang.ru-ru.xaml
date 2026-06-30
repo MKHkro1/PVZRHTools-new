@@ -62,6 +62,12 @@
     <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect">Отражение пуль зомби</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect.Tooltip">При включении зомби имеют шанс отразить пули обратно</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieBulletReflectChance.Tooltip">Шанс отражения пуль зомби (0-100%)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieReviveDebuffCustom">Шанс воскрешения (дебафф #1005)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieReviveDebuffCustom.Tooltip">Настройка шанса воскрешения дебаффа #1005 (требуется активный дебафф)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieReviveDebuffChance.Tooltip">Шанс полного воскрешения при смерти (0-100%, по умолчанию 33.3%)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieFreeRevive">Независимое воскрешение (без дебаффа)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieFreeRevive.Tooltip">Воскрешение с полным HP без дебаффа #1005; один зомби может воскресать многократно</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieFreeReviveChance.Tooltip">Шанс независимого воскрешения (0-100%), без ограничения «один раз на зомби»</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieStatusCoexist">Сосуществование статусов зомби</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieStatusCoexist.Tooltip">При включении статус тепла (огня) зомби может сосуществовать со статусами холода и яда, а не быть взаимоисключающим</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieImmuneAllDebuffs">Зомби иммунны ко всем дебаффам</s:String>
@@ -278,7 +284,7 @@
     <s:String x:Key="Tab13.OptionCount">Число вариантов</s:String>
     <s:String x:Key="Tab13.UpgradeBuffChance">Шанс улучшения качества</s:String>
     <s:String x:Key="Tab13.SuperUpgrade">Супер-улучшение</s:String>
-    <s:String x:Key="Tab13.ForceSuperQuality">Супер-качество</s:String>
+    <s:String x:Key="Tab13.ForceSuperQuality">Гарантированная супер-мутация</s:String>
     <s:String x:Key="Tab13.Uncrashable">Неразрушимые растения</s:String>
     <s:String x:Key="Tab13.DamageMultiplier">Множитель урона</s:String>
     <s:String x:Key="Tab13.QualityWeightEnabled">Свои веса качества</s:String>
@@ -286,7 +292,7 @@
     <s:String x:Key="Tab13.QualitySilver">Серебро</s:String>
     <s:String x:Key="Tab13.QualityGold">Золото</s:String>
     <s:String x:Key="Tab13.QualityDiamond">Алмаз</s:String>
-    <s:String x:Key="Tab13.QualityHint">Больший вес — выше шанс соответствующего качества.</s:String>
+    <s:String x:Key="Tab13.QualityHint">Веса качества влияют на обычные/серебро/золото/алмаз. Удача усиливает высокие уровни и супер-мутацию. Включите гарантированную супер-мутацию для постоянного появления такого варианта.</s:String>
     <s:String x:Key="Tab13.ApplyNow">Применить сейчас</s:String>
     <s:String x:Key="Tab13.ResetDefaults">Сброс</s:String>
 </ResourceDictionary>

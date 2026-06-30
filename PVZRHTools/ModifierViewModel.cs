@@ -2183,6 +2183,26 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new BasicProperties { ZombieBulletReflectChance = value });
     }
 
+    partial void OnZombieReviveDebuffCustomEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieReviveDebuffCustomEnabled = value });
+    }
+
+    partial void OnZombieReviveDebuffChanceChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieReviveDebuffChance = value });
+    }
+
+    partial void OnZombieFreeReviveEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieFreeReviveEnabled = value });
+    }
+
+    partial void OnZombieFreeReviveChanceChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieFreeReviveChance = value });
+    }
+
     partial void OnUnlimitedCardSlotsChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { UnlimitedCardSlots = value });
@@ -2854,6 +2874,14 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool ZombieBulletReflectEnabled { get; set; }
 
     [ObservableProperty] public partial float ZombieBulletReflectChance { get; set; } = 10.0f;
+
+    [ObservableProperty] public partial bool ZombieReviveDebuffCustomEnabled { get; set; }
+
+    [ObservableProperty] public partial float ZombieReviveDebuffChance { get; set; } = 33.333f;
+
+    [ObservableProperty] public partial bool ZombieFreeReviveEnabled { get; set; }
+
+    [ObservableProperty] public partial float ZombieFreeReviveChance { get; set; } = 33.333f;
 
     [ObservableProperty] public partial bool UnlimitedCardSlots { get; set; }
 

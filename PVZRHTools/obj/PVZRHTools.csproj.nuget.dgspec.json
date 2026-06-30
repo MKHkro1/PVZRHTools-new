@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj": {}
+    "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj": {}
   },
   "projects": {
-    "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj": {
+    "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj",
+        "projectUniqueName": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj",
         "projectName": "PVZRHTools",
-        "projectPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj",
+        "projectPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\PVZRHTools.csproj",
         "packagesPath": "C:\\Users\\20468\\.nuget\\packages\\",
-        "outputPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\obj\\",
+        "outputPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\PVZRHTools\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\20468\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -26,8 +26,8 @@
           "net8.0-windows7.0": {
             "targetAlias": "net8.0-windows",
             "projectReferences": {
-              "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {
-                "projectPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj"
+              "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {
+                "projectPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj"
               }
             }
           }
@@ -80,20 +80,6 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-              "version": "[8.0.28, 8.0.28]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Runtime.win-x64",
-              "version": "[8.0.28, 8.0.28]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
-              "version": "[8.0.28, 8.0.28]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
@@ -104,21 +90,16 @@
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315/PortableRuntimeIdentifierGraph.json"
         }
-      },
-      "runtimes": {
-        "win-x64": {
-          "#import": []
-        }
       }
     },
-    "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {
+    "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
+        "projectUniqueName": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
         "projectName": "ToolModData",
-        "projectPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
+        "projectPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
         "packagesPath": "C:\\Users\\20468\\.nuget\\packages\\",
-        "outputPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\obj\\",
+        "outputPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\20468\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -161,31 +142,12 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-              "version": "[6.0.36, 6.0.36]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Runtime.win-x64",
-              "version": "[6.0.36, 6.0.36]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
-              "version": "[6.0.36, 6.0.36]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315\\RuntimeIdentifierGraph.json"
-        }
-      },
-      "runtimes": {
-        "win-x64": {
-          "#import": []
         }
       }
     }

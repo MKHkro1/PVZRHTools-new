@@ -20,6 +20,7 @@ using ToolModData;
 using UI;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Events;
 using static ToolModBepInEx.PatchMgr;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
@@ -2743,8 +2744,45 @@ public static class PlantDiePatch
 #region CurseImmunity - 诅咒免疫补丁
 
 /// <summary>
-/// 诅咒免疫补丁 - UltimateHorse.GetDamage
-/// 阻止终极马僵尸的诅咒效果
+/// 3.7 诅咒免疫 - EffectManager.SetEffect(Plant, EffectType.Curse, ...)
+/// 拦截所有通过 Effect 体系施加的 PlantCurseEffect。
+/// </summary>
+[HarmonyPatch(typeof(EffectManager), nameof(EffectManager.SetEffect), new Type[] { typeof(Plant), typeof(EffectType), typeof(float), typeof(float) })]
+public static class EffectManagerSetCurseImmunityPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(EffectType effectType, ref bool __result)
+    {
+        if (!CurseImmunity)
+            return true;
+
+        if (effectType != EffectType.Curse)
+            return true;
+
+        __result = false;
+        return false;
+    }
+}
+
+/// <summary>
+/// 3.7 诅咒免疫 - Plant.TakeDamage
+/// 受伤时立即清除已存在的诅咒 Effect。
+/// </summary>
+[HarmonyPatch(typeof(Plant), nameof(Plant.TakeDamage), new Type[] { typeof(int), typeof(IDamageMaker), typeof(DamageType), typeof(PlantType), typeof(bool) })]
+public static class PlantTakeDamageCurseImmunityPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(Plant __instance)
+    {
+        if (!CurseImmunity)
+            return;
+
+        GameApiCompat.RemovePlantCurseEffect(__instance);
+    }
+}
+
+/// <summary>
+/// 诅咒免疫补丁 - UltimateHorse.GetDamage（3.6 及以前遗留，3.7 诅咒已改走 SetEffect）
 /// </summary>
 [HarmonyPatch(typeof(UltimateHorse), nameof(UltimateHorse.GetDamage), new Type[] { typeof(int), typeof(DamageType), typeof(bool), typeof(PlantType) })]
 public static class UltimateHorseGetDamagePatch
@@ -3136,14 +3174,14 @@ public static class BoardUpdateCursePatch
                 __instance.thePoints = 999999f;
             }
             
-            // 处理诅咒免疫
+            // 处理诅咒免疫（3.7：移除 PlantCurseEffect，不再仅重置贴图颜色）
             if (CurseImmunity)
             {
                 _curseClearTimer += Time.deltaTime;
                 if (_curseClearTimer >= _curseClearInterval)
                 {
                     _curseClearTimer = 0f;
-                    ClearAllPlantsCurseVisual();
+                    RemoveCurseFromAllPlants();
                 }
             }
             
@@ -3171,43 +3209,19 @@ public static class BoardUpdateCursePatch
         catch { }
     }
     
-    private static void ClearAllPlantsCurseVisual()
+    private static void RemoveCurseFromAllPlants()
     {
         try
         {
             if (Board.Instance == null) return;
-            
+
             var allPlants = Lawnf.GetAllPlants();
             if (allPlants == null) return;
-            
+
             foreach (var plant in allPlants)
             {
                 if (plant != null && plant.thePlantHealth > 0)
-                {
-                    ClearPlantCurseVisual(plant);
-                }
-            }
-        }
-        catch { }
-    }
-    
-    private static void ClearPlantCurseVisual(Plant plant)
-    {
-        try
-        {
-            if (plant == null || plant.gameObject == null) return;
-            
-            var spriteRenderers = plant.GetComponentsInChildren<SpriteRenderer>();
-            if (spriteRenderers != null)
-            {
-                foreach (var sr in spriteRenderers)
-                {
-                    if (sr != null)
-                    {
-                        // 重置颜色到白色（正常状态）
-                        sr.color = Color.white;
-                    }
-                }
+                    GameApiCompat.RemovePlantCurseEffect(plant);
             }
         }
         catch { }
@@ -4335,7 +4349,9 @@ public static class ShootingManagerShowBuffRefreshPatch
     [HarmonyPrefix]
     public static void Prefix(ShootingManager __instance)
     {
-        if (!ShouldFixGodEvolutionRefreshButton || __instance == null) return;
+        if (__instance == null) return;
+        GodEvolutionHelper.ApplySettings(__instance);
+        if (!ShouldFixGodEvolutionRefreshButton) return;
         __instance.refreshCount = GetGodEvolutionMenuRefreshCount();
     }
 }
@@ -4346,6 +4362,155 @@ public static class GodEvolutionHelper
 {
     private static FieldInfo? _appearSuperQualitativeField;
     private static FieldInfo? _uncrashableField;
+    private static FieldInfo? _qualityWeightsField;
+    private static MethodInfo? _advQualitativeCallbackMethod;
+
+    [ThreadStatic] private static bool _inRegisterCoreBuff;
+    [ThreadStatic] private static float _savedLucky;
+    [ThreadStatic] private static ShootingManager? _coreBuffMgr;
+
+    private static readonly int[] ShootingQualitativeBuffIds = { 12000, 12001, 12002, 12003, 12004, 12005 };
+
+    public static bool InRegisterCoreBuff => _inRegisterCoreBuff;
+
+    public static float GetLuckyMultiplier()
+    {
+        if (!GodEvolutionLuckyEnabled) return 1f;
+        return Mathf.Max(0.01f, GodEvolutionLucky);
+    }
+
+    public static bool IsQualitativeBuff(BaseBuff buff)
+    {
+        if (buff == null) return false;
+        string typeName = buff.GetType().Name;
+        return typeName.Contains("UniqueUpgrade", StringComparison.Ordinal)
+               || typeName.Contains("SuperUpgrade", StringComparison.Ordinal)
+               || typeName.Contains("SuperBuff", StringComparison.Ordinal)
+               || typeName.Contains("SuperForce", StringComparison.Ordinal);
+    }
+
+    public static bool IsSuperQualitativeBuff(BaseBuff buff) => IsQualitativeBuff(buff);
+
+    public static bool GetAppearSuperQualitative(ShootingManager mgr)
+    {
+        try
+        {
+            return (_appearSuperQualitativeField ??= typeof(ShootingManager).GetField("appearSuperQualitative",
+                BindingFlags.Instance | BindingFlags.NonPublic))?.GetValue(mgr) is true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static void SetAppearSuperQualitative(ShootingManager mgr, bool value)
+    {
+        try
+        {
+            (_appearSuperQualitativeField ??= typeof(ShootingManager).GetField("appearSuperQualitative",
+                BindingFlags.Instance | BindingFlags.NonPublic))?.SetValue(mgr, value);
+        }
+        catch { }
+    }
+
+    public static void BeginCoreBuffForce(ShootingManager mgr)
+    {
+        if (!GodEvolutionForceSuperQuality || mgr == null) return;
+        _inRegisterCoreBuff = true;
+        _coreBuffMgr = mgr;
+        _savedLucky = mgr.Lucky;
+        mgr.Lucky = 99999f;
+    }
+
+    public static void EndCoreBuffForce()
+    {
+        if (!_inRegisterCoreBuff) return;
+        try
+        {
+            if (_coreBuffMgr != null)
+                _coreBuffMgr.Lucky = _savedLucky;
+        }
+        catch { }
+        _inRegisterCoreBuff = false;
+        _coreBuffMgr = null;
+    }
+
+    public static void TryForceAdvQualitativeOption(ShootingManager mgr, MultipleChoiceMenu menu)
+    {
+        if (!GodEvolutionForceSuperQuality || mgr.endless || menu == null) return;
+        if (GetAppearSuperQualitative(mgr)) return;
+
+        SetAppearSuperQualitative(mgr, true);
+
+        if (TryRegisterAdvQualitativeViaGameCallback(mgr, menu))
+            return;
+
+        RegisterAdvQualitativeViaTravelMgr(menu);
+    }
+
+    private static bool TryRegisterAdvQualitativeViaGameCallback(ShootingManager mgr, MultipleChoiceMenu menu)
+    {
+        try
+        {
+            _advQualitativeCallbackMethod ??= FindAdvQualitativeCallbackMethod();
+            if (_advQualitativeCallbackMethod == null) return false;
+
+            var callback = Delegate.CreateDelegate(typeof(UnityAction), mgr, _advQualitativeCallbackMethod);
+            menu.RegisterOption("超质变", "随机获得一个诸神质变词条", (UnityAction)callback,
+                (PlantType)254, ZombieType.Nothing, Quality.diamond, true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static MethodInfo? FindAdvQualitativeCallbackMethod()
+    {
+        foreach (var method in AccessTools.GetDeclaredMethods(typeof(ShootingManager)))
+        {
+            string name = method.Name;
+            if (!name.Contains("RegisterOtherBuff", StringComparison.Ordinal)) continue;
+            if (name.Contains("55_14", StringComparison.Ordinal)
+                || name.Contains("55_13", StringComparison.Ordinal)
+                || name.Contains("55_15", StringComparison.Ordinal))
+                return method;
+        }
+        return null;
+    }
+
+    private static void RegisterAdvQualitativeViaTravelMgr(MultipleChoiceMenu menu)
+    {
+        try
+        {
+            int buffId = ShootingQualitativeBuffIds[Random.Range(0, ShootingQualitativeBuffIds.Length)];
+            var buff = (AdvBuff)buffId;
+            string title = "超质变";
+            string desc = "获得诸神质变词条";
+            if (TravelDictionary.advancedBuffsText != null
+                && TravelDictionary.advancedBuffsText.TryGetValue(buff, out var buffText)
+                && !string.IsNullOrEmpty(buffText))
+            {
+                title = buffText;
+                desc = buffText;
+            }
+
+            AdvBuff captured = buff;
+            UnityAction callback = (UnityAction)(Action)(() =>
+            {
+                try
+                {
+                    TravelMgr.Instance?.GetNormalBuff(captured);
+                }
+                catch { }
+            });
+
+            menu.RegisterOption(title, desc, callback, (PlantType)254, ZombieType.Nothing, Quality.diamond, true);
+        }
+        catch { }
+    }
 
     public static void ApplySettings(ShootingManager mgr)
     {
@@ -4366,27 +4531,53 @@ public static class GodEvolutionHelper
                 mgr.upgradeBuffChance = GodEvolutionFreeUpgradeQuality ? 999999 : GodEvolutionUpgradeBuffChance;
             if (GodEvolutionSuperUpgrade)
                 mgr.superUpgrade = true;
-            if (GodEvolutionForceSuperQuality)
-                (_appearSuperQualitativeField ??= typeof(ShootingManager).GetField("appearSuperQualitative",
-                    BindingFlags.Instance | BindingFlags.NonPublic))?.SetValue(mgr, true);
             if (GodEvolutionUncrashable)
                 (_uncrashableField ??= typeof(ShootingManager).GetField("uncrashable",
                     BindingFlags.Instance | BindingFlags.NonPublic))?.SetValue(mgr, true);
+            SyncQualityWeights(mgr);
         }
         catch { }
     }
 
+    private static void SyncQualityWeights(ShootingManager mgr)
+    {
+        if (!GodEvolutionQualityWeightEnabled) return;
+        try
+        {
+            _qualityWeightsField ??= typeof(ShootingManager).GetField("qualityWeights",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            object? weightsObj = _qualityWeightsField?.GetValue(mgr);
+            if (weightsObj == null) return;
+            float luckyMult = GetLuckyMultiplier();
+            SetQualityWeight(weightsObj, Quality.Default, GodEvolutionQualityDefault);
+            SetQualityWeight(weightsObj, Quality.silver, GodEvolutionQualitySilver * luckyMult);
+            SetQualityWeight(weightsObj, Quality.gold, GodEvolutionQualityGold * luckyMult);
+            SetQualityWeight(weightsObj, Quality.diamond, GodEvolutionQualityDiamond * luckyMult);
+        }
+        catch { }
+    }
+
+    private static void SetQualityWeight(object weights, Quality quality, float value)
+    {
+        var setItem = weights.GetType().GetMethod("set_Item");
+        setItem?.Invoke(weights, new object[] { quality, value });
+    }
+
     public static Quality RollQuality()
     {
-        float total = GodEvolutionQualityDefault + GodEvolutionQualitySilver + GodEvolutionQualityGold +
-                      GodEvolutionQualityDiamond;
+        float luckyMult = GetLuckyMultiplier();
+        float defaultWeight = GodEvolutionQualityDefault;
+        float silverWeight = GodEvolutionQualitySilver * luckyMult;
+        float goldWeight = GodEvolutionQualityGold * luckyMult;
+        float diamondWeight = GodEvolutionQualityDiamond * luckyMult;
+        float total = defaultWeight + silverWeight + goldWeight + diamondWeight;
         if (total <= 0f) return Quality.Default;
         var r = Random.Range(0f, total);
-        if (r < GodEvolutionQualityDefault) return Quality.Default;
-        r -= GodEvolutionQualityDefault;
-        if (r < GodEvolutionQualitySilver) return Quality.silver;
-        r -= GodEvolutionQualitySilver;
-        if (r < GodEvolutionQualityGold) return Quality.gold;
+        if (r < defaultWeight) return Quality.Default;
+        r -= defaultWeight;
+        if (r < silverWeight) return Quality.silver;
+        r -= silverWeight;
+        if (r < goldWeight) return Quality.gold;
         return Quality.diamond;
     }
 }
@@ -4408,6 +4599,107 @@ public static class GodEvolutionGetRandomQualityPatch
         if (!GodEvolutionQualityWeightEnabled) return true;
         __result = GodEvolutionHelper.RollQuality();
         return false;
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "RegisterCoreBuff")]
+public static class GodEvolutionRegisterCoreBuffPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ShootingManager __instance)
+    {
+        GodEvolutionHelper.ApplySettings(__instance);
+        GodEvolutionHelper.BeginCoreBuffForce(__instance);
+    }
+
+    [HarmonyFinalizer]
+    public static Exception? Finalizer(Exception? __exception)
+    {
+        GodEvolutionHelper.EndCoreBuffForce();
+        return __exception;
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "RegisterOtherBuff")]
+public static class GodEvolutionRegisterOtherBuffPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ShootingManager __instance)
+    {
+        if (__instance == null) return;
+        GodEvolutionHelper.ApplySettings(__instance);
+        if (!GodEvolutionForceSuperQuality || __instance.endless) return;
+        GodEvolutionHelper.SetAppearSuperQualitative(__instance, false);
+    }
+
+    [HarmonyPostfix]
+    public static void Postfix(ShootingManager __instance, MultipleChoiceMenu menu)
+    {
+        GodEvolutionHelper.TryForceAdvQualitativeOption(__instance, menu);
+    }
+}
+
+[HarmonyPatch(typeof(Lawnf), nameof(Lawnf.TravelUltimate))]
+public static class GodEvolutionTravelUltimatePatch
+{
+    public static bool Prefix(ref bool __result)
+    {
+        if (!GodEvolutionForceSuperQuality || !GodEvolutionHelper.InRegisterCoreBuff) return true;
+        __result = false;
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(Random), "Range", typeof(float), typeof(float))]
+public static class GodEvolutionRandomRangePatch
+{
+    public static bool Prefix(float minInclusive, float maxInclusive, ref float __result)
+    {
+        if (!GodEvolutionForceSuperQuality || !GodEvolutionHelper.InRegisterCoreBuff) return true;
+        if (minInclusive != 0f || maxInclusive != 1f) return true;
+        __result = 0f;
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(ShootingManager), "get_LuckyMultiplier")]
+public static class GodEvolutionLuckyMultiplierPatch
+{
+    public static bool Prefix(ref float __result)
+    {
+        if (!GodEvolutionLuckyEnabled) return true;
+        __result = GodEvolutionHelper.GetLuckyMultiplier();
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(BaseBuff), "get_AppearWeight")]
+public static class GodEvolutionAppearWeightPatch
+{
+    public static void Postfix(BaseBuff __instance, ref float __result)
+    {
+        if (__instance == null || __result <= 0f) return;
+        if (GodEvolutionLuckyEnabled)
+            __result *= GodEvolutionHelper.GetLuckyMultiplier();
+        if (GodEvolutionQualityWeightEnabled && GodEvolutionHelper.IsQualitativeBuff(__instance))
+        {
+            float tierBoost = GodEvolutionQualityDiamond + GodEvolutionQualityGold;
+            if (tierBoost > 0f)
+                __result *= tierBoost;
+        }
+        if (GodEvolutionForceSuperQuality && GodEvolutionHelper.IsQualitativeBuff(__instance))
+            __result = Mathf.Max(__result, 1f);
+    }
+}
+
+[HarmonyPatch(typeof(BaseBuff), "get_CanAppear")]
+public static class GodEvolutionCanAppearPatch
+{
+    public static void Postfix(BaseBuff __instance, ref bool __result)
+    {
+        if (!GodEvolutionForceSuperQuality || __instance == null || __result) return;
+        if (GodEvolutionHelper.IsQualitativeBuff(__instance))
+            __result = true;
     }
 }
 
@@ -4502,6 +4794,61 @@ public static class CreatePlantPatchB
     public static void Postfix(ref bool __result) => __result = !UnlockAllFusions && __result;
 }
 */
+
+/// <summary>
+/// 取消失败处理期间屏蔽进家判负，避免 timeScale 被反复置 0。
+/// </summary>
+[HarmonyPatch(typeof(GameLose), "OnTriggerEnter2D")]
+public static class GameLoseSuppressDuringCancelPatch
+{
+    public static bool Prefix()
+    {
+        return !DataProcessor.SuppressEnterLoseMenu;
+    }
+}
+
+[HarmonyPatch(typeof(GameLose), "HandleGameLose")]
+public static class GameLoseHandleSuppressDuringCancelPatch
+{
+    public static bool Prefix()
+    {
+        return !DataProcessor.SuppressEnterLoseMenu;
+    }
+}
+
+/// <summary>
+/// 原版 EnterLoseMenu 会清空并销毁整个 UI 栈（含 InGameUI），导致取消失败后无法保留卡槽等状态。
+/// 改为仅叠加 LoseMenu，并在进入失败前抓取局内快照供兜底恢复。
+/// </summary>
+[HarmonyPatch(typeof(UIMgr), "EnterLoseMenu")]
+public static class EnterLoseMenuPreservePatch
+{
+    public static bool Prefix(string reason)
+    {
+        if (DataProcessor.SuppressEnterLoseMenu)
+            return false;
+
+        try
+        {
+            DataProcessor.CapturePreLoseSnapshot();
+            DataProcessor.EnterLoseMenuPreserveStack(reason);
+            return false;
+        }
+        catch (System.Exception ex)
+        {
+            MLogger?.LogError($"[PVZRHTools] EnterLoseMenuPreservePatch 异常，尝试兜底保留 UI 栈: {ex.Message}");
+            try
+            {
+                DataProcessor.EnterLoseMenuPreserveStack(reason);
+                return false;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+    }
+}
 
 [HarmonyPatch(typeof(UIMgr), "EnterMainMenu")]
 public static class UIMgrPatch
@@ -5701,6 +6048,13 @@ public class PatchMgr : MonoBehaviour
     public static bool PickaxeImmunity { get; set; } = false;
     public static bool ZombieBulletReflectEnabled { get; set; } = false;
     public static float ZombieBulletReflectChance { get; set; } = 10.0f;
+    /// <summary>自定义阴魂不散（Debuff #1005）复活概率</summary>
+    public static bool ZombieReviveDebuffCustomEnabled { get; set; } = false;
+    /// <summary>阴魂不散复活概率（0-100%，默认 33.33% 等同原版 1/3）</summary>
+    public static float ZombieReviveDebuffChance { get; set; } = 33.333f;
+    /// <summary>独立概率复活（无需词条，可重复触发）</summary>
+    public static bool ZombieFreeReviveEnabled { get; set; } = false;
+    public static float ZombieFreeReviveChance { get; set; } = 33.333f;
     public static bool UnlimitedCardSlots { get; set; } = false;
     /// <summary>
     /// 僵尸状态并存 - 允许红温与寒冰、蒜毒状态同时存在
@@ -6616,27 +6970,21 @@ public class PatchMgr : MonoBehaviour
         yield return null;
         new Thread(SyncInGameBuffs).Start();
 
-        // 进入游戏后重新读取所有词条（包括MOD添加的），并发送给UI
-        // MOD词条通常在TravelMgr.Awake中注册，需要等待更长时间确保所有MOD都完成注册
-        // 已禁用：用户不需要在游戏启动时读取词条数据
-        /*
+        // 进入游戏后重新读取所有词条（包括二创插件延迟注册的），并发送给修改器 UI
         MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 准备重新读取词条数据（第1次）");
-        yield return new WaitForSeconds(1.5f); // 等待MOD词条注册完成（增加到1.5秒）
+        yield return new WaitForSeconds(1.5f);
         MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 开始重新读取词条数据（第1次）");
         ReloadAndSendBuffsData();
-        
-        // 再次延迟后重试一次，确保捕获所有MOD词条（包括延迟注册的MOD）
+
         MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 准备重新读取词条数据（第2次）");
         yield return new WaitForSeconds(1.5f);
         MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 开始重新读取词条数据（第2次）");
         ReloadAndSendBuffsData();
-        
-        // 第三次重试，确保万无一失
+
         MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 准备重新读取词条数据（第3次）");
         yield return new WaitForSeconds(1.0f);
         MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 开始重新读取词条数据（第3次）");
         ReloadAndSendBuffsData();
-        */
 
         yield return null;
         if (ZombieSeaLow && SeaTypes.Count > 0)
@@ -6914,82 +7262,26 @@ public class PatchMgr : MonoBehaviour
     {
         try
         {
-            var travelMgr = ResolveTravelMgr(autoCreate: true);
-            if (travelMgr == null)
-            {
-                MLogger?.LogWarning("[PVZRHTools] ReloadAndSendBuffsData: 无法找到 TravelMgr 组件");
-                return;
-            }
             if (TravelDictionary.advancedBuffsText == null ||
                 TravelDictionary.ultimateBuffsText == null ||
                 TravelDictionary.debuffData == null)
             {
-                MLogger?.LogWarning("[PVZRHTools] ReloadAndSendBuffsData: 词条数据未初始化");
-                return;
+                MLogger?.LogWarning("[PVZRHTools] ReloadAndSendBuffsData: TravelDictionary 尚未初始化，将尝试从 CustomizeLib 读取二创词条");
             }
 
-            // 按照从 0 到 maxKey 的顺序导出，确保与 DataProcessor 中的映射顺序一致
-            List<string> advBuffs = [];
-            int maxAdvKey = -1;
-            foreach (var kvp in TravelDictionary.advancedBuffsText)
-            {
-                int key = (int)kvp.Key;
-                if (key > maxAdvKey) maxAdvKey = key;
-            }
-            
-            for (int id = 0; id <= maxAdvKey; id++)
-            {
-                if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
-                {
-                    var value = TravelDictionary.advancedBuffsText[(AdvBuff)id];
-                    if (!string.IsNullOrEmpty(value))
-                {
-                        advBuffs.Add($"#{id} {value}");
-                    }
-                }
-            }
+            var advTexts = BuffDataCollector.GetAdvancedBuffTexts();
+            var ultiTexts = BuffDataCollector.GetUltimateBuffTexts();
+            var debuffTexts = BuffDataCollector.GetDebuffTexts();
 
-            List<string> ultiBuffs = [];
-            int maxUltiKey = -1;
-            foreach (var kvp in TravelDictionary.ultimateBuffsText)
-            {
-                int key = (int)kvp.Key;
-                if (key > maxUltiKey) maxUltiKey = key;
-            }
-            
-            for (int id = 0; id <= maxUltiKey; id++)
-            {
-                if (TravelDictionary.ultimateBuffsText.ContainsKey((UltiBuff)id))
-                {
-                    var value = TravelDictionary.ultimateBuffsText[(UltiBuff)id];
-                    if (!string.IsNullOrEmpty(value))
-                {
-                        ultiBuffs.Add($"#{id} {value}");
-                    }
-                }
-            }
+            List<string> advBuffs = BuffDataCollector.ToLines(advTexts);
+            List<string> ultiBuffs = BuffDataCollector.ToLines(ultiTexts);
+            List<string> debuffs = BuffDataCollector.ToLines(debuffTexts);
 
-            List<string> debuffs = [];
-            int maxDebuffKey = -1;
-            foreach (var kvp in TravelDictionary.debuffData)
-            {
-                int key = (int)kvp.Key;
-                if (key > maxDebuffKey) maxDebuffKey = key;
-            }
-            
-            for (int id = 0; id <= maxDebuffKey; id++)
-            {
-                if (TravelDictionary.debuffData.ContainsKey((TravelDebuff)id))
-                {
-                    // 这里使用与 Core.LateInit 相同的占位名称，避免访问 ValueTuple.Item1
-                    var placeholder = $"#{id} Debuff_{id}";
-                    debuffs.Add(placeholder);
-                }
-            }
+            MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: Advanced={advBuffs.Count} (max={BuffDataCollector.GetMaxKey(advTexts)}), " +
+                             $"Ultimate={ultiBuffs.Count} (max={BuffDataCollector.GetMaxKey(ultiTexts)}), " +
+                             $"Debuff={debuffs.Count} (max={BuffDataCollector.GetMaxKey(debuffTexts)})");
 
-            // 更新本地数组大小（如果MOD添加了新词条）
-            // 直接使用 Count 作为数组大小
-            int newAdvSize = TravelDictionary.advancedBuffsText?.Count ?? 0;
+            int newAdvSize = BuffDataCollector.GetRequiredArraySize(advTexts);
             if (AdvBuffs == null || AdvBuffs.Length < newAdvSize)
             {
                 var oldLength = AdvBuffs?.Length ?? 0;
@@ -6999,7 +7291,7 @@ public class PatchMgr : MonoBehaviour
                 AdvBuffs = newArray;
             }
 
-            int newUltiSize = TravelDictionary.ultimateBuffsText?.Count ?? 0;
+            int newUltiSize = BuffDataCollector.GetRequiredArraySize(ultiTexts);
             if (UltiBuffs == null || UltiBuffs.Length < newUltiSize)
             {
                 var oldLength = UltiBuffs?.Length ?? 0;
@@ -7009,7 +7301,7 @@ public class PatchMgr : MonoBehaviour
                 UltiBuffs = newArray;
             }
 
-            int newDebuffSize = TravelDictionary.debuffData?.Count ?? 0;
+            int newDebuffSize = BuffDataCollector.GetRequiredArraySize(debuffTexts);
             if (Debuffs == null || Debuffs.Length < newDebuffSize)
             {
                 var oldLength = Debuffs?.Length ?? 0;

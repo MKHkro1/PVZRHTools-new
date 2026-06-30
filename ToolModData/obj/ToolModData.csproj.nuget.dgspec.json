@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {}
+    "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {}
   },
   "projects": {
-    "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {
+    "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
+        "projectUniqueName": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
         "projectName": "ToolModData",
-        "projectPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
+        "projectPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\ToolModData.csproj",
         "packagesPath": "C:\\Users\\20468\\.nuget\\packages\\",
-        "outputPath": "D:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\obj\\",
+        "outputPath": "d:\\Web\\二创\\插件项目Code\\PVZRHTools\\ToolModData\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\20468\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -54,31 +54,12 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-              "version": "[6.0.36, 6.0.36]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Runtime.win-x64",
-              "version": "[6.0.36, 6.0.36]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
-              "version": "[6.0.36, 6.0.36]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315\\RuntimeIdentifierGraph.json"
-        }
-      },
-      "runtimes": {
-        "win-x64": {
-          "#import": []
         }
       }
     }

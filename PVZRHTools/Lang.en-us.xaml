@@ -76,6 +76,12 @@
     <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect">Zombie Bullet Reflect</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieBulletReflect.Tooltip">When enabled, zombies have a chance to reflect bullets back</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieBulletReflectChance.Tooltip">Chance for zombies to reflect bullets (0-100%)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieReviveDebuffCustom">Undying Revive Chance</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieReviveDebuffCustom.Tooltip">Customize Debuff #1005 revive probability (requires the debuff to be active)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieReviveDebuffChance.Tooltip">Chance for zombies to revive at full HP on death (0-100%, default 33.3% = vanilla 1/3)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieFreeRevive">Standalone Revive (No Debuff)</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieFreeRevive.Tooltip">Revive zombies at full HP on death without Debuff #1005; same zombie can revive multiple times</s:String>
+    <s:String x:Key="Tab1.Page6_5.ZombieFreeReviveChance.Tooltip">Standalone revive chance (0-100%), not limited to once per zombie</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieStatusCoexist">Zombie Status Coexist</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieStatusCoexist.Tooltip">When enabled, zombie's warm (fire) status can coexist with cold and poison status instead of being mutually exclusive</s:String>
     <s:String x:Key="Tab1.Page6_5.ZombieImmuneAllDebuffs">Zombie Immune All Debuffs</s:String>
@@ -301,7 +307,7 @@
     <s:String x:Key="Tab13.OptionCount">Option Count</s:String>
     <s:String x:Key="Tab13.UpgradeBuffChance">Upgrade Quality Count</s:String>
     <s:String x:Key="Tab13.SuperUpgrade">Force Super Upgrade</s:String>
-    <s:String x:Key="Tab13.ForceSuperQuality">Force Super Quality</s:String>
+    <s:String x:Key="Tab13.ForceSuperQuality">Guaranteed Super Qualitative</s:String>
     <s:String x:Key="Tab13.Uncrashable">Plants Uncrashable</s:String>
     <s:String x:Key="Tab13.DamageMultiplier">Damage Multiplier</s:String>
     <s:String x:Key="Tab13.QualityWeightEnabled">Custom Quality Weights</s:String>
@@ -309,7 +315,7 @@
     <s:String x:Key="Tab13.QualitySilver">Silver</s:String>
     <s:String x:Key="Tab13.QualityGold">Gold</s:String>
     <s:String x:Key="Tab13.QualityDiamond">Diamond</s:String>
-    <s:String x:Key="Tab13.QualityHint">Higher weight = higher chance for that quality tier.</s:String>
+    <s:String x:Key="Tab13.QualityHint">Quality weights affect Default/Silver/Gold/Diamond buff tiers. Luck also boosts high-tier and super-qualitative weights. Enable Guaranteed Super Qualitative to always offer a super-qualitative option on refresh.</s:String>
     <s:String x:Key="Tab13.ApplyNow">Apply In-Game Now</s:String>
     <s:String x:Key="Tab13.ResetDefaults">Reset Defaults</s:String>
 </ResourceDictionary>

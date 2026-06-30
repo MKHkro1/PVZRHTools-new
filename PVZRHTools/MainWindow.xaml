@@ -792,6 +792,30 @@
                                         <Label Content="%" VerticalAlignment="Center" Margin="2,0,0,0" />
                                     </WrapPanel>
                                     <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                        <CheckBox x:Name="ZombieReviveDebuffCustomEnabled" IsChecked="{Binding ZombieReviveDebuffCustomEnabled}"
+                                                  Content="{DynamicResource Tab1.Page6_5.ZombieReviveDebuffCustom}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6_5.ZombieReviveDebuffCustom.Tooltip}" />
+                                        <hc:NumericUpDown x:Name="ZombieReviveDebuffChance" Value="{Binding ZombieReviveDebuffChance}"
+                                                          Minimum="0" Maximum="100" Width="100" Height="25" DecimalPlaces="1" Increment="5"
+                                                          VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                          ToolTip="{DynamicResource Tab1.Page6_5.ZombieReviveDebuffChance.Tooltip}" />
+                                        <Label Content="%" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                        <CheckBox x:Name="ZombieFreeReviveEnabled" IsChecked="{Binding ZombieFreeReviveEnabled}"
+                                                  Content="{DynamicResource Tab1.Page6_5.ZombieFreeRevive}" Height="21"
+                                                  VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"
+                                                  HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                  ToolTip="{DynamicResource Tab1.Page6_5.ZombieFreeRevive.Tooltip}" />
+                                        <hc:NumericUpDown x:Name="ZombieFreeReviveChance" Value="{Binding ZombieFreeReviveChance}"
+                                                          Minimum="0" Maximum="100" Width="100" Height="25" DecimalPlaces="1" Increment="5"
+                                                          VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                          ToolTip="{DynamicResource Tab1.Page6_5.ZombieFreeReviveChance.Tooltip}" />
+                                        <Label Content="%" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,5,0,5">
                                         <CheckBox x:Name="ZombieStatusCoexist" IsChecked="{Binding ZombieStatusCoexist}"
                                                   Content="{DynamicResource Tab1.Page6_5.ZombieStatusCoexist}" Height="21"
                                                   VerticalAlignment="Top" Foreground="{DynamicResource TextForegroundBrush}" BorderThickness="2,2,2,2"

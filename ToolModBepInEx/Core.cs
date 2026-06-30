@@ -248,102 +248,48 @@ namespace ToolModBepInEx
                 List<string> debuffs = [];
                 List<string> investBuffs = [];
 
-                // Advanced
+                // Advanced / Ultimate / Debuff（合并 TravelDictionary 与 CustomizeLib 二创词条）
+                Dictionary<int, string> advTexts;
+                Dictionary<int, string> ultiTexts;
+                Dictionary<int, string> debuffTexts;
                 try
                 {
-                    if (TravelDictionary.advancedBuffsText != null && TravelDictionary.advancedBuffsText.Count > 0)
-                    {
-                        int maxAdvKey = -1;
-                        foreach (var kvp in TravelDictionary.advancedBuffsText)
-                        {
-                            int key = (int)kvp.Key;
-                            if (key > maxAdvKey) maxAdvKey = key;
-                        }
-
-                        for (int id = 0; id <= maxAdvKey; id++)
-                        {
-                            if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
-                            {
-                                var value = TravelDictionary.advancedBuffsText[(AdvBuff)id];
-                                if (!string.IsNullOrEmpty(value))
-                                    advBuffs.Add($"#{id} {value}");
-                            }
-                        }
-                    }
+                    advTexts = BuffDataCollector.GetAdvancedBuffTexts();
+                    advBuffs = BuffDataCollector.ToLines(advTexts);
                 }
                 catch (Exception ex)
                 {
                     MLogger.LogWarning($"[PVZRHTools] 读取 Advanced 词条失败: {ex.Message}");
+                    advTexts = [];
+                    advBuffs = [];
                 }
-                AdvBuffs = new bool[advBuffs.Count];
+                AdvBuffs = new bool[BuffDataCollector.GetRequiredArraySize(advTexts)];
 
-                // Ultimate
                 try
                 {
-                    if (TravelDictionary.ultimateBuffsText != null && TravelDictionary.ultimateBuffsText.Count > 0)
-                    {
-                        int maxUltiKey = -1;
-                        foreach (var kvp in TravelDictionary.ultimateBuffsText)
-                        {
-                            int key = (int)kvp.Key;
-                            if (key > maxUltiKey) maxUltiKey = key;
-                        }
-
-                        for (int id = 0; id <= maxUltiKey; id++)
-                        {
-                            if (TravelDictionary.ultimateBuffsText.ContainsKey((UltiBuff)id))
-                            {
-                                var value = TravelDictionary.ultimateBuffsText[(UltiBuff)id];
-                                if (!string.IsNullOrEmpty(value))
-                                    ultiBuffs.Add($"#{id} {value}");
-                            }
-                        }
-                    }
+                    ultiTexts = BuffDataCollector.GetUltimateBuffTexts();
+                    ultiBuffs = BuffDataCollector.ToLines(ultiTexts);
                 }
                 catch (Exception ex)
                 {
                     MLogger.LogWarning($"[PVZRHTools] 读取 Ultimate 词条失败: {ex.Message}");
+                    ultiTexts = [];
+                    ultiBuffs = [];
                 }
-                PatchMgr.UltiBuffs = new bool[ultiBuffs.Count];
+                PatchMgr.UltiBuffs = new bool[BuffDataCollector.GetRequiredArraySize(ultiTexts)];
 
-                // Debuff
                 try
                 {
-                    if (TravelDictionary.debuffData != null && TravelDictionary.debuffData.Count > 0)
-                    {
-                        int maxDebuffKey = -1;
-                        foreach (var kvp in TravelDictionary.debuffData)
-                        {
-                            int key = (int)kvp.Key;
-                            if (key > maxDebuffKey) maxDebuffKey = key;
-                        }
-
-                        for (int id = 0; id <= maxDebuffKey; id++)
-                        {
-                            if (!TravelDictionary.debuffData.ContainsKey((TravelDebuff)id)) continue;
-                            string text = null;
-                            try
-                            {
-                                if (TravelDictionary.debuffData != null &&
-                                    TravelDictionary.debuffData.ContainsKey((TravelDebuff)id))
-                                {
-                                    text = TravelDictionary.debuffData[(TravelDebuff)id].Item1;
-                                }
-                            }
-                            catch
-                            {
-                            }
-                            if (string.IsNullOrWhiteSpace(text))
-                                text = ((TravelDebuff)id).ToString();
-                            debuffs.Add($"#{id} {text}");
-                        }
-                    }
+                    debuffTexts = BuffDataCollector.GetDebuffTexts();
+                    debuffs = BuffDataCollector.ToLines(debuffTexts);
                 }
                 catch (Exception ex)
                 {
                     MLogger.LogWarning($"[PVZRHTools] 读取 Debuff 词条失败: {ex.Message}");
+                    debuffTexts = [];
+                    debuffs = [];
                 }
-                Debuffs = new bool[debuffs.Count];
+                Debuffs = new bool[BuffDataCollector.GetRequiredArraySize(debuffTexts)];
 
                 // Invest：3.6 下访问 TravelMgr.InvestBuffsData 可能触发泛型约束异常，
                 // 这里避免触发该类型加载，优先稳定启动。
@@ -427,6 +373,10 @@ namespace ToolModBepInEx
                     MLogger.LogInfo($"[PVZRHTools] LateInit: 立即发送词条数据给UI - Advanced={advBuffs.Count}, Ultimate={ultiBuffs.Count}, Debuff={debuffs.Count}");
                     DataSync.Instance.SendData(initData);
                     MLogger.LogInfo("[PVZRHTools] LateInit: 已发送词条数据给UI");
+
+                    var reloadGo = new GameObject("BuffReloadScheduler");
+                    Object.DontDestroyOnLoad(reloadGo);
+                    reloadGo.AddComponent<BuffReloadScheduler>();
                 }
                 catch (System.Exception ex)
                 {
@@ -605,6 +555,7 @@ namespace ToolModBepInEx
             ClassInjector.RegisterTypeInIl2Cpp<PatchMgr>();
             ClassInjector.RegisterTypeInIl2Cpp<DataProcessor>();
             ClassInjector.RegisterTypeInIl2Cpp<LateInitHelper>();
+            ClassInjector.RegisterTypeInIl2Cpp<BuffReloadScheduler>();
             Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
             if (Time.timeScale == 0) Time.timeScale = 1;
         }

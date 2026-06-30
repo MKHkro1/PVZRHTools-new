@@ -27,6 +27,11 @@ public class DataProcessor : MonoBehaviour
     // 使用上一帧的 NextWave 值来检测边沿（false->true）
     private static bool? _lastNextWaveValue = null;
 
+    /// <summary>取消失败处理中：屏蔽再次进入失败界面，避免 timeScale 被反复置 0。</summary>
+    internal static bool SuppressEnterLoseMenu { get; private set; }
+
+    private static int _pendingCancelLoseRestoreFrames = 0;
+
     // --- 局内快照/回溯（环形缓冲实现） ---
     private class Snapshot
     {
@@ -115,6 +120,7 @@ public class DataProcessor : MonoBehaviour
     private static bool _checkedAutoRestore = false;
     private static readonly string SnapshotDir = Path.Combine(Paths.GameRootPath, "PVZRHTools", "Snapshots");
     private static readonly string LatestPath = Path.Combine(SnapshotDir, "LatestSnapshot.json");
+    private static Snapshot? _preLoseSnapshot;
 
     public DataProcessor() : base(ClassInjector.DerivedConstructorPointer<DataProcessor>())
     {
@@ -161,6 +167,17 @@ public class DataProcessor : MonoBehaviour
             if (!string.IsNullOrEmpty(Data)) ProcessData(Data);
             Data = "";
         }
+
+        if (_pendingCancelLoseRestoreFrames > 0)
+        {
+            _pendingCancelLoseRestoreFrames--;
+            if (_pendingCancelLoseRestoreFrames == 0)
+            {
+                TryRestorePreLoseSnapshot();
+                _preLoseSnapshot = null;
+            }
+        }
+
         // 自动快照与跨会话自动恢复功能已移除
         // 延后手动快照：等待关卡初始化完成
         if (_pendingManualSnapshotFrames > 0)
@@ -504,7 +521,84 @@ public class DataProcessor : MonoBehaviour
         return 0f;
     }
 
-    private static void RestoreSnapshot(Snapshot snap)
+    private static Snapshot? CloneSnapshot(Snapshot source)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(
+                source,
+                new System.Text.Json.JsonSerializerOptions { IncludeFields = true });
+            return System.Text.Json.JsonSerializer.Deserialize<Snapshot>(
+                json,
+                new System.Text.Json.JsonSerializerOptions { IncludeFields = true });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static void CapturePreLoseSnapshot()
+    {
+        _preLoseSnapshot = null;
+        try
+        {
+            if (!IsBoardReadyForSnapshot())
+                return;
+
+            var before = _snapshots.Count;
+            TryCaptureSnapshot();
+            if (_snapshots.Count > before)
+                _preLoseSnapshot = CloneSnapshot(_snapshots[^1]);
+        }
+        catch
+        {
+            _preLoseSnapshot = null;
+        }
+    }
+
+    /// <summary>
+    /// 进入失败界面但不销毁 InGameUI 菜单栈，保留卡槽/手套/锤子等完整 UI 状态。
+    /// </summary>
+    internal static void EnterLoseMenuPreserveStack(string reason = "")
+    {
+        // 统计与 board.over 由 HandleGameLose 在进入失败界面前已处理，此处仅暂停并叠加 UI
+        GameAPP.theGameStatus = GameStatus.InGame;
+        Time.timeScale = 0f;
+
+        try { GameAPP.music?.Pause(); } catch { }
+        try { GameAPP.musicDrum?.Pause(); } catch { }
+        try { GameAPP.prelude?.audioSource?.Pause(); } catch { }
+
+        var uiManager = GameAPP.UIManager;
+        var canvasUp = GameAPP.canvasUp;
+        if (uiManager != null && canvasUp != null)
+        {
+            var menu = uiManager.Push(UIType.LoseMenu, canvasUp, false);
+            if (menu is LoseMenu loseMenu && !string.IsNullOrEmpty(reason) && loseMenu.title != null)
+                loseMenu.title.text = reason;
+        }
+
+        try { GameAPP.PlaySound(52, 0.5f, 1f); } catch { }
+    }
+
+    internal static bool TryRestorePreLoseSnapshot()
+    {
+        if (_preLoseSnapshot == null)
+            return false;
+
+        try
+        {
+            RestoreSnapshot(_preLoseSnapshot, showToast: false);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void RestoreSnapshot(Snapshot snap, bool showToast = true)
     {
         if (Board.Instance == null) return;
         try
@@ -741,7 +835,8 @@ public class DataProcessor : MonoBehaviour
                 catch { }
             }
             catch { }
-            GameApiCompat.ShowInGameText("已恢复局内存档", 2.0f);
+            if (showToast)
+                GameApiCompat.ShowInGameText("已恢复局内存档", 2.0f);
         }
         catch { }
     }
@@ -1014,6 +1109,10 @@ public class DataProcessor : MonoBehaviour
             if (p1.PickaxeImmunity is not null) PickaxeImmunity = (bool)p1.PickaxeImmunity;
             if (p1.ZombieBulletReflectEnabled is not null) ZombieBulletReflectEnabled = (bool)p1.ZombieBulletReflectEnabled;
             if (p1.ZombieBulletReflectChance is not null) ZombieBulletReflectChance = (float)p1.ZombieBulletReflectChance;
+            if (p1.ZombieReviveDebuffCustomEnabled is not null) ZombieReviveDebuffCustomEnabled = (bool)p1.ZombieReviveDebuffCustomEnabled;
+            if (p1.ZombieReviveDebuffChance is not null) ZombieReviveDebuffChance = (float)p1.ZombieReviveDebuffChance;
+            if (p1.ZombieFreeReviveEnabled is not null) ZombieFreeReviveEnabled = (bool)p1.ZombieFreeReviveEnabled;
+            if (p1.ZombieFreeReviveChance is not null) ZombieFreeReviveChance = (float)p1.ZombieFreeReviveChance;
             if (p1.UnlimitedCardSlots is not null)
             {
                 bool newValue = (bool)p1.UnlimitedCardSlots;
@@ -1085,7 +1184,8 @@ public class DataProcessor : MonoBehaviour
                 if (s.AdvInGame is not null || s.AdvTravelBuff is not null)
                 {
                     int dataSize = Math.Max(s.AdvInGame?.Count ?? 0, s.AdvTravelBuff?.Count ?? 0);
-                    int requiredSize = Math.Max(TravelDictionary.advancedBuffsText?.Count ?? 0, dataSize);
+                    var advTexts = BuffDataCollector.GetAdvancedBuffTexts();
+                    int requiredSize = BuffDataCollector.GetRequiredArraySize(advTexts, dataSize);
                     
                     // 性能优化：减少日志输出，只在数组扩展时输出
                     if (InGameAdvBuffs == null || InGameAdvBuffs.Length < requiredSize)
@@ -1100,26 +1200,10 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.AdvInGame is not null)
                     {
-                        // 构建索引到词条ID的映射：根据 TravelDictionary.advancedBuffsText 的顺序
-                        // UI 发送的列表顺序应该与 Core.cs 中导出词条的顺序一致（从 0 到 maxAdvKey）
-                        List<int> advBuffIdList = [];
-                        if (TravelDictionary.advancedBuffsText != null)
-                        {
-                            int maxAdvKey = -1;
-                            foreach (var kvp in TravelDictionary.advancedBuffsText)
-                            {
-                                int key = (int)kvp.Key;
-                                if (key > maxAdvKey) maxAdvKey = key;
-                            }
-                            // 按照从 0 到 maxAdvKey 的顺序构建映射
-                            for (int id = 0; id <= maxAdvKey && advBuffIdList.Count < s.AdvInGame.Count; id++)
-                            {
-                                if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
-                                {
-                                    advBuffIdList.Add(id);
-                                }
-                            }
-                        }
+                        // UI 列表顺序与 BuffDataCollector 导出顺序一致（含二创词条）
+                        List<int> advBuffIdList = BuffDataCollector.GetOrderedIds(advTexts);
+                        if (advBuffIdList.Count > s.AdvInGame.Count)
+                            advBuffIdList = advBuffIdList.GetRange(0, s.AdvInGame.Count);
                         
                         // 性能优化：只统计变化数量，不输出每个词条的详细日志
                         int changedCount = 0;
@@ -1163,25 +1247,9 @@ public class DataProcessor : MonoBehaviour
                     }
                     else if (s.AdvTravelBuff is not null)
                     {
-                        // 构建索引到词条ID的映射：根据 TravelDictionary.advancedBuffsText 的顺序
-                        List<int> advBuffIdList = [];
-                        if (TravelDictionary.advancedBuffsText != null)
-                        {
-                            int maxAdvKey = -1;
-                            foreach (var kvp in TravelDictionary.advancedBuffsText)
-                            {
-                                int key = (int)kvp.Key;
-                                if (key > maxAdvKey) maxAdvKey = key;
-                            }
-                            // 按照从 0 到 maxAdvKey 的顺序构建映射
-                            for (int id = 0; id <= maxAdvKey && advBuffIdList.Count < s.AdvTravelBuff.Count; id++)
-                            {
-                                if (TravelDictionary.advancedBuffsText.ContainsKey((AdvBuff)id))
-                                {
-                                    advBuffIdList.Add(id);
-                                }
-                            }
-                        }
+                        List<int> advBuffIdList = BuffDataCollector.GetOrderedIds(advTexts);
+                        if (advBuffIdList.Count > s.AdvTravelBuff.Count)
+                            advBuffIdList = advBuffIdList.GetRange(0, s.AdvTravelBuff.Count);
                         
                         // 性能优化：只统计变化数量，不输出每个词条的详细日志
                         int changedCount = 0;
@@ -1227,7 +1295,8 @@ public class DataProcessor : MonoBehaviour
                 if (s.UltiInGame is not null || s.UltiTravelBuff is not null)
                 {
                     int dataSize = Math.Max(s.UltiInGame?.Count ?? 0, s.UltiTravelBuff?.Count ?? 0);
-                    int requiredSize = Math.Max(TravelDictionary.ultimateBuffsText?.Count ?? 0, dataSize);
+                    var ultiTexts = BuffDataCollector.GetUltimateBuffTexts();
+                    int requiredSize = BuffDataCollector.GetRequiredArraySize(ultiTexts, dataSize);
                     
                     if (InGameUltiBuffs == null || InGameUltiBuffs.Length < requiredSize)
                     {
@@ -1241,7 +1310,10 @@ public class DataProcessor : MonoBehaviour
                     
                     if (s.UltiInGame is not null)
                     {
-                        // 直接使用 UI 设置的值，与 AdvInGame 的处理方式一致
+                        List<int> ultiBuffIdList = BuffDataCollector.GetOrderedIds(ultiTexts);
+                        if (ultiBuffIdList.Count > s.UltiInGame.Count)
+                            ultiBuffIdList = ultiBuffIdList.GetRange(0, s.UltiInGame.Count);
+
                         if (PatchMgr.DesiredInGameUltiBuffs == null || PatchMgr.DesiredInGameUltiBuffs.Length < InGameUltiBuffs.Length)
                         {
                             var newArr = new bool[InGameUltiBuffs.Length];
@@ -1249,18 +1321,28 @@ public class DataProcessor : MonoBehaviour
                                 Array.Copy(PatchMgr.DesiredInGameUltiBuffs, newArr, Math.Min(PatchMgr.DesiredInGameUltiBuffs.Length, newArr.Length));
                             PatchMgr.DesiredInGameUltiBuffs = newArr;
                         }
-                        for (int i = 0; i < s.UltiInGame.Count && i < InGameUltiBuffs.Length; i++)
+                        for (int i = 0; i < s.UltiInGame.Count; i++)
                         {
-                            InGameUltiBuffs[i] = s.UltiInGame[i];
-                            PatchMgr.DesiredInGameUltiBuffs[i] = s.UltiInGame[i];
+                            bool newValue = s.UltiInGame[i];
+                            int actualBuffId = i < ultiBuffIdList.Count ? ultiBuffIdList[i] : i;
+                            if (actualBuffId >= 0 && actualBuffId < InGameUltiBuffs.Length)
+                            {
+                                InGameUltiBuffs[actualBuffId] = newValue;
+                                PatchMgr.DesiredInGameUltiBuffs[actualBuffId] = newValue;
+                            }
                         }
                     }
                     else if (s.UltiTravelBuff is not null)
                     {
-                        // 初始词条：只叠加，不覆盖
-                        for (int i = 0; i < s.UltiTravelBuff.Count && i < InGameUltiBuffs.Length; i++)
+                        List<int> ultiBuffIdList = BuffDataCollector.GetOrderedIds(ultiTexts);
+                        if (ultiBuffIdList.Count > s.UltiTravelBuff.Count)
+                            ultiBuffIdList = ultiBuffIdList.GetRange(0, s.UltiTravelBuff.Count);
+
+                        for (int i = 0; i < s.UltiTravelBuff.Count; i++)
                         {
-                            InGameUltiBuffs[i] = InGameUltiBuffs[i] || s.UltiTravelBuff[i];
+                            int actualBuffId = i < ultiBuffIdList.Count ? ultiBuffIdList[i] : i;
+                            if (actualBuffId >= 0 && actualBuffId < InGameUltiBuffs.Length)
+                                InGameUltiBuffs[actualBuffId] = InGameUltiBuffs[actualBuffId] || s.UltiTravelBuff[i];
                         }
                     }
                 }
@@ -1268,7 +1350,8 @@ public class DataProcessor : MonoBehaviour
                 if (s.DebuffsInGame is not null || s.Debuffs is not null)
                 {
                     int dataSize = Math.Max(s.DebuffsInGame?.Count ?? 0, s.Debuffs?.Count ?? 0);
-                    int requiredSize = Math.Max(TravelDictionary.debuffData?.Count ?? 0, dataSize);
+                    var debuffTexts = BuffDataCollector.GetDebuffTexts();
+                    int requiredSize = BuffDataCollector.GetRequiredArraySize(debuffTexts, dataSize);
                     
                     if (InGameDebuffs == null || InGameDebuffs.Length < requiredSize)
                     {
@@ -1292,23 +1375,9 @@ public class DataProcessor : MonoBehaviour
                             PatchMgr.DesiredInGameDebuffs = newArr;
                         }
 
-                        List<int> debuffIdList = [];
-                        if (TravelDictionary.debuffData != null)
-                        {
-                            int maxDebuffKey = -1;
-                            foreach (var kvp in TravelDictionary.debuffData)
-                            {
-                                int key = (int)kvp.Key;
-                                if (key > maxDebuffKey) maxDebuffKey = key;
-                            }
-                            for (int id = 0; id <= maxDebuffKey && debuffIdList.Count < s.DebuffsInGame.Count; id++)
-                            {
-                                if (TravelDictionary.debuffData.ContainsKey((TravelDebuff)id))
-                                {
-                                    debuffIdList.Add(id);
-                                }
-                            }
-                        }
+                        List<int> debuffIdList = BuffDataCollector.GetOrderedIds(debuffTexts);
+                        if (debuffIdList.Count > s.DebuffsInGame.Count)
+                            debuffIdList = debuffIdList.GetRange(0, s.DebuffsInGame.Count);
 
                         for (int i = 0; i < s.DebuffsInGame.Count; i++)
                         {
@@ -2844,12 +2913,13 @@ all");
     {
         if (Board.Instance == null) return;
 
-        Il2CppReferenceArray<Object> zombies = FindObjectsOfTypeAll(Il2CppType.Of<Zombie>());
-        for (var i = zombies.Count - 1; i >= 0; i--)
+        // 仅遍历 zombieArray，避免 FindObjectsOfTypeAll 在主线程长时间阻塞导致“游戏未响应”
+        var arr = Board.Instance.zombieArray;
+        for (var j = arr.Count - 1; j >= 0; j--)
         {
             try
             {
-                var zombie = (Zombie)zombies[i];
+                var zombie = arr[j];
                 if (zombie == null || !zombie) continue;
 
                 zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
@@ -2860,20 +2930,192 @@ all");
             {
             }
         }
+    }
 
-        for (var j = Board.Instance.zombieArray.Count - 1; j >= 0; j--)
+    private static bool IsUnityObjectAlive(Object? obj) => obj != null && obj;
+
+    private static bool IsInGameUiIntact() =>
+        IsUnityObjectAlive(InGameUI.Instance) ||
+        (InGameUI_IZ.Instance != null && InGameUI_IZ.Instance);
+
+    private static void RestoreInGameUiLayout()
+    {
+        if (IsUnityObjectAlive(InGameUI.Instance))
+        {
+            try { InGameUI.Instance.LowerUI(); } catch { }
+        }
+    }
+
+    private static void EnableCanvasGroup(Transform? root, bool enabled)
+    {
+        if (root == null) return;
+        try
+        {
+            var cg = root.GetComponent<CanvasGroup>();
+            if (cg == null) return;
+            cg.interactable = enabled;
+            cg.blocksRaycasts = enabled;
+            if (enabled)
+                cg.alpha = 1f;
+        }
+        catch { }
+    }
+
+    private static void EnableCanvasGroupsRecursive(Transform? root, bool enabled)
+    {
+        if (root == null) return;
+        try
+        {
+            foreach (var cg in root.GetComponentsInChildren<CanvasGroup>(true))
+            {
+                if (cg == null) continue;
+                cg.interactable = enabled;
+                cg.blocksRaycasts = enabled;
+                if (enabled)
+                    cg.alpha = 1f;
+            }
+        }
+        catch { }
+    }
+
+    private static void RestoreInGameUiInteraction()
+    {
+        if (!IsUnityObjectAlive(InGameUI.Instance))
+            return;
+
+        try
+        {
+            var ui = InGameUI.Instance;
+            ui.Interactable = true;
+            if (ui.canvasGroup != null)
+            {
+                ui.canvasGroup.interactable = true;
+                ui.canvasGroup.blocksRaycasts = true;
+                ui.canvasGroup.alpha = 1f;
+            }
+            EnableCanvasGroupsRecursive(ui.transform, true);
+        }
+        catch { }
+    }
+
+    private static void ResumeBoardProgressAfterCancelLose()
+    {
+        var board = Board.Instance;
+        if (board == null) return;
+
+        board.over = false;
+        try
+        {
+            if (board.timeUntilNextWave <= 0f)
+            {
+                var interval = board.config != null ? board.config.waveInterval : 0f;
+                board.timeUntilNextWave = interval > 0f ? interval : 30f;
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// 直接销毁残留的 LoseMenu 物体。禁止对残留物体调用 UIMgr.Pop()：
+    /// 栈里若已无 LoseMenu，Pop 会误弹 InGameUI 导致卡槽消失/游戏无响应。
+    /// Object.Destroy 延迟销毁，不可用 while(Find) 循环，否则会卡死主线程。
+    /// </summary>
+    private static void DestroyLoseMenuClones()
+    {
+        for (var i = 0; i < 4; i++)
+        {
+            var loseMenuObj = GameObject.Find("LoseMenu(Clone)");
+            if (loseMenuObj == null) break;
+            try { Object.DestroyImmediate(loseMenuObj); }
+            catch { try { Object.Destroy(loseMenuObj); } catch { } }
+        }
+    }
+
+    /// <summary>
+    /// 失败界面会禁用 InGameUI 交互并暂停时间；取消失败后需强制恢复输入与时间流逝。
+    /// </summary>
+    private static void ForceResumeGameplayAfterCancelLose()
+    {
+        DestroyLoseMenuClones();
+
+        RestoreInGameUiInteraction();
+
+        if (IsUnityObjectAlive(InGameUI.Instance))
+        {
             try
             {
-                var zombie = Board.Instance.zombieArray[j];
-                if (zombie == null || !zombie) continue;
+                InGameUI.Instance.OnBackEnter();
+                InGameUI.Instance.LowerUI();
+            }
+            catch { }
+        }
 
-                zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
-                zombie.BodyTakeDamage(2147483647);
-                zombie.Die();
-            }
-            catch
+        try
+        {
+            if (InGameUI_IZ.Instance != null && InGameUI_IZ.Instance)
             {
+                InGameUI_IZ.Instance.Interactable = true;
+                InGameUI_IZ.Instance.OnBackEnter();
             }
+        }
+        catch { }
+
+        EnableCanvasGroupsRecursive(GameAPP.canvas, true);
+        EnableCanvasGroupsRecursive(GameAPP.canvasUp, true);
+
+        // BackToGame 会把 theGameStatus 设为 OutGame(0)，但正常对局推进/操作需要 InGame(1)
+        GameAPP.theGameStatus = GameStatus.InGame;
+        if (Time.timeScale == 0f)
+            Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
+
+        ResumeBoardProgressAfterCancelLose();
+
+        try { GameAPP.music?.UnPause(); } catch { }
+        try { GameAPP.musicDrum?.UnPause(); } catch { }
+        try { GameAPP.prelude?.audioSource?.UnPause(); } catch { }
+    }
+
+    private static void RestoreInGameUIAfterCancelLose()
+    {
+        if (IsInGameUiIntact())
+        {
+            RestoreInGameUiLayout();
+            return;
+        }
+
+        var uiManager = GameAPP.UIManager;
+        var canvas = GameAPP.canvas;
+        if (uiManager == null || canvas == null)
+            return;
+
+        try
+        {
+            var board = Board.Instance;
+            var isIz = board != null && board.boardTag.isIZ;
+            var uiType = isIz ? UIType.InGameUI_IZ : UIType.InGameUI;
+            uiManager.Push(uiType, canvas, false);
+            RestoreInGameUiLayout();
+        }
+        catch
+        {
+        }
+    }
+
+    private static void ResetBoardLoseStatistics()
+    {
+        var board = Board.Instance;
+        if (board?.boardStatistics == null)
+            return;
+
+        try
+        {
+            board.boardStatistics.gameResult = GameResult.None;
+            board.boardStatistics.Repair(board);
+        }
+        catch
+        {
+            try { board.boardStatistics.gameResult = GameResult.None; } catch { }
+        }
     }
 
     private static bool TryCancelGameLose()
@@ -2884,35 +3126,48 @@ all");
             return false;
         }
 
-        var loseMenuObj = GameObject.Find("LoseMenu(Clone)");
-        var inPause = GameAPP.theGameStatus == GameStatus.Pause;
+        var loseMenuVisible = GameObject.Find("LoseMenu(Clone)") != null;
+        var statusBlocked = GameAPP.theGameStatus != GameStatus.OutGame;
         var boardOver = Board.Instance.over;
-        if (loseMenuObj == null && !inPause && !boardOver)
+        if (!loseMenuVisible && !statusBlocked && !boardOver)
         {
             try { GameApiCompat.ShowInGameText("当前未处于失败状态", 2.0f); } catch { }
             return false;
         }
 
-        try { UIMgr.BackToGame(); } catch { }
+        var uiWasIntact = IsInGameUiIntact();
+        var needDeferredRestore = false;
 
-        loseMenuObj = GameObject.Find("LoseMenu(Clone)");
-        if (loseMenuObj != null)
+        SuppressEnterLoseMenu = true;
+        try
         {
-            try
+            Board.Instance.over = false;
+            ResetBoardLoseStatistics();
+
+            // 先清僵尸（SuppressEnterLoseMenu 已屏蔽进家判负），再恢复 timeScale
+            KillAllZombiesOnBoard();
+
+            // BackToGame: Pop LoseMenu、恢复 timeScale/音乐，并将 theGameStatus 设为 OutGame(0)
+            try { UIMgr.BackToGame(); } catch { }
+            DestroyLoseMenuClones();
+
+            if (!uiWasIntact)
             {
-                loseMenuObj.GetComponent<LoseMenu>()?.PopMenu();
-                Object.Destroy(loseMenuObj);
+                RestoreInGameUIAfterCancelLose();
+                needDeferredRestore = _preLoseSnapshot != null;
             }
-            catch { }
+
+            ForceResumeGameplayAfterCancelLose();
+
+            if (needDeferredRestore)
+                _pendingCancelLoseRestoreFrames = 1;
+            else
+                _preLoseSnapshot = null;
         }
-
-        Board.Instance.over = false;
-        GameAPP.theGameStatus = GameStatus.InGame;
-
-        if (Time.timeScale == 0f)
-            Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
-
-        KillAllZombiesOnBoard();
+        finally
+        {
+            SuppressEnterLoseMenu = false;
+        }
 
         try { GameApiCompat.ShowInGameText("已取消失败，继续游戏", 2.0f); } catch { }
         return true;
