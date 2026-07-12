@@ -1,6 +1,7 @@
 
 //#define F1
 
+using System.Reflection;
 using System.Text.Json;
 using System.IO;
 using BepInEx;
@@ -12,6 +13,7 @@ using TMPro;
 using ToolModData;
 using Unity.VisualScripting;
 using UnityEngine;
+using GameLevel.Abyss;
 using GameLevel.RogueShooting;
 using static ToolModBepInEx.PatchMgr;
 using static ToolModData.Modifier;
@@ -1141,7 +1143,7 @@ public class DataProcessor : MonoBehaviour
             if (p1.RandomBullet is not null) RandomBullet = (bool)p1.RandomBullet;
             if (p1.AutoRhythmGame is not null) AutoRhythmGame = (bool)p1.AutoRhythmGame;
             if (p1.OldObsidianBullet is not null) OldObsidianBullet = (bool)p1.OldObsidianBullet;
-            if (p1.StarUpBuff is not null) StarUpBuff = (bool)p1.StarUpBuff;
+            if (p1.StarUpBuff is not null) global::ToolModBepInEx.PatchMgr.StarUpBuff = (bool)p1.StarUpBuff;
             if (p1.RandomUpgradeMode is not null) RandomUpgradeMode = (bool)p1.RandomUpgradeMode;
             return;
         }
@@ -1513,17 +1515,26 @@ public class DataProcessor : MonoBehaviour
 
             if (iga.AbyssCheat is not null)
             {
-                var abyssManager = GameAPP.Instance?.GetComponent<AbyssManager>();
-                if (abyssManager != null)
+                try
                 {
-                    abyssManager.Money = 99999999;
-                    abyssManager.maxPlantCount = 99999999;
+                    var abyssData = AbyssManager.Data;
+                    if (abyssData != null)
+                    {
+                        abyssData.woodenTicket = 99999999;
+                        abyssData.silverTicket = 99999999;
+                        abyssData.goldTicket = 99999999;
+                        abyssData.diamondTicket = 99999999;
+                    }
+
+                    var buffMenu = Object.FindObjectOfType<MultipleChoiceMenu>();
+                    if (buffMenu != null)
+                    {
+                        typeof(MultipleChoiceMenu).GetField("refreshCount",
+                                BindingFlags.Instance | BindingFlags.NonPublic)
+                            ?.SetValue(buffMenu, 99999999);
+                    }
                 }
-                var buffMenu = GameObject.Find("AbyssSelectBuffMenu(Clone)")?.GetComponent<AbyssSelectBuffMenu>();
-                if (buffMenu != null)
-                {
-                    buffMenu.refreshCount = 99999999;
-                }
+                catch { }
             }
 
             if (iga.LoadCustomPlantData is not null)

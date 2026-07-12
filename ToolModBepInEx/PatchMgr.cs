@@ -2488,16 +2488,16 @@ public static class WheelPatchA
     }
 }
 
-[HarmonyPatch(typeof(HyponoEmperor), "Update")]
+[HarmonyPatch(typeof(HypnoEmperor), "Update")]
 public static class HyponoEmperorPatch
 {
-    public static void Postfix(HyponoEmperor __instance)
+    public static void Postfix(HypnoEmperor __instance)
     {
         if (!HyponoEmperorNoCD) return;
         try
         {
-            if (__instance != null && __instance.summonZombieTime > 2f) 
-                __instance.summonZombieTime = 2f;
+            if (__instance != null && __instance.attributeCountdown > 0.05f)
+                __instance.attributeCountdown = 0.05f;
         }
         catch { }
     }
@@ -4290,7 +4290,7 @@ public static class MultipleChoiceMenuRefreshPatch
     private static System.Reflection.FieldInfo? _refreshCountField;
 
     [HarmonyPrefix]
-    [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
+    [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool), typeof(bool) })]
     public static void PrefixSetRefreshable(ref int refreshCount, ref bool interactable)
     {
         if (!ShouldFixGodEvolutionRefreshButton) return;
@@ -4299,7 +4299,7 @@ public static class MultipleChoiceMenuRefreshPatch
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool) })]
+    [HarmonyPatch("SetRefreshable", new Type[] { typeof(bool), typeof(int), typeof(bool), typeof(bool), typeof(bool) })]
     public static void PostfixSetRefreshable(MultipleChoiceMenu __instance)
     {
         if (!ShouldFixGodEvolutionRefreshButton) return;
@@ -4527,10 +4527,8 @@ public static class GodEvolutionHelper
                 mgr.maxPlantCount = GodEvolutionMaxPlantCount;
             if (GodEvolutionOptionCountEnabled)
                 mgr.optionCount = GodEvolutionOptionCount;
-            if (GodEvolutionUpgradeBuffChanceEnabled || GodEvolutionFreeUpgradeQuality)
-                mgr.upgradeBuffChance = GodEvolutionFreeUpgradeQuality ? 999999 : GodEvolutionUpgradeBuffChance;
-            if (GodEvolutionSuperUpgrade)
-                mgr.superUpgrade = true;
+            if (GodEvolutionUpgradeBuffChanceEnabled || GodEvolutionFreeUpgradeQuality || GodEvolutionSuperUpgrade)
+                mgr.superUpgrade = GodEvolutionFreeUpgradeQuality || GodEvolutionSuperUpgrade || GodEvolutionUpgradeBuffChance >= 100;
             if (GodEvolutionUncrashable)
                 (_uncrashableField ??= typeof(ShootingManager).GetField("uncrashable",
                     BindingFlags.Instance | BindingFlags.NonPublic))?.SetValue(mgr, true);
