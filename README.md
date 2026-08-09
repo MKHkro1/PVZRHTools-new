@@ -4,13 +4,29 @@
 
 # PVZRHTools
 
+## 停止维护声明
+
+该修改器已停止维护，最新版本现交由[@Infinite75](https://space.bilibili.com/672619350)接手维护
+
+[Github用户](https://github.com/Infinite75-2nd)
+
+[项目GitHub地址](https://github.com/Infinite75-2nd/PVZRHTools)
+
+[已构建网盘链接](https://pan.quark.cn/s/85fc63060ea1)
+
+
+
+---
+
+## 
+
 ## 项目简介
 
 PVZRHTools 是《植物大战僵尸：融合版》的修改器工具，
 
 由 @Infinite75 原创，@听雨夜荷 和 @梧萱梦汐X 接手维护。
 
-当前适配游戏版本：3.6
+当前适配游戏版本：3.8.1
 
 已构建版本的链接位于 [夸克网盘分享](https://pan.quark.cn/s/958659c83f52)
 
@@ -39,8 +55,7 @@ PVZRHTools 是《植物大战僵尸：融合版》的修改器工具，
 ### .3.7-4.0.1
 
 1. 适配3.8
-
-
+2. 适配3.8.1
 
 ### .3.7-4.0.1
 
