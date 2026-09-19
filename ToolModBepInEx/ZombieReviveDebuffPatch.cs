@@ -104,7 +104,7 @@ public static class ZombieFreeRevivePatch
 
     private static void RestoreFullHealth(Zombie z)
     {
-        z.theHealth = Mathf.Max(1, z.theMaxHealth);
+        z.theHealth = Math.Max(1L, z.theMaxHealth);
         if (z.theFirstArmorMaxHealth > 0)
             z.theFirstArmorHealth = z.theFirstArmorMaxHealth;
         if (z.theSecondArmorMaxHealth > 0)

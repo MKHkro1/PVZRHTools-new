@@ -395,7 +395,7 @@ public class DataProcessor : MonoBehaviour
                     {
                         Row = z.theZombieRow,
                         ZombieType = (int)z.theZombieType,
-                        Health = z.theHealth
+                        Health = (int)z.theHealth
                     });
                 }
             }

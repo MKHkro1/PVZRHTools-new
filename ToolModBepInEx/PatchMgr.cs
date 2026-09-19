@@ -824,18 +824,18 @@ public static class BulletPatchB
         // 性能优化：先做最廉价判定，再做来源判断，避免在高频 Die 上产生额外开销。
         if (OldObsidianBullet &&
             __instance.theBulletType == BulletType.Bullet_steelPea &&
-            __instance.hitTimes < 2 &&
+            __instance.hitCount < 2 &&
             !__instance.shootByZombie &&
             __instance.from_zombie == null)
         {
-            __instance.hit = false;
+            __instance.hitCount = 0;
             return false;
         }
 
         if (UndeadBullet && !__instance.shootByZombie && __instance.from_zombie == null)
         {
-            __instance.hit = false;
-            __instance.penetrationTimes = int.MaxValue;
+            __instance.hitCount = 0;
+            __instance.maxHitCount = int.MaxValue;
             return false;
         }
 
@@ -862,7 +862,7 @@ public static class ZombieBulletReflectPatch
             if (__instance == null || BulletPatchB.IsFromZombie(__instance)) return true;
             
             // 检查子弹是否已经命中过
-            if (__instance.hit) return true;
+            if (__instance.hitCount > 0) return true;
             
             // 检查碰撞对象是否是僵尸
             if (collision == null) return true;
@@ -880,7 +880,7 @@ public static class ZombieBulletReflectPatch
             if (randomValue >= ZombieBulletReflectChance) return true;
             
             // 标记子弹已命中，防止后续处理
-            __instance.hit = true;
+            __instance.hitCount = 1;
             
             // 创建反弹的铁豆子弹
             CreateReflectedBullet(__instance, zombie);
@@ -1586,8 +1586,8 @@ public static class CreateBulletPatch
             if (__result.shootByZombie || __result.from_zombie != null) return;
 
             // 老版黑曜石子弹：至少穿透两次
-            if (__result.penetrationTimes < 2)
-                __result.penetrationTimes = 2;
+            if (__result.maxHitCount < 2)
+                __result.maxHitCount = 2;
         }
         catch
         {
@@ -1607,7 +1607,7 @@ public static class OldObsidianBulletHitPatch
             if (zombie.theHealth <= 0) return;
             
             // 命中计数在不同流程里的更新时机不完全一致，这里用 <= 1 兼容首段命中。
-            if (__instance.hitTimes <= 1)
+            if (__instance.hitCount <= 1)
             {
                 zombie.KnockBack(0.1f);
             }
@@ -1945,17 +1945,28 @@ public static class GargantuarIgnorePotPatches
         catch { return true; }
     }
 
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(Gargantuar), "GargantuarAttackUpdate")]
-    public static bool Prefix_GargantuarAttackUpdate(Gargantuar __instance)
+    // 4.0：3.9 的私有方法 Gargantuar.GargantuarAttackUpdate() 已整体内联进
+    //       Gargantuar.OnFixedUpdate()（3.9: FixedUpdate + GargantuarAttackUpdate → 4.0: 单一 OnFixedUpdate）。
+    // IDA 实锤：4.0 的 Gargantuar.OnFixedUpdate 第 45 行先显式调用基类 Zombie.OnFixedUpdate（负责
+    // _accumulatedRootMotionDelta 位移、OverRangeDie、AttackUpdate），随后才是攻击目标扫描，
+    // 扫描命中时唯一动作是 Animator.SetBool("isAttacking", true)。
+    // ⇒ 不能用 Prefix 返回 false：那会连带跳过基类位移，巨人会永久卡死在罐子旁（行为回归）。
+    // ⇒ 改为 Postfix：判定"巨人已静止且 5 格内有罐子"时，把刚被置真的攻击动画参数复位，
+    //    与原 3.9 补丁的覆盖面完全一致（只是让它不播压罐动画），且完全不动位移与其它逻辑。
+    // 说明：isAttacking 同时是 Zombie 的公开字段，但 4.0 原生此处只写 Animator 不写字段，
+    //       为保持语义等价，这里同样只复位 Animator 参数。
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(Gargantuar), "OnFixedUpdate")]
+    public static void Postfix_GargantuarOnFixedUpdate(Gargantuar __instance)
     {
-        if (!PotSmashingFix) return true;
+        if (!PotSmashingFix) return;
         try
         {
-            if (IsGargantuarAttackingPot(__instance)) return false;
-            return true;
+            if (__instance == null || __instance.anim == null) return;
+            if (!IsGargantuarAttackingPot(__instance)) return;
+            __instance.anim.SetBool("isAttacking", false);
         }
-        catch { return true; }
+        catch { }
     }
 
     private static bool IsGargantuarAttackingPot(Gargantuar gargantuar)
@@ -2784,7 +2795,7 @@ public static class PlantTakeDamageCurseImmunityPatch
 /// <summary>
 /// 诅咒免疫补丁 - UltimateHorse.GetDamage（3.6 及以前遗留，3.7 诅咒已改走 SetEffect）
 /// </summary>
-[HarmonyPatch(typeof(UltimateHorse), nameof(UltimateHorse.GetDamage), new Type[] { typeof(int), typeof(DamageType), typeof(bool), typeof(PlantType) })]
+[HarmonyPatch(typeof(UltimateHorse), nameof(UltimateHorse.GetDamage), new Type[] { typeof(long), typeof(DamageType), typeof(bool), typeof(PlantType) })]
 public static class UltimateHorseGetDamagePatch
 {
     [HarmonyPrefix]
@@ -2805,13 +2816,13 @@ public static class UltimateHorseGetDamagePatch
 /// 诅咒免疫补丁 - SuperLadderZombie（3.7 已移除 GetDamage 重写，改挂 Zombie.GetDamage）
 /// 有梯子时跳过诅咒相关伤害计算
 /// </summary>
-[HarmonyPatch(typeof(Zombie), nameof(Zombie.GetDamage), new Type[] { typeof(int), typeof(DamageType), typeof(bool), typeof(PlantType) })]
+[HarmonyPatch(typeof(Zombie), nameof(Zombie.GetDamage), new Type[] { typeof(long), typeof(DamageType), typeof(bool), typeof(PlantType) })]
 public static class SuperLadderZombieGetDamagePatch
 {
     private static System.Reflection.FieldInfo? _ladderField;
 
     [HarmonyPrefix]
-    public static bool Prefix(Zombie __instance, int theDamage, ref int __result)
+    public static bool Prefix(Zombie __instance, long theDamage, ref long __result)
     {
         if (!CurseImmunity) return true;
         try
@@ -4525,8 +4536,9 @@ public static class GodEvolutionHelper
                 mgr.refreshCount = GetGodEvolutionMenuRefreshCount();
             if (GodEvolutionMaxPlantCountEnabled)
                 mgr.maxPlantCount = GodEvolutionMaxPlantCount;
-            if (GodEvolutionOptionCountEnabled)
-                mgr.optionCount = GodEvolutionOptionCount;
+            // 3.9 已移除 ShootingManager.optionCount 字段：选项数量由 MultipleChoiceMenu.RegisterWindow 内部按实际注册选项数自动决定（上限 5），不再支持外部强制设置。
+            // if (GodEvolutionOptionCountEnabled)
+            //     mgr.optionCount = GodEvolutionOptionCount;
             if (GodEvolutionUpgradeBuffChanceEnabled || GodEvolutionFreeUpgradeQuality || GodEvolutionSuperUpgrade)
                 mgr.superUpgrade = GodEvolutionFreeUpgradeQuality || GodEvolutionSuperUpgrade || GodEvolutionUpgradeBuffChance >= 100;
             if (GodEvolutionUncrashable)
@@ -4755,14 +4767,19 @@ public static class FrFruitObjectPatch
         catch { }
     }
 }
-[HarmonyPatch(typeof(Lawnf), nameof(Lawnf.CheckIfPlantUnlock))]
-public static class LawnfCheckIfPlantUnlockPatch
+// 4.0：原 Lawnf.CheckIfPlantUnlock(PlantType) -> UnlockType 已整体移除（UnlockType 枚举成为死代码）。
+// 解锁判定迁至 PlantDataManager.IsUnlocked(PlantType) -> bool，内部走私有 CheckIfPlantUnlock + unlocked 缓存。
+// IDA 实锤调用方：SeedLibrary._SetNormalCards / SeedLibrary._SetColorfulCards /
+//                 Card.Start / AlmanacCardUI.set_PlantType / ExploreEnterWindow.SetInfo
+// —— 覆盖卡槽、种子库、图鉴、探索入口，与原 3.9 补丁覆盖面等价。
+[HarmonyPatch(typeof(PlantDataManager), nameof(PlantDataManager.IsUnlocked))]
+public static class PlantDataManagerIsUnlockedPatch
 {
-    public static void Postfix(ref UnlockType __result)
+    public static void Postfix(ref bool __result)
     {
         if (UnlockAllPlants)
         {
-            __result = UnlockType.Unlocked;
+            __result = true;
         }
     }
 }
@@ -6020,6 +6037,7 @@ public class PatchMgr : MonoBehaviour
     public static bool SuperPresent { get; set; } = false;
     public static float SyncSpeed { get; set; } = -1;
     private static float _lastGameSpeed = -1; // 记录上次游戏内部速度，用于检测变化
+    private static float _lastWrittenTimeScale = -1f; // 上一帧记录的 Time.timeScale，用于检测游戏对时停速率的外部改写
     public static bool IsSpeedModifiedByTool { get; set; } = false; // 标记修改器是否主动设置了速度
     public static bool GameSpeedEnabled { get; set; } = false; // 游戏速度功能开关，默认关闭
     public static bool TimeSlow { get; set; }
@@ -6325,7 +6343,7 @@ public class PatchMgr : MonoBehaviour
 
             if (Input.GetKeyDown(Core.KeyShowGameInfo.Value.Value)) ShowGameInfo = !ShowGameInfo;
             
-            // 检测游戏内部速度变化（GameAPP.gameSpeed）
+            // 检测游戏内部速度变化（GameAPP.config.gameSpeed）
             // 只有在功能关闭时才检测，避免干扰游戏内部速度调整
             if (!GameSpeedEnabled)
             {
@@ -6344,21 +6362,47 @@ public class PatchMgr : MonoBehaviour
             }
             else
             {
-                // 功能开启时，更新记录的游戏内部速度，但不自动应用
+                // 功能开启时：若游戏侧修改了自身速度（如游戏设置菜单），
+                // 同样让游戏的新速率生效并显示在时停UI上（清除修改器覆盖标记）
                 try
                 {
-                    _lastGameSpeed = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
+                    float currentGameSpeed = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
+                    if (_lastGameSpeed >= 0 && Mathf.Abs(currentGameSpeed - _lastGameSpeed) > 0.01f)
+                    {
+                        SyncSpeed = -1;             // 重置为未设置状态
+                        IsSpeedModifiedByTool = false; // 清除修改标记，改用游戏速率
+                    }
+                    _lastGameSpeed = currentGameSpeed;
                 }
                 catch { }
             }
-            
+
             // 应用速度设置：只有在功能开启时才修改 Time.timeScale
             if (GameSpeedEnabled)
             {
+                // 检测游戏对 Time.timeScale 的外部直接改写（关卡机制/演出等）：
+                // 非时停/慢速状态下，若实际值与上一帧记录值不一致，说明游戏主动改了时停速率，
+                // 本帧不覆盖，让游戏的速率生效并显示在时停UI上；游戏恢复后工具恢复控制。
+                bool externalTimeScaleChanged = false;
+                try
+                {
+                    if (!TimeStop && !TimeSlow && !InGameBtnPatch.BottomEnabled &&
+                        _lastWrittenTimeScale >= 0f &&
+                        Mathf.Abs(Time.timeScale - _lastWrittenTimeScale) > 0.01f)
+                    {
+                        externalTimeScaleChanged = true;
+                    }
+                }
+                catch { }
+
                 // 功能开启时，应用速度设置
                 if (!TimeStop && !TimeSlow)
                 {
-                    if (SyncSpeed >= 0 && IsSpeedModifiedByTool)
+                    if (externalTimeScaleChanged)
+                    {
+                        // 保持游戏设置的速率，本帧不覆盖（仅刷新下方记录）
+                    }
+                    else if (SyncSpeed >= 0 && IsSpeedModifiedByTool)
                     {
                         // 修改器主动设置了速度，应用修改器的速度
                         Time.timeScale = SyncSpeed;
@@ -6377,6 +6421,14 @@ public class PatchMgr : MonoBehaviour
                 {
                     Time.timeScale = 0;
                 }
+
+                // 记录本帧最终的 timeScale，供下一帧检测游戏外部改写
+                try { _lastWrittenTimeScale = Time.timeScale; } catch { }
+            }
+            else
+            {
+                // 功能关闭时不写入，仅跟随记录实际值，避免重新开启时误判外部改写
+                try { _lastWrittenTimeScale = Time.timeScale; } catch { }
             }
             // 功能关闭时，不修改 Time.timeScale，让游戏内部的速度调整功能正常工作
 

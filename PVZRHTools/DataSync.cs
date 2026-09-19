@@ -17,12 +17,58 @@ public class DataSync
     public Socket modifierSocket;
     private StringBuilder dataBuffer = new StringBuilder(); // 累积接收的数据
 
+    /// <summary>目标端口</summary>
+    public int Port { get; }
+
+    /// <summary>是否已成功连接到游戏端（后台连接线程建立连接后为 true）</summary>
+    public bool IsConnected { get; private set; }
+
     public DataSync(int port)
     {
+        Port = port;
         buffer = new byte[1024 * 64];
-        modifierSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        modifierSocket.Connect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), port));
-        modifierSocket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, Receive, modifierSocket);
+        // 部分用户环境（防火墙/杀软/VPN 拦截回环连接）会导致同步 Connect 超时(10060)：
+        // 阻塞 UI 线程约 20 秒后抛异常，修改器直接崩溃退出。
+        // 改为后台线程异步连接并自动重试，连接失败不影响修改器窗口正常打开。
+        var thread = new Thread(ConnectLoop)
+        {
+            IsBackground = true,
+            Name = "DataSyncConnect"
+        };
+        thread.Start();
+    }
+
+    private void ConnectLoop()
+    {
+        var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), Port);
+        while (!closed && !IsConnected)
+        {
+            Socket socket = null;
+            try
+            {
+                socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                // 单次连接限时 2 秒，避免被安全软件丢包时长时间阻塞
+                var connectResult = socket.BeginConnect(endpoint, null, null);
+                if (!connectResult.AsyncWaitHandle.WaitOne(2000))
+                {
+                    try { socket.Close(); } catch { }
+                    Thread.Sleep(500);
+                    continue;
+                }
+                socket.EndConnect(connectResult);
+
+                modifierSocket = socket;
+                buffer = new byte[1024 * 64];
+                IsConnected = true;
+                socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, Receive, socket);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataSync] 连接失败，500ms 后重试: {ex.Message}");
+                try { socket?.Close(); } catch { }
+                Thread.Sleep(500);
+            }
+        }
     }
 
     public static bool Enabled { get; set; } = true;
@@ -30,10 +76,18 @@ public class DataSync
 
     ~DataSync()
     {
-        if (!modifierSocket.Poll(100, SelectMode.SelectRead))
+        try
         {
-            modifierSocket.Shutdown(SocketShutdown.Both);
-            modifierSocket.Close();
+            if (!IsConnected || modifierSocket == null) return;
+            if (!modifierSocket.Poll(100, SelectMode.SelectRead))
+            {
+                modifierSocket.Shutdown(SocketShutdown.Both);
+                modifierSocket.Close();
+            }
+        }
+        catch
+        {
+            // 终结器中忽略清理异常
         }
     }
 
@@ -401,6 +455,7 @@ public class DataSync
     {
         if (!App.inited) return;
         if (!Enabled) return;
+        if (!IsConnected || closed) return; // 尚未连上（后台重试中）或已关闭，静默丢弃，避免崩溃
         JsonTypeInfo jti = data.ID switch
         {
             1 => ValuePropertiesSGC.Default.ValueProperties,
@@ -415,7 +470,16 @@ public class DataSync
             18 => GodEvolutionPropertiesSGC.Default.GodEvolutionProperties,
             _ => throw new InvalidOperationException()
         };
-        modifierSocket.Send(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(data, jti)));
-        Thread.Sleep(5);
+        try
+        {
+            modifierSocket.Send(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(data, jti)));
+            Thread.Sleep(5);
+        }
+        catch (Exception ex)
+        {
+            // 发送失败（如游戏端已退出/连接中断）不应导致修改器崩溃；
+            // 连接真正断开时 Receive 会走原有的保存并退出逻辑。
+            System.Diagnostics.Debug.WriteLine($"[DataSync] SendData 失败: {ex.Message}");
+        }
     }
 }

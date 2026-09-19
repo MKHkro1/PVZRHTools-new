@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -51,8 +51,12 @@ public partial class App : Application
             {
                 DataSync.Value.SendData(new Exit());
                 Thread.Sleep(100);
-                DataSync.Value.modifierSocket.Shutdown(SocketShutdown.Both);
-                DataSync.Value.modifierSocket.Close();
+                var socket = DataSync.Value.modifierSocket;
+                if (socket != null && DataSync.Value.IsConnected)
+                {
+                    socket.Shutdown(SocketShutdown.Both);
+                    socket.Close();
+                }
             }
             catch (Exception ex)
             {

@@ -26,7 +26,7 @@ PVZRHTools 是《植物大战僵尸：融合版》的修改器工具，
 
 由 @Infinite75 原创，@听雨夜荷 和 @梧萱梦汐X 接手维护。
 
-当前适配游戏版本：3.8.1
+当前适配游戏版本：4.0
 
 已构建版本的链接位于 [夸克网盘分享](https://pan.quark.cn/s/958659c83f52)
 
@@ -51,6 +51,14 @@ PVZRHTools 是《植物大战僵尸：融合版》的修改器工具，
 感谢[@高数带我飞](https://space.bilibili.com/1117414477)(Github:[@LibraHp](https://github.com/LibraHp/))的技术支持    
 
 ## 修改器更新日志
+
+### 4.0-4.0.1
+
+1. 适配4.0
+
+2. 修复"一键解锁全植物"在4.0失效（解锁判定由 `Lawnf.CheckIfPlantUnlock` 迁移至 `PlantDataManager.IsUnlocked`）
+
+3. 修复"巨人僵尸忽略罐子"在4.0失效（4.0 将 `Gargantuar.GargantuarAttackUpdate` 并入 `Gargantuar.OnFixedUpdate`）
 
 ### .3.7-4.0.1
 
