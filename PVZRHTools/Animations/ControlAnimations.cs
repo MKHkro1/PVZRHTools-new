@@ -26,6 +26,13 @@ namespace PVZRHTools.Animations
             return true; // 默认启用
         }
 
+        /// <summary>
+        /// 供外部（如 MainWindow 的卡片悬停光晕）查询"动画是否开启"的公开入口。
+        /// 语义与内部的 IsAnimationEnabled 完全一致；加它是为了让外部不必复制判断逻辑，
+        /// 也保证「设置里关掉动画」时所有动效（含卡片光晕）一起停 —— 行为一致。
+        /// </summary>
+        public static bool IsAnimationEnabledPublic() => IsAnimationEnabled();
+
         #region CheckBox/ToggleButton 切换动画
         
         /// <summary>

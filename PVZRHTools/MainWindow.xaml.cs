@@ -391,12 +391,21 @@ namespace PVZRHTools
             // 添加窗口拖动倾斜效果
             AdvancedAnimations.AddWindowDragTilt(this);
             
-            // 尝试启用 Windows 11 云母效果（如果可用）
-            if (AcrylicHelper.IsWindows11OrNewer())
-            {
-                // 可选：启用云母或亚克力效果
-                // AcrylicHelper.EnableMica(this);
-            }
+            // ★★ 2026-09-26 实测结论：**本窗口不能启用系统级 Mica**（已实机复现并回退）。
+            //   现象：解开 AcrylicHelper.EnableMica(this) 后，窗口**整片空白**（截图仅 8.8KB，只剩标题栏碎片）。
+            //   根因：EnableMica 做两件在本窗口上互斥的事——
+            //     ① `DwmExtendFrameIntoClientArea(hwnd, -1,-1,-1,-1)` 把 DWM 框架扩到整个客户区；
+            //     ② `window.Background = Brushes.Transparent`。
+            //   而 MainWindow 是 `WindowStyle=None` + **`AllowsTransparency=False`**（见 MainWindow.xaml），
+            //   非 AllowsTransparency 的窗口没有 WPF 合成层来承载"透明客户区" ⇒ 内容被清空、只剩 DWM 背板。
+            //   要让 Mica 生效必须改成 AllowsTransparency=True，但那会连带：
+            //     · 本窗口已有的自绘标题栏/圆角/拖拽倾斜(AdvancedAnimations.AddWindowDragTilt)/启动动画 全部重测；
+            //     · 失去硬件加速的部分渲染路径，且 ResizeMode=CanResizeWithGrip 的抓手行为变化。
+            //   收益（一点系统模糊）远小于风险 ⇒ **不启用系统 Mica**。毛玻璃观感改由"应用内分层"实现：
+            //     WindowBackdropBrush（窗口渐变）+ GlassHostBrush（半透明内容宿主）+ GlassSurfaceBrush（半透明卡片）
+            //     + CardShadowEffect（卡片外阴影）⇒ 既有磨砂层次，又不依赖 DWM、跨系统一致、零窗口级风险。
+            //   （若将来真要上 Mica：先把窗口改成 AllowsTransparency=True，再逐项重测自绘标题栏/圆角/
+            //     拖拽倾斜/启动动画/缩放手柄，并确认 ResizeMode 与 UseLayoutRounding 的渲染路径没退化。）
             
             // 为所有按钮添加交互动画
             ApplyAnimationsToControls(this);
@@ -575,6 +584,45 @@ namespace PVZRHTools
             }), DispatcherPriority.Loaded);
 
             HookCustomPanel();
+
+            // ★ 2026-09-26 性能修复记录：**「首次打开词条页要 7.8 秒」的根因与修法**（实测数据）
+            //   症状：用户反馈首次打开「旅行词条修改」很慢。实测切页→布局完成 = **7873 ms**，
+            //         之后再切 = 22~83 ms（一次性成本，不是每帧问题）。
+            //   排除项：离线基准证明**解析不是瓶颈** —— 466 条词条 / 25K 字符 / 平均 1.6 个富文本标签，
+            //           全量剥离标签一次仅 **0.16 ms**（见 .tools/buffperf）。所以慢必在 WPF 布局层。
+            //   真因（两条叠加）：
+            //     ① `DataGrid.Small` 这个样式键**全工程从未定义**，5 个词条 DataGrid 全都
+            //        `Style="{DynamicResource DataGrid.Small}"` ⇒ DynamicResource 缺键**静默回落**
+            //        HandyControl 默认 DataGrid（大行高/大内边距）。与之前 Expander.Small 是同一类缺陷。
+            //     ② **虚拟化被外层 ScrollViewer 废掉**：词条页的 DataGrid 处在页面级 ScrollViewer 内，
+            //        内容被赋予无限可用高度 ⇒ DataGrid 把自己撑到"显示全部行"（实测高 **9794 px**、
+            //        281 行**全部实例化**）⇒ 一次性实例化并测量全部富文本行 = 7.8 秒。
+            //   修法（两处，已在别处落地）：
+            //     · Styles/SimpleTheme.xaml 补上 `DataGrid.Small` 定义（含显式虚拟化开关）；
+            //     · MainWindow.xaml 给 5 个词条 DataGrid 加 **MaxHeight="420"** ⇒ 有界高度 ⇒
+            //       转为 DataGrid 内部滚动 + 按视口虚拟化。
+            //   效果（实测）：首次打开 **7873 → 336 ms**；**已实例化行 281 → 18**（仅视口内）；
+            //                 高度 9794 → 420 px。后续切换稳定在 17~83 ms。
+            //   ⇒ 通用经验：**WPF 里"DataGrid 放进外层 ScrollViewer"会让虚拟化完全失效** ——
+            //     凡是在可滚动容器里放长列表，必须给它**有界高度**（固定/最大高度或 Grid 星号行），
+            //     否则它会退化成"一次性实例化全部行"，行内容越复杂越慢（富文本/模板列尤其明显）。
+
+            // ★ 2026-09-26 审美升级：切页**淡入 + 轻推移**入场（20px → 0，250~300ms 弹簧缓动）。
+            //   工程里 AnimateTabSwitch 早就写好了但**从未被调用**（与 AnimatedStyles.xaml 同款死代码），
+            //   这里把它接到切页事件上，一处生效于全部 15 个页面。
+            //   注意：动画作用在**内容 Border**（Tab0ContentBorder）而不是 TabItem 上，
+            //   避免影响侧栏选中态的绘制；且 AnimateTabSwitch 内部自带「动画开关关闭则直接 return」。
+            try
+            {
+                if (FindName("Tab0ContentBorder") is FrameworkElement pageHost)
+                {
+                    ControlAnimations.AnimateTabSwitch(pageHost);
+                }
+            }
+            catch
+            {
+                // 入场动画失败绝不影响切页本身
+            }
         }
 
         private void UpdateTitleBarBorderWidth()
@@ -669,6 +717,68 @@ namespace PVZRHTools
             }
         }
         
+        /// <summary>
+        /// 卡片「玻璃质感」增强（2026-09-26 新增）：
+        ///   ① 顶部 1px 高光条 —— 模拟玻璃上沿受光（深色模式下最出效果）；
+        ///   ② 悬停时把默认外阴影换成**强调色光晕**，勾勒卡片边缘。
+        /// 全部走 code-behind 的**每元素独立**对象（绝不复用样式里的共享 Freezable ——
+        /// 那会导致 "该对象已密封或已冻结" 崩溃，本次已在按钮上踩过一次）。
+        /// 高光条插在卡片 Border 的 Child 之外是做不到的（Border 只有一个 Child），
+        /// 所以做法是：把原 Child 包进一个 Grid，高光条作为 Grid 的第 2 个子项叠在上层，
+        /// IsHitTestVisible=False ⇒ 不影响任何点击与命中测试。
+        /// </summary>
+        private void AttachCardGlassPolish(Border card)
+        {
+            try
+            {
+                // ---- ① 顶部高光条（只加一次；重复调用幂等）----
+                if (card.Child is not Grid host)
+                {
+                    var original = card.Child;
+                    host = new Grid();
+                    card.Child = host;
+                    if (original != null)
+                    {
+                        // 原内容从 Border.Child 摘下来挂进 Grid（Border.Child 已被设为 host，故这里是移动）
+                        host.Children.Add(original);
+                    }
+
+                    var highlight = new Border
+                    {
+                        Height = 1,
+                        VerticalAlignment = VerticalAlignment.Top,
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        IsHitTestVisible = false,
+                        Margin = new Thickness(1, 1, 1, 0),
+                        SnapsToDevicePixels = true,
+                        CornerRadius = new CornerRadius(10, 10, 0, 0),
+                        Background = TryFindResource("GlassHighlightBrush") as Brush
+                    };
+                    Panel.SetZIndex(highlight, 1);
+                    host.Children.Add(highlight);
+                }
+
+                // ---- ② 悬停光晕（事件每元素各挂一次）----
+                var normalShadow = TryFindResource("CardShadowEffect") as Effect;
+                var hoverGlow = TryFindResource("CardHoverGlowEffect") as Effect;
+
+                card.MouseEnter += (_, _) =>
+                {
+                    if (!ControlAnimations.IsAnimationEnabledPublic()) return;
+                    if (hoverGlow != null) card.Effect = hoverGlow;
+                };
+                card.MouseLeave += (_, _) =>
+                {
+                    if (!ControlAnimations.IsAnimationEnabledPublic()) return;
+                    card.Effect = normalShadow;
+                };
+            }
+            catch
+            {
+                // 观感增强失败绝不影响功能：静默跳过（卡片仍可用）
+            }
+        }
+
         /// <summary>
         /// 递归为所有控件应用动画效果
         /// </summary>
@@ -784,6 +894,20 @@ namespace PVZRHTools
                     (btn.Name.Contains("Important") || btn.Name.Contains("Main") || btn.Name.Contains("Primary")))
                 {
                     AdvancedAnimations.AddMagneticEffect(btn, 0.1);
+                }
+
+                // ★ 2026-09-26 审美升级：卡片悬停**轻抬 + 强调色光晕**。
+                //   为什么放这里而不是写进 SettingsCard 样式（实机崩溃教训）：
+                //     Style 的 Setter 值在 WPF 里是**共享且会被冻结**的，而 AddHoverLift 会对
+                //     RenderTransform 调 BeginAnimation ⇒ 若 transform 来自 Setter 共享实例，
+                //     第一次悬停就抛 "该对象已密封或已冻结"（本会话已在按钮上复现过一次）。
+                //   AddHoverLift 自己保证「每元素各自 new TranslateTransform」，所以走这条路是安全的。
+                //   作用域：只给 SettingsCard（本工程卡片容器的唯一键），不给整页上百个元素挂事件。
+                if (child is Border cardBorder && cardBorder.Style is Style cs &&
+                    cs == TryFindResource("SettingsCard") as Style)
+                {
+                    ControlAnimations.AddHoverLift(cardBorder);
+                    AttachCardGlassPolish(cardBorder);
                 }
                 
                 // 递归处理子元素
@@ -1079,6 +1203,73 @@ namespace PVZRHTools
                         ForceUpdateWhiteBackgrounds(true);
                     }), DispatcherPriority.Render);
                 }), DispatcherPriority.Loaded);
+            }
+
+            // ★ 2026-09-26 修复（用户反馈）：**强调色渐变与光晕必须跟随主题**。
+            //   问题：我把 AccentGradientBrush / AccentGlowEffect 在 ThemeColors*.xaml 里各写了一份
+            //   **硬编码粉色**，但深色模式的强调色其实是**绿色**（LabelForegroundBrush = #6FBF7A）
+            //   ⇒ 深色下"保存配置/保存为新配置"仍是粉的、卡片悬停还散粉色背光，看着像浅色模式残留。
+            //   修法：在换肤的**唯一收口处**（本方法）用**主题强调色**现算渐变与光晕，
+            //   覆盖掉字典里那份静态值 ⇒ 浅色=粉、深色=绿，且以后换任何主题都自动跟随。
+            ApplyAccentDerivedTokens(labelForeground);
+        }
+
+        /// <summary>
+        /// 由「主题强调色」派生并覆盖两个令牌：
+        ///   · <c>AccentGradientBrush</c> —— 主行动按钮渐变（亮→原色→暗，三段）
+        ///   · <c>AccentGlowEffect</c>   —— 主行动按钮的同色柔和投影
+        ///   · <c>CardHoverGlowEffect</c>—— 卡片悬停光晕（同一强调色，避免与按钮撞色）
+        /// 全部由基色按亮度比例算出，深/浅色都成立；换主题自动跟随，不需要在字典里各维护一份。
+        /// 只写窗口级资源（<c>Resources</c>），作用域明确、不动 App 级字典（避免污染其它窗口）。
+        /// </summary>
+        private void ApplyAccentDerivedTokens(Color accent)
+        {
+            try
+            {
+                static Color Scale(Color c, double factor)
+                    => Color.FromRgb(
+                        (byte)Math.Clamp(c.R * factor, 0, 255),
+                        (byte)Math.Clamp(c.G * factor, 0, 255),
+                        (byte)Math.Clamp(c.B * factor, 0, 255));
+
+                // 渐变：亮 → 原色 → 暗（相对亮度比例，浅色/深色主题都自然）
+                var grad = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1)
+                };
+                grad.GradientStops.Add(new GradientStop(Scale(accent, 1.18), 0));
+                grad.GradientStops.Add(new GradientStop(accent, 0.55));
+                grad.GradientStops.Add(new GradientStop(Scale(accent, 0.86), 1));
+                if (grad.CanFreeze) grad.Freeze();
+                Resources["AccentGradientBrush"] = grad;
+
+                // 按钮投影 / 卡片悬停光晕：同色，分别给不同强度
+                var buttonGlow = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = accent,
+                    BlurRadius = 14,
+                    ShadowDepth = 2,
+                    Direction = 270,
+                    Opacity = 0.45
+                };
+                if (buttonGlow.CanFreeze) buttonGlow.Freeze();
+                Resources["AccentGlowEffect"] = buttonGlow;
+
+                var cardGlow = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = accent,
+                    BlurRadius = 12,      // ★ 从 20 收到 12：用户反馈"散发的粉色背光"太大太散
+                    ShadowDepth = 0,
+                    Direction = 270,
+                    Opacity = 0.22        // ★ 从 0.45 收到 0.22：只做"边缘提亮"，不做大片光晕
+                };
+                if (cardGlow.CanFreeze) cardGlow.Freeze();
+                Resources["CardHoverGlowEffect"] = cardGlow;
+            }
+            catch
+            {
+                // 派生失败（取不到资源等）→ 保留字典里的静态值，不影响功能
             }
         }
 

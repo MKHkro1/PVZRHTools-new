@@ -8,7 +8,7 @@
     <SolidColorBrush x:Key="WindowForegroundBrush" Color="#FFE8EAED"/>
     
     <!-- 标题栏背景 -->
-    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FF1E1F22"/>
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#F21E1F22"/>
     <!-- 标题/标签高亮色（柔和绿） -->
     <SolidColorBrush x:Key="TitleForegroundBrush" Color="#FF6FBF7A"/>
     <SolidColorBrush x:Key="LabelForegroundBrush" Color="#FF6FBF7A"/>
@@ -24,9 +24,43 @@
     <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#FF1E1F22"/>
     <!-- 内容区边框（中性深灰，不再用强调色） -->
     <SolidColorBrush x:Key="ContentBorderBrush" Color="#FF303236"/>
+
+    <!-- ===== 毛玻璃质感令牌（2026-09-26 新增，深色模式收益最大） ===== -->
+    <!-- 卡片表面：**半透明深灰**，透出底层更深/带色调的背景 ⇒ 磨砂玻璃层次感。
+         0xD9≈85%：比浅色更透一点，因为深色下"透"才不会显脏。 -->
+    <SolidColorBrush x:Key="GlassSurfaceBrush" Color="#D91E2024"/>
+    <!-- 内容宿主：比卡片更透（0x80≈50%），让窗口渐变在卡片"周围"也透出来 ⇒ 层次 = 宿主 < 卡片
+         ★ 同浅色：用**带渐变的画刷**，Mica 生效（窗口透明）时这层仍保留冷调层次。 -->
+    <LinearGradientBrush x:Key="GlassHostBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#8C1B1D21" Offset="0"/>
+        <GradientStop Color="#801A1C20" Offset="0.5"/>
+        <GradientStop Color="#8C1A1720" Offset="1"/>
+    </LinearGradientBrush>
+    <!-- 卡片外阴影：深色模式用**纯黑**（灰阴影在深底上会发灰发脏），透明度略高以拉开层次 -->
+    <DropShadowEffect x:Key="CardShadowEffect" Color="#FF000000" BlurRadius="16" ShadowDepth="3" Direction="270" Opacity="0.45"/>
+    <!-- 卡片顶部高光：深色下用低透明度白（深底上的玻璃反光，比纯白柔和） -->
+    <SolidColorBrush x:Key="GlassHighlightBrush" Color="#26FFFFFF"/>
+    <!-- 悬停光晕：深色下偏好用强调色粉光，勾勒卡片边缘 -->
+    <DropShadowEffect x:Key="CardHoverGlowEffect" Color="#FF6FBF7A" BlurRadius="12" ShadowDepth="0" Direction="270" Opacity="0.22"/>
+    <!-- 主行动按钮渐变：**深色主题的强调色是绿色**（LabelForegroundBrush=#6FBF7A）。
+         ⚠ 这里只作为**兜底默认值**：真正生效的值由 MainWindow.ApplyAccentDerivedTokens()
+         在每次换肤时按当前主题强调色现算并覆盖（避免浅/深两套硬编码不一致 —— 用户反馈过
+         「深色下按钮还是粉色、像浅色模式残留」）。 -->
+    <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FF8ED09A" Offset="0"/>
+        <GradientStop Color="#FF6FBF7A" Offset="0.55"/>
+        <GradientStop Color="#FF559961" Offset="1"/>
+    </LinearGradientBrush>
+    <DropShadowEffect x:Key="AccentGlowEffect" Color="#FF6FBF7A" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.45"/>
+    <!-- 窗口背景渐变：深灰偏冷 → 近黑，右下角带一点极淡的紫色调（与强调色呼应） -->
+    <LinearGradientBrush x:Key="WindowBackdropBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FF1B1D21" Offset="0"/>
+        <GradientStop Color="#FF151619" Offset="0.5"/>
+        <GradientStop Color="#FF1A1720" Offset="1"/>
+    </LinearGradientBrush>
     
     <!-- TabControl 背景（侧栏底） -->
-    <SolidColorBrush x:Key="TabControlBackgroundBrush" Color="#FF1A1B1D"/>
+    <SolidColorBrush x:Key="TabControlBackgroundBrush" Color="#CC1A1B1D"/>
     <!-- TabControl 边框 -->
     <SolidColorBrush x:Key="TabControlBorderBrush" Color="#FF303236"/>
     

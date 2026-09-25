@@ -11,7 +11,14 @@
                本文件刻意不设隐式样式（详见 .portmap/UI_SIMPLE_restyle.md 跳过项）。
          ============================================================ -->
 
-    <!-- 按钮：扁平、圆角 6、无发光/缩放动画。 -->
+    <!-- 按钮：扁平、圆角 6。
+         ★ 2026-09-26：这里**不放缩放/动画**——
+           原因（实机崩溃教训）：Style 的 Setter 值在 WPF 里是**共享且会被冻结**的，
+           若在此处给 RenderTransform 塞一个 ScaleTransform，全应用按钮共用一个冻结实例；
+           而工程已有的 PVZRHTools.Animations.ControlAnimations.AddButtonPressAnimation 会
+           对这个 transform 调 BeginAnimation ⇒ 抛
+           "无法在 ScaleTransform 上激活 ScaleX，因为该对象已密封或已冻结"（已实机复现）。
+           动画改由 code-behind 统一挂（每按钮**各自** new ScaleTransform），样式只负责配色。 -->
     <Style TargetType="{x:Type Button}">
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="14,0" />
@@ -23,6 +30,7 @@
         <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -42,6 +50,7 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverSurfaceBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource LabelForegroundBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
@@ -55,17 +64,23 @@
         </Setter>
     </Style>
 
-    <!-- 主行动按钮（应用/保存类，少量使用） -->
+    <!-- 主行动按钮（应用/保存类，少量使用）
+         ★ 2026-09-26：改为**渐变强调色 + 同色柔和投影**（立体 CTA），并与普通按钮拉开层级。
+           渐变走命名令牌 AccentGradientBrush（浅/深各一套），投影 AccentGlowEffect。
+           注意：这里**不做缩放动画**（同普通按钮的理由 —— 样式里的 transform 会被共享冻结，
+           而 code-behind 的 AddButtonPressAnimation 会去动它 ⇒ 必崩）。 -->
     <Style x:Key="AccentButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="14,0" />
         <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Background" Value="{DynamicResource LabelForegroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentGradientBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="#FFFFFFFF" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Effect" Value="{DynamicResource AccentGlowEffect}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -83,10 +98,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Opacity" Value="0.88" />
+                            <Setter Property="Opacity" Value="0.92" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Opacity" Value="0.72" />
+                            <Setter Property="Opacity" Value="0.78" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
@@ -157,13 +172,93 @@
     </Style>
 
     <!-- 卡片容器：白/深底 + 细描边 + 圆角 + 统一内边距 -->
+    <!-- 卡片容器：白/深底 + 细描边 + 圆角 + 统一内边距
+         ★ 2026-09-26 审美升级（毛玻璃质感）：卡片改为**半透明表面 + 柔和外阴影**，
+           配合窗口底层的渐变背景，形成"浮在背景上的一层磨砂玻璃"观感（浅深色都成立）。
+           两项都以主题令牌驱动（GlassSurfaceBrush / CardShadowEffect 见 ThemeColors*.xaml），
+           缺失时各自回落原值 ⇒ 不影响任何既有页面。 -->
     <Style x:Key="SettingsCard" TargetType="{x:Type Border}">
-        <Setter Property="Background" Value="{DynamicResource ContentBackgroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource GlassSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Padding" Value="12,9,12,9" />
         <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <!-- 外阴影：让卡片"浮"起来（柔和、低透明度，避免廉价感） -->
+        <Setter Property="Effect" Value="{DynamicResource CardShadowEffect}" />
+    </Style>
+
+    <!-- ★ 2026-09-26 性能修复：**DataGrid.Small 这个键在整个工程里从未定义**，
+         而 5 个词条 DataGrid 都写着 Style="{DynamicResource DataGrid.Small}"。
+         DynamicResource 找不到键时不报错、静默回落 HandyControl 默认 DataGrid 样式
+         （大行高/大内边距）—— 与之前 Expander.Small 那次是同一类缺陷。
+         这里补上定义，并把**虚拟化开关显式打开**（性能关键，见下）。
+         ★ 虚拟化要点：DataGrid 默认虽启用行虚拟化，但它的**视口高度**来自外层容器；
+           词条页的 DataGrid 处在一个外层 ScrollViewer 里（内容被赋予无限高），
+           于是 DataGrid 会把自己撑到"显示全部行"（实测 281 行 → 9794px 高），
+           虚拟化因此完全失效 ⇒ 首次打开要一次性实例化并测量全部富文本行（实测 7873ms）。
+           修法：由页面给 DataGrid 一个**有界高度**（见 MainWindow.xaml 的 Height/MaxHeight），
+           让它在自己内部滚动、按视口虚拟化；本样式只负责把虚拟化相关开关设成最优组合。 -->
+    <Style x:Key="DataGrid.Small" TargetType="{x:Type DataGrid}">
+        <!-- 行高交给内容（富文本需要换行），但**最小行高**保持紧凑 -->
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinRowHeight" Value="24" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ContentBackgroundBrush}" />
+        <!-- ★ 2026-09-26 修复（用户反馈「词条的文本字体还是黑色」）：
+             DataGrid **必须显式给 Foreground** —— 否则单元格文本会回落 HandyControl 皮肤里
+             烘死的深色字，在深色模式下就是黑字看不清。
+             这与 2026-09-25 修的 CheckBox 缺 Foreground 是**完全同一类缺陷**（第三次出现）。
+             另外 DataGrid 的单元格文本实际由 DataGridCell 承载，光给 DataGrid 设 Foreground
+             在部分皮肤下不生效 ⇒ 这里连同 Cell/Row 一起显式覆盖，保证继承链上无遗漏。 -->
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource HoverSurfaceBrush}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+        <!-- 虚拟化：默认即开，这里显式声明以防被别处的隐式样式关掉 -->
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="VirtualizingPanel.IsVirtualizingWhenGrouping" Value="True" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Style.Resources>
+            <!-- 单元格与其内容一并跟随主题前景色（覆盖 HandyControl 皮肤里烘死的深色字） -->
+            <Style TargetType="{x:Type DataGridCell}">
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="2,1" />
+            </Style>
+            <Style TargetType="{x:Type DataGridRow}">
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+            </Style>
+            <!-- 单元格内的纯文本（含 TmpTextBlock 的无标签片段）继承前景色 -->
+            <Style TargetType="{x:Type TextBlock}">
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+            </Style>
+        </Style.Resources>
+    </Style>
+
+    <!-- ★ 2026-09-26 玻璃高光条：卡片**内部最顶层**的一条 1px 亮线，模拟玻璃上沿受光。
+         为什么单独做成一个样式而不是塞进 SettingsCard 的模板：
+           SettingsCard 是 Border，Border 只有一个 Child，塞进去会挤掉页面内容；
+           所以做成「可叠放的高光 Border」，由卡片模板/页面把它作为**最后一项**叠上去（不吃布局）。
+         只挂 1px 高 + VerticalAlignment=Top + IsHitTestVisible=False ⇒ 不影响点击与布局。 -->
+    <Style x:Key="GlassHighlight" TargetType="{x:Type Border}">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="CornerRadius" Value="10,10,0,0" />
+        <Setter Property="Background" Value="{DynamicResource GlassHighlightBrush}" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Margin" Value="1,1,1,0" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
@@ -187,10 +282,12 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Expander}">
-                    <Border Background="{DynamicResource ContentBackgroundBrush}"
+                    <!-- ★ 2026-09-26：折叠组外框也用玻璃令牌（原先是不透明 ContentBackgroundBrush），
+                         让"折叠组卡片"与 SettingsCard 处在同一视觉层，整页观感统一。 -->
+                    <Border Background="{DynamicResource GlassSurfaceBrush}"
                             BorderBrush="{DynamicResource SurfaceBorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="8"
+                            CornerRadius="10"
                             SnapsToDevicePixels="True">
                         <StackPanel>
                             <ToggleButton x:Name="HeaderSite"
@@ -499,7 +596,15 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ComboBox}">
                     <Grid>
+                        <!-- ★ 2026-09-26 修复（用户反馈「配置名的箭头居中了，而不是靠边」）：
+                             根因 = **ToggleButton 没被拉伸**。箭头是 ToggleButton 模板内
+                             `HorizontalAlignment="Right"` 的元素，但 ToggleButton 自身若只占内容宽度，
+                             它就在 Grid 里居中/收缩 ⇒ 箭头看起来"悬在框中间"。
+                             （与本会话早前 Expander 标题居中同款：**内容对齐没问题，是容器没撑开**。）
+                             修法：ToggleButton 显式 Stretch（水平+垂直）。 -->
                         <ToggleButton x:Name="ToggleButton" Focusable="False" ClickMode="Press"
+                                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      HorizontalContentAlignment="Stretch"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="{x:Type ToggleButton}">

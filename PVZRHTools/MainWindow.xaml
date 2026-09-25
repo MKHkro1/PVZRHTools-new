@@ -12,7 +12,7 @@
     x:Class="PVZRHTools.MainWindow"
     mc:Ignorable="d"
     Height="760" Width="1200" MinHeight="200" MinWidth="900"
-    Icon="./PVZRHTools/icon.ico" WindowStyle="None" Background="{DynamicResource WindowBackgroundBrush}"
+    Icon="./PVZRHTools/icon.ico" WindowStyle="None" Background="{DynamicResource WindowBackdropBrush}"
     Foreground="{DynamicResource WindowForegroundBrush}" BorderThickness="1" UseLayoutRounding="False"
     ResizeMode="CanResizeWithGrip" d:DataContext="{x:Type local:ModifierViewModel}"
     AllowsTransparency="False">
@@ -220,7 +220,9 @@
                 </Style>
             </TabControl.ItemContainerStyle>
             <TabItem Header="{DynamicResource Tab0.Header}" Tag="&#xE80F;">
-                <Border x:Name="Tab0ContentBorder" Margin="0,8,0,0" BorderThickness="1" CornerRadius="10" Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource ContentBorderBrush}">
+                <!-- ★ 2026-09-26 毛玻璃：内容宿主改**半透明**（原 ContentBackgroundBrush 是不透明白/深灰）
+                     —— 这是让卡片"透出窗口渐变"的关键一层：宿主若不透明，卡片的半透明就无从体现。 -->
+                <Border x:Name="Tab0ContentBorder" Margin="0,8,0,0" BorderThickness="1" CornerRadius="12" Background="{DynamicResource GlassHostBrush}" BorderBrush="{DynamicResource ContentBorderBrush}">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                                   PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
                                   CanContentScroll="False">
@@ -786,6 +788,7 @@
                                                     Content="{DynamicResource Custom.Panel.Save}"
                                                     VerticalAlignment="Center" Margin="12,0,0,0"
                                                     ToolTip="{DynamicResource Custom.Panel.SaveTip}"
+                                                    Style="{DynamicResource AccentButtonStyle}"
                                                     Click="CustomPanelSaveBtn_Click" />
                                         </StackPanel>
 
@@ -802,6 +805,7 @@
                                                      Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
                                             <Button Content="{DynamicResource Custom.Preset.Save}"
                                                     VerticalAlignment="Center" Margin="0,0,12,0"
+                                                    Style="{DynamicResource AccentButtonStyle}"
                                                     Command="{Binding SaveNewPresetCommand}" />
                                             <ComboBox x:Name="CustomPanelPresetsBox" Width="170" Height="28"
                                                       Style="{DynamicResource ThemedComboBox}"
@@ -1765,6 +1769,7 @@
                                               Style="{DynamicResource DataGrid.Small}"
                                               MinRowHeight="24"
                                               RowHeight="{x:Static sys:Double.NaN}"
+                                        MaxHeight="420"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="DataGrid_PreviewMouseWheel">
                                         <DataGrid.Columns>
@@ -1809,6 +1814,7 @@
                                               Style="{DynamicResource DataGrid.Small}"
                                               MinRowHeight="24"
                                               RowHeight="{x:Static sys:Double.NaN}"
+                                        MaxHeight="420"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="DataGrid_PreviewMouseWheel">
                                         <DataGrid.Columns>
@@ -1854,6 +1860,7 @@
                                               Style="{DynamicResource DataGrid.Small}"
                                               MinRowHeight="24"
                                               RowHeight="{x:Static sys:Double.NaN}"
+                                        MaxHeight="420"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="DataGrid_PreviewMouseWheel">
                                         <DataGrid.Columns>
@@ -1898,6 +1905,7 @@
                                               Style="{DynamicResource DataGrid.Small}"
                                               MinRowHeight="24"
                                               RowHeight="{x:Static sys:Double.NaN}"
+                                        MaxHeight="420"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="DataGrid_PreviewMouseWheel">
                                         <DataGrid.Columns>
@@ -1942,6 +1950,7 @@
                                               Style="{DynamicResource DataGrid.Small}"
                                               MinRowHeight="24"
                                               RowHeight="{x:Static sys:Double.NaN}"
+                                        MaxHeight="420"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               PreviewMouseWheel="DataGrid_PreviewMouseWheel">
                                         <DataGrid.Columns>
