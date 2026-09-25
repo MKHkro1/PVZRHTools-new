@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -100,18 +101,19 @@ namespace PVZRHTools
             // so the loading overlay can appear immediately.
             ContentRendered += MainWindow_ContentRendered;
             
-            // 应用初始主题（如果已保存）
-            if (ViewModel != null && ViewModel.IsDarkMode)
+            // 应用初始主题（如果已保存）。
+            // ★★ 这里**不能**判 ViewModel：构造函数 L97 刚把 DataContext 设成 StartupLoadingContext，
+            //    真正的 ViewModel 要等 ContentRendered → BeginViewModelInitialization 才挂上。
+            //    判 ViewModel 会让本分支**永远为 false** ⇒ 启动时深色主题完全没被应用
+            //    （用户实测：切到深色、重启后界面仍是浅色）。
+            // ★ 顺序：先换字典（HC 官方皮肤 + 令牌），再延迟压色（压色取色依赖已切换的令牌）。
+            if (IsSavedDarkMode())
             {
                 App.SwitchTheme(true);
-                // 延迟应用颜色，等待窗口完全加载
-                Loaded += (s, e) =>
+                Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        ApplyThemeWithAnimation(true);
-                    }), DispatcherPriority.Loaded);
-                };
+                    ApplyThemeWithAnimation(true);
+                }), DispatcherPriority.Loaded);
             }
             
             // 窗口加载完成后播放启动动画
@@ -178,6 +180,19 @@ namespace PVZRHTools
                 var pendingSaveCodes = App.PendingSaveModel?.InGameHotkeyCodes;
                 var (vm, loadedSettings) = CreateRealViewModel();
                 DataContext = vm;
+                // ★ 自定义面板（「自由度排版」）独立装载：不依赖「保存设置(NeedSave)」那条门。
+                //   实测踩坑：NeedSave=false 时 CreateRealViewModel 走 `new ModifierViewModel(s.Hotkeys)`，
+                //   设置 s 根本不经过 ApplySavedSettings ⇒ 面板收藏永不恢复、且之后的持久化会把旧收藏覆盖成
+                //   「只有内存里那点」（表现为"重启后收藏丢失"）。这里对两条路径统一补一次装载（幂等）。
+                if (loadedSettings is ModifierSaveModel ls)
+                {
+                    vm.CustomPanel.LoadFrom(ls.CustomPanelItems, ls.CustomPanelColumns);
+                    vm.CustomPanel.LoadPresets(ls.CustomPanelPresets);
+                }
+                // 侧栏收放平滑动画（2026-09-25 重设计）：XAML 的 EnterActions 在本机被 MC3074 拒绝，
+                // 改由 code-behind 监听 SidebarCollapsed → BeginAnimation 驱动标签 MaxWidth/Opacity。
+                vm.PropertyChanged -= OnSidebarStateChanged;
+                vm.PropertyChanged += OnSidebarStateChanged;
                 App.inited = true;
                 if (ViewModel != null)
                 {
@@ -217,6 +232,60 @@ namespace PVZRHTools
                 // Fallback: keep app usable even if save file is corrupted.
                 DataContext = new ModifierViewModel();
                 App.inited = true;
+            }
+        }
+
+        /// <summary>
+        ///     侧栏收放的标签平滑动画（code-behind 驱动，原因见 FinishViewModelInitialization 注释）。
+        ///     展开：MaxWidth 0→180 / Opacity 0→1（0.2s EaseOut）；收起：180→0 / 1→0（0.18s）。
+        ///     动画目标 = 各 TabItem 模板里 FontSize=13.5 的标题 TextBlock（图标 15px 排除在外）。
+        ///     FillBehavior.Stop 让动画结束后回落到 Style Setter 的状态值（XAML DataTrigger 已设兜底）。
+        /// </summary>
+        private void OnSidebarStateChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(ModifierViewModel.SidebarCollapsed)) return;
+            if (DataContext is not ModifierViewModel vm) return;
+            var collapsed = vm.SidebarCollapsed;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (MainTabControl == null) return;
+                foreach (var obj in MainTabControl.Items)
+                {
+                    if (obj is not TabItem tab) continue;
+                    if (VisualTreeHelper.GetChildrenCount(tab) == 0) continue; // 未实例化的容器跳过
+                    foreach (var tb in CollectHeaderLabels(tab))
+                    {
+                        var dur = TimeSpan.FromMilliseconds(collapsed ? 180 : 200);
+                        var wAnim = new DoubleAnimation(collapsed ? 0 : 180, dur)
+                        {
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                            FillBehavior = FillBehavior.Stop
+                        };
+                        var oAnim = new DoubleAnimation(collapsed ? 0 : 1, dur) { FillBehavior = FillBehavior.Stop };
+                        tb.BeginAnimation(TextBlock.MaxWidthProperty, wAnim);
+                        tb.BeginAnimation(TextBlock.OpacityProperty, oAnim);
+                    }
+                }
+            }), DispatcherPriority.Loaded);
+        }
+
+        /// <summary>收集 TabItem 模板内的标题 TextBlock：排除图标（FontFamily=Segoe MDL2 Assets 的 15px 字）。</summary>
+        private static IEnumerable<TextBlock> CollectHeaderLabels(DependencyObject root)
+        {
+            var count = VisualTreeHelper.GetChildrenCount(root);
+            for (var i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is TextBlock tb &&
+                    tb.FontSize == 13.5 &&
+                    !string.Equals(tb.FontFamily?.Source, "Segoe MDL2 Assets", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return tb;
+                }
+
+                foreach (var inner in CollectHeaderLabels(child))
+                    yield return inner;
             }
         }
 
@@ -261,9 +330,11 @@ namespace PVZRHTools
                 _isFirstActivation = false;
                 return;
             }
-            
-            // 播放激活过渡动画
-            WindowAnimations.PlayActivationAnimation(this);
+
+            // ★ 2026-09-25 移除「窗口激活动画」：它把**整个窗口内容**做 0.92→1.0 的弹性缩放 +
+            //   透明度 0.7→1（500ms），表现为「每次点一下修改器，整屏抖闪一下」——用户明确要求去掉。
+            //   这里不再调用 WindowAnimations.PlayActivationAnimation；控件级动画（按钮/标签页等）不受影响。
+            // WindowAnimations.PlayActivationAnimation(this);
             RefreshWindowFrame();
         }
 
@@ -337,15 +408,55 @@ namespace PVZRHTools
             UpdateTitleBarBorderWidth();
             
             // 确保在窗口加载后应用主题（延迟执行，确保所有控件都已加载）
-            if (ViewModel != null && ViewModel.IsDarkMode)
+            // ★ 同样不能判 ViewModel —— 这里是 Loaded，VM 可能仍未挂上（见构造函数处的说明）。
+            // ★ 先换字典 → 再压色：压色器取色依赖**已切换**的令牌，且它自身可逆（见 ApplyThemeWithAnimation）。
+            if (IsSavedDarkMode())
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    App.SwitchTheme(true);
                     ApplyThemeWithAnimation(true);
-                    // 额外强制更新所有白色背景
-                    ForceUpdateWhiteBackgrounds(true);
                 }), DispatcherPriority.Loaded);
             }
+        }
+
+        /// <summary>
+        /// 启动时判断"已保存的主题是否为深色"。
+        /// ★ 刻意**不依赖 ViewModel**：构造函数与 Loaded 阶段 DataContext 还是 StartupLoadingContext，
+        ///   真正的 ViewModel 要到 ContentRendered → FinishViewModelInitialization 才挂上（L183）。
+        ///   判 ViewModel 会让启动时的换肤分支**永远为 false**。
+        /// 取值顺序（都不需要 VM 就绪）：
+        ///   ① App.PendingSaveModel —— 存档已加载但 InitData 未就绪时暂存的设置（App.xaml.cs:30）；
+        ///   ② 直接读 BepInEx\config\ModifierSettings.json（与 CreateRealViewModel 同一路径、同一序列化上下文）；
+        /// 都取不到 ⇒ 视为浅色（与既有"默认浅色"一致）。
+        /// </summary>
+        private static bool IsSavedDarkMode()
+        {
+            try
+            {
+                if (App.PendingSaveModel is { } pending) return pending.IsDarkMode;
+            }
+            catch
+            {
+                // 存档尚未反序列化完成 —— 继续读文件
+            }
+
+            try
+            {
+                var settingsPath = ModifierPaths.GetSaveSettingsPath();
+                if (File.Exists(settingsPath))
+                {
+                    var s = JsonSerializer.Deserialize(File.ReadAllText(settingsPath),
+                        ModifierSaveModelSGC.Default.ModifierSaveModel);
+                    return s.IsDarkMode;
+                }
+            }
+            catch
+            {
+                // 存档损坏 / 不可读 —— 视为浅色（CreateRealViewModel 也会在此时删档重建）
+            }
+
+            return false;
         }
         
         private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -353,7 +464,119 @@ namespace PVZRHTools
             // 窗口大小改变时，确保标题栏背景延伸到窗口最右边
             UpdateTitleBarBorderWidth();
         }
-        
+
+        // ==================================================================
+        // 自定义面板（「自由度排版」功能区，2026-09-25）
+        // ==================================================================
+
+        /// <summary>
+        /// 列数下拉：由 XAML 的 <c>SelectedValue</c> 双向绑定直接写 VM.CustomPanel.Columns
+        /// （Tag 是字符串，WPF 自动转 int）⇒ 不需要 code-behind 处理器；
+        /// 列数变化后由 <see cref="HookCustomPanel"/> 订阅 PropertyChanged 触发重排。
+        /// ★ 早前版本用 SelectionChanged + <c>DataContext is ModifierViewModel</c> 判断，
+        ///   而该下拉位于 <c>DataContext="{Binding CustomPanel}"</c> 子树上（其 DataContext 是 CustomPanelViewModel）
+        ///   ⇒ 判断恒假、处理器静默 return，表现为「下拉能选但列数永远不变」（实测踩过）。
+        /// </summary>
+        private void HookCustomPanel()
+        {
+            if (ViewModel is not { } vm) return;
+            vm.CustomPanel.PropertyChanged -= CustomPanel_PropertyChanged;
+            vm.CustomPanel.PropertyChanged += CustomPanel_PropertyChanged;
+        }
+
+        private void CustomPanel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(CustomPanelViewModel.Columns)) return;
+            if (ViewModel is not { } vm) return;
+            ApplyCustomPanelColumns(vm.CustomPanel.Columns);
+        }
+
+        /// <summary>「保存配置」按钮：显式保存面板布局 + 短暂显示「已保存 ✓」反馈（1.2 秒后还原按钮文本）。
+        /// 布局本就在每次改动时自动落盘（CustomPanel.Changed → PersistCustomPanel），重启自动载入；
+        /// 该按钮是玩家的明确保存入口，幂等。</summary>
+        private void CustomPanelSaveBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel?.CustomPanel is { } panel)
+                panel.SaveNow();
+
+            if (CustomPanelSaveBtn is { } btn)
+            {
+                var original = btn.TryFindResource("Custom.Panel.Save") as string ?? "保存配置";
+                btn.Content = btn.TryFindResource("Custom.Panel.SaveDone") as string ?? "已保存 ✓";
+                var timer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(1.2)
+                };
+                timer.Tick += (_, _) =>
+                {
+                    timer.Stop();
+                    btn.Content = original;
+                };
+                timer.Start();
+            }
+        }
+
+        /// <summary>
+        /// 把「列数」落到 UniformGrid 上。
+        /// 用 FindName 拿不到 ItemsPanelTemplate 里的元素（模板内的名字不在窗口命名域），
+        /// 因此遍历视觉树反查 ItemsControl 下的 UniformGrid（面板主体）。
+        /// 拿不到就静默跳过——下一次布局/选中事件会再试，不会留下错误状态。
+        /// </summary>
+        private void ApplyCustomPanelColumns(int columns)
+        {
+            var host = FindUniformGrid(CustomPanelItems);
+            if (host is null) return;
+
+            var effective = columns is >= 1 and <= 3
+                ? columns
+                : (CustomPanelItems.ActualWidth >= 900 ? 3 : CustomPanelItems.ActualWidth >= 560 ? 2 : 1);
+            if (host.Columns != effective) host.Columns = effective;
+            if (host.Rows != 0) host.Rows = 0;
+        }
+
+        private static UniformGrid? FindUniformGrid(DependencyObject? root)
+        {
+            if (root is null) return null;
+            var count = VisualTreeHelper.GetChildrenCount(root);
+            for (var i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is UniformGrid ug) return ug;
+                var inner = FindUniformGrid(child);
+                if (inner is not null) return inner;
+            }
+
+            return null;
+        }
+
+        /// <summary>面板列数/窗口宽度变化时重算列数（自动模式下跟随宽度）。</summary>
+        private void CustomPanelLayoutUpdated()
+        {
+            if (DataContext is not ModifierViewModel vm) return;
+            ApplyCustomPanelColumns(vm.CustomPanel.Columns);
+        }
+
+        private void CustomPanelItems_LayoutUpdated(object? sender, EventArgs e)
+            => CustomPanelLayoutUpdated();
+
+        /// <summary>
+        /// 切到「我的面板」页时：① 把列数下拉同步成 VM 里的值（首次进入/重启后）；
+        /// ② 应用一次列数（此时视觉树才真正生成，之前拿不到 UniformGrid）。
+        /// </summary>
+        private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source is not TabControl) return;
+            if (DataContext is not ModifierViewModel vm) return;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                // 列数下拉由 SelectedValue 双向绑定自行同步，这里只需把列数落到 UniformGrid
+                ApplyCustomPanelColumns(vm.CustomPanel.Columns);
+            }), DispatcherPriority.Loaded);
+
+            HookCustomPanel();
+        }
+
         private void UpdateTitleBarBorderWidth()
         {
             var titleBarBorder = FindName("TitleBarBorder") as Border;
@@ -575,236 +798,315 @@ namespace PVZRHTools
         public ModifierSprite ModifierSprite { get; set; }
         public ModifierViewModel? ViewModel => DataContext as ModifierViewModel;
 
+        // ==========================================================================================
+        //  ★ 换肤快照表（2026-09-24 第二轮）—— 让"逐控件压色"变成对称且可逆
+        //
+        //  问题：压色器把颜色以**本地值**写进控件的 Background/Foreground/BorderBrush/Fill。
+        //        本地值在 App.SwitchTheme 换掉资源字典之后依然存活，而阈值启发式在两个方向上
+        //        并不对称（浅色方向的规则覆盖不全），于是「深色 → 切回浅色」会留下黑底白字。
+        //
+        //  修法：每次写入之前先把该控件该属性的**原始状态**记下来：
+        //        · hadLocal = false → 该属性本来没有本地值（颜色来自 {DynamicResource} / Style）
+        //          ⇒ 回滚用 ClearValue，让 DynamicResource 重新接管，天然跟随新主题；
+        //        · hadLocal = true  → 记的是**原始画笔对象引用**（不是颜色！），
+        //          ⇒ 回滚用 SetValue 还原，能恢复共享画笔 / 渐变画笔 / Frozen 画笔。
+        //
+        //  时序：ApplyThemeWithAnimation 第一步就 RestoreThemeSnapshots()，
+        //        然后才按新主题压色并重新采快照 ⇒ 深→浅→深→浅 任意次数都收敛到正确外观。
+        // ==========================================================================================
+        private sealed class ThemeSnapshot
+        {
+            public DependencyObject Element = null!;
+            public DependencyProperty Property = null!;
+            public object? Value;
+            public bool HadLocal;
+        }
+
+        /// <summary>键 = 控件实例 + 属性名（如 "Background"）。用引用相等比较，避免控件重写 Equals 干扰。</summary>
+        private static readonly Dictionary<(object, string), ThemeSnapshot> ThemeSnapshots = new();
+
+        /// <summary>
+        /// 在**写入之前**记录某控件某属性的原始状态。重复写同一 (控件, 属性) 时保留**最早**那次记录，
+        /// 否则第二次写入会把"被自己涂过的颜色"当成原始值，回滚就回不去了。
+        /// </summary>
+        private static void Snapshot(DependencyObject element, DependencyProperty dp)
+        {
+            if (element == null || dp == null) return;
+            var key = ((object)element, dp.Name);
+            if (ThemeSnapshots.ContainsKey(key)) return;
+
+            var localValue = element.ReadLocalValue(dp);
+            var hadLocal = localValue != DependencyProperty.UnsetValue;
+            ThemeSnapshots[key] = new ThemeSnapshot
+            {
+                Element = element,
+                Property = dp,
+                // ★ 存的是**对象引用**（画笔），不是颜色 —— 这样回滚能恢复 {DynamicResource} 画笔
+                Value = hadLocal ? localValue : null,
+                HadLocal = hadLocal
+            };
+        }
+
+        /// <summary>
+        /// 遍历快照还原所有被涂过的属性，然后清空快照（下次重新采）。
+        /// ApplyThemeWithAnimation 的**第一步**必须调用它。
+        /// </summary>
+        private static void RestoreThemeSnapshots()
+        {
+            if (ThemeSnapshots.Count == 0) return;
+
+            foreach (var snapshot in ThemeSnapshots.Values)
+            {
+                try
+                {
+                    if (snapshot.HadLocal)
+                        snapshot.Element.SetValue(snapshot.Property, snapshot.Value);
+                    else
+                        snapshot.Element.ClearValue(snapshot.Property); // 让 {DynamicResource} / Style 重新接管
+                }
+                catch
+                {
+                    // 单个元素回滚失败（已从树上摘除、属性只读等）不能拖垮整轮换肤
+                }
+            }
+            ThemeSnapshots.Clear();
+        }
+
+        /// <summary>
+        /// 统一的"给控件某属性换色"入口 —— <b>所有</b>压色写入都必须走这里。
+        /// 它负责：① 先采快照；② 动画结束后把终值提升为本地值。
+        ///
+        /// ★ 为什么不再就地改共享画笔的颜色：`brush.Color = x` 会污染**来自 DynamicResource 的共享
+        ///   画笔**（同一个 SolidColorBrush 实例被整棵树的多个控件共用），改了它等于改令牌本身，
+        ///   回滚时无从分辨谁改的。所以这里一律**替换成新画笔**。
+        /// </summary>
+        private void ApplyThemeBrush(DependencyObject element, DependencyProperty dp, SolidColorBrush? nextBrush, TimeSpan duration)
+        {
+            if (element == null || dp == null || nextBrush == null) return;
+
+            // ★ 采快照必须在写入之前
+            Snapshot(element, dp);
+
+            if (duration <= TimeSpan.Zero)
+            {
+                element.SetValue(dp, nextBrush);
+                return;
+            }
+
+            // 过渡动画：在**新画笔**上做，不碰任何既有（可能是共享的）画笔。
+            try
+            {
+                var fromBrush = element.GetValue(dp) as SolidColorBrush;
+                var animated = new SolidColorBrush(nextBrush.Color);
+
+                if (fromBrush != null && !fromBrush.IsFrozen && fromBrush.Color != nextBrush.Color)
+                {
+                    var animation = new System.Windows.Media.Animation.ColorAnimation(fromBrush.Color, nextBrush.Color, duration)
+                    {
+                        EasingFunction = new System.Windows.Media.Animation.PowerEase
+                        {
+                            EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut,
+                            Power = 2
+                        }
+                    };
+                    // FillBehavior.Stop ⇒ 动画到点后不再参与属性值计算，露出"兜底本地值"，避免长期持有动画时钟
+                    animation.FillBehavior = System.Windows.Media.Animation.FillBehavior.Stop;
+                    animated.BeginAnimation(SolidColorBrush.ColorProperty, animation);
+                }
+
+                element.SetValue(dp, animated);
+
+                // 动画跑完后把终值提升为干净的本地画笔（不留动画时钟）
+                var timer = new DispatcherTimer { Interval = duration };
+                timer.Tick += (_, _) =>
+                {
+                    timer.Stop();
+                    try
+                    {
+                        // 只有当该属性仍然是我们这条动画画笔时才提升，避免覆盖期间发生的更新
+                        if (ReferenceEquals(element.GetValue(dp), animated))
+                        {
+                            element.SetValue(dp, nextBrush);
+                        }
+                    }
+                    catch
+                    {
+                        // 元素已离树 —— 忽略
+                    }
+                };
+                timer.Start();
+            }
+            catch
+            {
+                // 动画不可用（属性被 Freeze、元素已离树等）→ 直接落在终值上
+                element.SetValue(dp, nextBrush);
+            }
+        }
+
+        /// <summary>
+        /// 只改颜色、保留原画笔类型时的便捷入口（渐变画笔、Frozen 画笔等不适合替换的场合）。
+        /// 内部仍然先 Snapshot。
+        /// </summary>
+        private void ApplyThemeColor(DependencyObject element, DependencyProperty dp, Color target, TimeSpan duration)
+        {
+            ApplyThemeBrush(element, dp, new SolidColorBrush(target), duration);
+        }
+
+        /// <summary>
+        /// 【2026-09-24 第二轮重写】逐控件"压色"换肤。
+        ///
+        /// 性质：对称 + 可逆 + 目标色来自令牌。三点缺一不可：
+        ///   1. 第一步 RestoreThemeSnapshots() —— 还原上一次写下的所有本地值；
+        ///   2. 目标色用 TryFindResource 从**当前主题**的令牌里取（调用方必须先跑 App.SwitchTheme(…)），
+        ///      取不到才回退旧字面量，保底不崩；
+        ///   3. 每次写入都经 Snapshot(元素, 属性)，就地改共享画笔的做法已彻底移除。
+        ///
+        /// ★ 本方法**不再**调用 App.SwitchTheme —— 换字典是调用方的第一步，这里只负责压色。
+        /// </summary>
         public void ApplyThemeWithAnimation(bool isDarkMode)
         {
-            // 定义浅色和深色模式的配色方案
-            var lightColors = new
-            {
-                WindowBackground = Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF), // #99FFFFFF
-                WindowForeground = Color.FromArgb(0xFF, 0x28, 0x2C, 0x34), // #FF282C34
-                BorderBrush = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(1, 1),
-                    GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(Color.FromArgb(0xFF, 0xDB, 0x70, 0x93), 1),
-                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0xB6, 0xC1), 0),
-                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), 0.274),
-                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), 0.709),
-                        new GradientStop(Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), 0.413),
-                        new GradientStop(Color.FromArgb(0xFF, 0xDB, 0x70, 0x93), 0.548)
-                    }
-                },
-                TabControlBackground = Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF), // #80FFFFFF
-                TabControlBorderBrush = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), // #FFFFFFFF
-                ContentBackground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), // #FFFFFFFF
-                ContentBorderBrush = Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), // #FFFF69B4
-                TextForeground = Color.FromArgb(0xFF, 0x33, 0x33, 0x33), // #FF333333
-                TitleForeground = Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4), // #FFFF69B4
-                LabelForeground = Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4) // #FFFF69B4
-            };
+            // ★★★ 第 0 步：先回滚上一次的涂色（对称可逆的关键）
+            RestoreThemeSnapshots();
 
-            var darkColors = new
-            {
-                WindowBackground = Color.FromArgb(0x99, 0x1A, 0x1A, 0x1A), // #991A1A1A
-                WindowForeground = Color.FromArgb(0xFF, 0x28, 0x2C, 0x34), // #FF282C34
-                BorderBrush = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(1, 1),
-                    GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(Color.FromArgb(0x7F, 0xFF, 0x3A, 0x3A), 1),
-                        new GradientStop(Color.FromArgb(0x7F, 0xFF, 0x35, 0x35), 0),
-                        new GradientStop(Color.FromArgb(0x7F, 0xF4, 0xFF, 0x31), 0.135),
-                        new GradientStop(Color.FromArgb(0x7F, 0xA8, 0x45, 0xFF), 0.857),
-                        new GradientStop(Color.FromArgb(0x7F, 0x5B, 0xFF, 0x3A), 0.274),
-                        new GradientStop(Color.FromArgb(0x7F, 0x3E, 0x6D, 0xFF), 0.709),
-                        new GradientStop(Color.FromArgb(0xFF, 0x40, 0xE9, 0xFF), 0.413),
-                        new GradientStop(Color.FromArgb(0x7F, 0x3A, 0xC4, 0xFF), 0.548)
-                    }
-                },
-                TabControlBackground = Color.FromArgb(0x80, 0x21, 0x21, 0x25), // #80212125
-                TabControlBorderBrush = Color.FromArgb(0xFF, 0x21, 0x21, 0x25), // #FF212125
-                ContentBackground = Color.FromArgb(0xFF, 0x21, 0x21, 0x25), // #FF212125
-                ContentBorderBrush = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F), // #FF2FA42F
-                TextForeground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), // White
-                TitleForeground = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F), // #FF2FA42F
-                LabelForeground = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F) // #FF2FA42F
-            };
+            // ---- 目标色：全部从已切换的资源字典解析；失败回退旧字面量 ----
+            var windowBackground = ResolveThemeColor("WindowBackgroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0x17, 0x18, 0x1A) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+            var windowForeground = ResolveThemeColor("WindowForegroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0xE8, 0xEA, 0xED) : Color.FromArgb(0xFF, 0x1F, 0x23, 0x29));
+            var tabControlBackground = ResolveThemeColor("TabControlBackgroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0x1A, 0x1B, 0x1D) : Color.FromArgb(0xFF, 0xF7, 0xF8, 0xFA));
+            var tabControlBorder = ResolveThemeColor("TabControlBorderBrush", isDarkMode ? Color.FromArgb(0xFF, 0x30, 0x32, 0x36) : Color.FromArgb(0xFF, 0xE6, 0xE8, 0xEC));
+            var contentBackground = ResolveThemeColor("ContentBackgroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0x1E, 0x1F, 0x22) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+            var contentBorder = ResolveThemeColor("ContentBorderBrush", isDarkMode ? Color.FromArgb(0xFF, 0x30, 0x32, 0x36) : Color.FromArgb(0xFF, 0xE6, 0xE8, 0xEC));
+            var textForeground = ResolveThemeColor("TextForegroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0xE8, 0xEA, 0xED) : Color.FromArgb(0xFF, 0x1F, 0x23, 0x29));
+            var titleForeground = ResolveThemeColor("TitleForegroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0x6F, 0xBF, 0x7A) : Color.FromArgb(0xFF, 0xE0, 0x56, 0x8F));
+            var labelForeground = ResolveThemeColor("LabelForegroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0x6F, 0xBF, 0x7A) : Color.FromArgb(0xFF, 0xE0, 0x56, 0x8F));
+            var titleBarBackground = ResolveThemeColor("TitleBarBackgroundBrush", isDarkMode ? Color.FromArgb(0xFF, 0x1E, 0x1F, 0x22) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+            // 窗口边框现在是 LinearGradientBrush 两段 —— 直接取用资源里的那个实例
+            var windowBorderBrush = TryFindResource("WindowBorderBrush") as Brush;
 
-            var targetColors = isDarkMode ? darkColors : lightColors;
-            var currentColors = isDarkMode ? lightColors : darkColors;
-
-            // 创建颜色过渡动画
+            // 过渡时长：正确性优先，动画在 ApplyThemeBrush 内部，且**不碰共享画笔**。
+            // 设为 TimeSpan.Zero 即可整体退化为瞬时切换（一处开关，落点唯一）。
             var duration = TimeSpan.FromMilliseconds(300);
 
-            // 窗口背景色过渡
-            if (Background is SolidColorBrush bgBrush)
+            // 窗口背景 / 前景
+            // 注意：这两个属性的值**同时来自 XAML 的 {DynamicResource}**，所以这里写本地值会遮住动态资源；
+            // 但 RestoreThemeSnapshots() 记下了"原本无本地值"，下次换肤会 ClearValue 交还给 DynamicResource。
+            if (Background is SolidColorBrush)
+                ApplyThemeColor(this, Window.BackgroundProperty, windowBackground, duration);
+
+            if (Foreground is SolidColorBrush)
+                ApplyThemeColor(this, Window.ForegroundProperty, windowForeground, duration);
+
+            // 窗口边框（渐变）—— 直接替换画笔实例
+            if (windowBorderBrush != null && !ReferenceEquals(BorderBrush, windowBorderBrush))
             {
-                AnimateColor(bgBrush, currentColors.WindowBackground, targetColors.WindowBackground, duration);
-            }
-            else
-            {
-                Background = new SolidColorBrush(targetColors.WindowBackground);
-            }
-            
-            // 窗口前景色过渡
-            if (Foreground is SolidColorBrush fgBrush)
-            {
-                AnimateColor(fgBrush, currentColors.WindowForeground, targetColors.WindowForeground, duration);
-            }
-            else
-            {
-                Foreground = new SolidColorBrush(targetColors.WindowForeground);
+                Snapshot(this, Window.BorderBrushProperty);
+                BorderBrush = windowBorderBrush;
             }
 
-            // 边框渐变过渡
-            AnimateGradientBrush((LinearGradientBrush)BorderBrush, targetColors.BorderBrush, duration);
-
-            // 主窗口 Grid 背景
-            var rootGrid = this.Content as Grid;
+            // 主窗口根 Grid 背景
+            var rootGrid = Content as Grid;
             if (rootGrid != null)
             {
                 if (rootGrid.Background == null || rootGrid.Background == Brushes.Transparent)
                 {
-                    rootGrid.Background = new SolidColorBrush(targetColors.WindowBackground);
+                    Snapshot(rootGrid, Panel.BackgroundProperty);
+                    rootGrid.Background = new SolidColorBrush(windowBackground);
                 }
-                else if (rootGrid.Background is SolidColorBrush gridBgBrush)
+                else if (rootGrid.Background is SolidColorBrush)
                 {
-                    AnimateColor(gridBgBrush, currentColors.WindowBackground, targetColors.WindowBackground, duration);
+                    ApplyThemeColor(rootGrid, Panel.BackgroundProperty, windowBackground, duration);
                 }
             }
 
-            // TabControl 背景和边框
+            // TabControl 背景 / 边框
             var tabControl = FindVisualChild<TabControl>(this);
             if (tabControl != null)
             {
-                if (tabControl.Background is SolidColorBrush tabBgBrush)
-                {
-                    AnimateColor(tabBgBrush, currentColors.TabControlBackground, targetColors.TabControlBackground, duration);
-                }
+                if (tabControl.Background is SolidColorBrush)
+                    ApplyThemeColor(tabControl, Control.BackgroundProperty, tabControlBackground, duration);
                 else
                 {
-                    tabControl.Background = new SolidColorBrush(targetColors.TabControlBackground);
+                    Snapshot(tabControl, Control.BackgroundProperty);
+                    tabControl.Background = new SolidColorBrush(tabControlBackground);
                 }
-                
-                if (tabControl.BorderBrush is SolidColorBrush tabBorderBrush)
-                {
-                    AnimateColor(tabBorderBrush, currentColors.TabControlBorderBrush, targetColors.TabControlBorderBrush, duration);
-                }
+
+                if (tabControl.BorderBrush is SolidColorBrush)
+                    ApplyThemeColor(tabControl, Control.BorderBrushProperty, tabControlBorder, duration);
                 else
                 {
-                    tabControl.BorderBrush = new SolidColorBrush(targetColors.TabControlBorderBrush);
+                    Snapshot(tabControl, Control.BorderBrushProperty);
+                    tabControl.BorderBrush = new SolidColorBrush(tabControlBorder);
                 }
-                
-                // 直接设置所有 TabItem 的 Content Border 背景和边框（因为已移除硬编码）
+
+                // TabItem 的内容 Border：直接落到终值（这里原先就是"直接设置"，保留原语义但补快照）
                 foreach (TabItem tabItem in tabControl.Items)
                 {
-                    if (tabItem.Content is Border contentBorder)
+                    if (tabItem.Content is Border contentBorderElement)
                     {
-                        // 直接设置背景色（不再有硬编码，所以直接设置即可）
-                        contentBorder.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
-                        contentBorder.BorderBrush = new SolidColorBrush((Color)targetColors.ContentBorderBrush);
+                        Snapshot(contentBorderElement, Border.BackgroundProperty);
+                        Snapshot(contentBorderElement, Border.BorderBrushProperty);
+                        contentBorderElement.Background = new SolidColorBrush(contentBackground);
+                        contentBorderElement.BorderBrush = new SolidColorBrush(contentBorder);
                     }
                 }
             }
 
-            // 标题栏前景色和背景
+            // 标题栏前景 / 背景
             if (WindowTitle != null)
             {
-                if (WindowTitle.Foreground is SolidColorBrush titleFgBrush)
-                {
-                    AnimateColor(titleFgBrush, currentColors.TitleForeground, targetColors.TitleForeground, duration);
-                }
-                
-                // 更新标题栏 Border 的背景
-                var titleBarBorder = WindowTitle.Parent as Border;
-                if (titleBarBorder != null)
-                {
-                    if (titleBarBorder.Background is SolidColorBrush titleBgBrush)
-                    {
-                        var titleBgColor = isDarkMode ? Color.FromArgb(0xFF, 0x21, 0x21, 0x25) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-                        var currentTitleBg = isDarkMode ? Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0xFF, 0x21, 0x21, 0x25);
-                        AnimateColor(titleBgBrush, currentTitleBg, titleBgColor, duration);
-                    }
-                    else
-                    {
-                        // 如果背景为 null，创建新的画笔
-                        var titleBgColor = isDarkMode ? Color.FromArgb(0xFF, 0x21, 0x21, 0x25) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-                        titleBarBorder.Background = new SolidColorBrush(titleBgColor);
-                    }
-                }
-            }
-            
-            // 更新标题栏 Border 的背景（通过 x:Name）
-            var titleBarBorder2 = FindName("TitleBarBorder") as Border;
-            if (titleBarBorder2 != null)
-            {
-                var titleBgColor = isDarkMode ? Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-                titleBarBorder2.Background = new SolidColorBrush(titleBgColor);
+                if (WindowTitle.Foreground is SolidColorBrush)
+                    ApplyThemeColor(WindowTitle, Control.ForegroundProperty, titleForeground, duration);
             }
 
-            // 更新所有内容区域的背景和边框
-            var rootGridForUpdate = this.Content as Grid;
-            UpdateAllControlsTheme(this, currentColors, targetColors, duration, isDarkMode, rootGridForUpdate);
-            
-            // 延迟强制更新所有白色背景（确保所有硬编码的白色背景都被更新）
-            // 多次调用以确保覆盖所有情况
-            Dispatcher.BeginInvoke(new Action(() =>
+            var titleBar = FindName("TitleBarBorder") as Border;
+            if (titleBar != null)
             {
-                if (isDarkMode)
+                Snapshot(titleBar, Border.BackgroundProperty);
+                titleBar.Background = new SolidColorBrush(titleBarBackground);
+            }
+
+            // 全树压色
+            UpdateAllControlsTheme(this, contentBackground, contentBorder, textForeground, titleForeground, labelForeground, duration, isDarkMode, rootGrid);
+
+            // 深色方向再补一轮"漏网的白底"（它内部的所有写入同样经过 Snapshot，浅色方向由回滚负责）
+            if (isDarkMode)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ForceUpdateWhiteBackgrounds(true);
-                    // 再次延迟调用，确保所有控件都已完全渲染
+                    // 再次延迟，确保动态加载的控件也已完全渲染
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         ForceUpdateWhiteBackgrounds(true);
                     }), DispatcherPriority.Render);
-                }
-            }), DispatcherPriority.Loaded);
+                }), DispatcherPriority.Loaded);
+            }
         }
 
-        private void AnimateColor(SolidColorBrush brush, Color fromColor, Color toColor, TimeSpan duration)
+        /// <summary>
+        /// 从当前资源字典解析主题令牌（SolidColorBrush / 其它 Brush 都支持）。
+        /// 解析不到时回退调用方给的旧字面量 —— 保底不崩，也不至于把界面涂成透明。
+        /// </summary>
+        private Color ResolveThemeColor(string resourceKey, Color fallback)
         {
             try
             {
-                // 检查画笔是否可用（不为 null 且未被冻结）
-                if (brush == null || brush.IsFrozen)
+                var found = TryFindResource(resourceKey);
+                switch (found)
                 {
-                    // 如果画笔不可用，直接设置颜色（如果画笔为 null，调用者应该创建新画笔）
-                    if (brush != null)
-                    {
-                        brush.Color = toColor;
-                    }
-                    return;
+                    case SolidColorBrush solid:
+                        return solid.Color;
+                    case LinearGradientBrush gradient when gradient.GradientStops.Count > 0:
+                        return gradient.GradientStops[gradient.GradientStops.Count - 1].Color;
                 }
-
-                // 尝试使用动画
-                var animation = new System.Windows.Media.Animation.ColorAnimation(fromColor, toColor, duration)
-                {
-                    EasingFunction = new System.Windows.Media.Animation.PowerEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut, Power = 2 }
-                };
-                brush.BeginAnimation(SolidColorBrush.ColorProperty, animation);
             }
             catch
             {
-                // 如果动画失败（例如画笔被冻结、动画系统不支持等），直接设置颜色
-                if (brush != null && !brush.IsFrozen)
-                {
-                    brush.Color = toColor;
-                }
+                // 资源字典正在切换等瞬时状态 —— 回退字面量
             }
+            return fallback;
         }
 
-        private void AnimateGradientBrush(LinearGradientBrush currentBrush, LinearGradientBrush targetBrush, TimeSpan duration)
-        {
-            // 简化处理：直接替换渐变画笔
-            BorderBrush = targetBrush;
-        }
-
-        private void UpdateAllControlsTheme(DependencyObject parent, dynamic currentColors, dynamic targetColors, TimeSpan duration, bool isDarkMode, Grid? rootGrid = null)
+        private void UpdateAllControlsTheme(DependencyObject parent, Color contentBackground, Color contentBorder, Color textForeground, Color titleForeground, Color labelForeground, TimeSpan duration, bool isDarkMode, Grid? rootGrid = null)
         {
             // 递归更新所有控件的颜色
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
@@ -815,7 +1117,7 @@ namespace PVZRHTools
                 if (child is Border border)
                 {
                     // 更新所有 Border 的背景（白色背景改为深色，深色背景改为白色）
-                    var targetBg = (Color)targetColors.ContentBackground;
+                    var targetBg = contentBackground;
                     if (border.Background is SolidColorBrush bgBrush)
                     {
                         var currentBg = bgBrush.Color;
@@ -839,24 +1141,18 @@ namespace PVZRHTools
                             // 对于纯白色背景或冻结画笔，直接强制设置，不依赖动画
                             if (isPureWhite || bgBrush.IsFrozen)
                             {
+                                Snapshot(border, Border.BackgroundProperty);
                                 border.Background = new SolidColorBrush(targetBg);
                             }
                             else
                             {
-                                try
-                                {
-                                    AnimateColor(bgBrush, currentBg, targetBg, duration);
-                                }
-                                catch
-                                {
-                                    // 如果动画失败，直接设置
-                                    border.Background = new SolidColorBrush(targetBg);
-                                }
+                                ApplyThemeColor(border, Border.BackgroundProperty, targetBg, duration);
                             }
                         }
                         // 即使不满足条件，如果是纯白色，也强制更新（确保硬编码的白色被更新）
                         else if (isPureWhite && isDarkMode)
                         {
+                            Snapshot(border, Border.BackgroundProperty);
                             border.Background = new SolidColorBrush(targetBg);
                         }
                     }
@@ -866,13 +1162,16 @@ namespace PVZRHTools
                         // 对于 TabItem 的 Content Border（Margin.Top == 8 且 BorderThickness.Top == 2），直接设置
                         if (border.Margin.Top == 8 && border.BorderThickness.Top == 2)
                         {
+                            Snapshot(border, Border.BackgroundProperty);
+                            Snapshot(border, Border.BorderBrushProperty);
                             border.Background = new SolidColorBrush(targetBg);
-                            border.BorderBrush = new SolidColorBrush((Color)targetColors.ContentBorderBrush);
+                            border.BorderBrush = new SolidColorBrush(contentBorder);
                         }
                         // 其他 Border 如果有子元素，也设置背景色
                         else if (VisualTreeHelper.GetChildrenCount(border) > 0 ||
                                  border.ActualWidth > 0 || border.ActualHeight > 0)
                         {
+                            Snapshot(border, Border.BackgroundProperty);
                             border.Background = new SolidColorBrush(targetBg);
                         }
                     }
@@ -886,35 +1185,32 @@ namespace PVZRHTools
                         if (borderType != null && borderType != typeof(SolidColorBrush))
                         {
                             // 如果是其他类型的画笔，也尝试设置为目标背景
+                            Snapshot(border, Border.BackgroundProperty);
                             border.Background = new SolidColorBrush(targetBg);
                         }
                     }
 
-                    // 更新所有粉色边框（#FFFF69B4）为深色模式下的绿色（#FF2FA42F）
+                    // 更新所有粉色边框（#FFE0568F）为深色模式下的绿色（#FF6FBF7A）
                     if (border.BorderBrush is SolidColorBrush borderBrush)
                     {
                         var currentBorderColor = borderBrush.Color;
-                        // 检查是否是粉色边框（#FFFF69B4 或类似的粉色）- 更宽松的条件
+                        // 检查是否是粉色边框（#FFE0568F 或类似的粉色）- 更宽松的条件
                         if (isDarkMode && currentBorderColor.A > 0 && 
                             currentBorderColor.R > 180 && currentBorderColor.G < 160 && currentBorderColor.B > 140)
                         {
-                            var currentBorder = (Color)currentColors.ContentBorderBrush;
-                            var targetBorder = (Color)targetColors.ContentBorderBrush;
-                            AnimateColor(borderBrush, currentBorder, targetBorder, duration);
+                            ApplyThemeColor(border, Border.BorderBrushProperty, contentBorder, duration);
                         }
                         // 浅色模式：绿色边框改为粉色
                         else if (!isDarkMode && currentBorderColor.A > 0 &&
                                  currentBorderColor.R < 120 && currentBorderColor.G > 140 && currentBorderColor.B < 120)
                         {
-                            var currentBorder = (Color)currentColors.ContentBorderBrush;
-                            var targetBorder = (Color)targetColors.ContentBorderBrush;
-                            AnimateColor(borderBrush, currentBorder, targetBorder, duration);
+                            ApplyThemeColor(border, Border.BorderBrushProperty, contentBorder, duration);
                         }
                     }
                     // 处理渐变边框（LinearGradientBrush）- 直接替换
                     else if (border.BorderBrush is LinearGradientBrush gradientBrush && isDarkMode)
                     {
-                        // 检查渐变中是否包含粉色，如果是则替换为绿色渐变
+                        // 检查渐变中是否包含粉色，如果是则替换为绿色渐变（旧称；现为两段中性+强调渐变）
                         bool hasPink = false;
                         foreach (var stop in gradientBrush.GradientStops)
                         {
@@ -926,7 +1222,12 @@ namespace PVZRHTools
                         }
                         if (hasPink)
                         {
-                            border.BorderBrush = targetColors.BorderBrush;
+                            var themedBorderBrush = TryFindResource("WindowBorderBrush") as Brush;
+                            if (themedBorderBrush != null)
+                            {
+                                Snapshot(border, Border.BorderBrushProperty);
+                                border.BorderBrush = themedBorderBrush;
+                            }
                         }
                     }
                 }
@@ -939,14 +1240,12 @@ namespace PVZRHTools
                         // 检查是否是白色或浅色背景（更宽松的条件：R、G、B 都大于 180）
                         if (isDarkMode && currentBg.A > 0 && currentBg.R > 180 && currentBg.G > 180 && currentBg.B > 180)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(panelBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(panel, Panel.BackgroundProperty, contentBackground, duration);
                         }
                         // 浅色模式：深色背景改为白色（更宽松的条件：R、G、B 都小于 60）
                         else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 60 && currentBg.G < 60 && currentBg.B < 60)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(panelBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(panel, Panel.BackgroundProperty, contentBackground, duration);
                         }
                     }
                     // 如果背景为 null 或透明，设置背景色
@@ -955,13 +1254,16 @@ namespace PVZRHTools
                         // 主窗口的根 Grid 使用 WindowBackground
                         if (rootGrid != null && panel == rootGrid)
                         {
-                            panel.Background = new SolidColorBrush((Color)targetColors.WindowBackground);
+                            Snapshot(panel, Panel.BackgroundProperty);
+                            panel.Background = new SolidColorBrush(ResolveThemeColor("WindowBackgroundBrush",
+                                isDarkMode ? Color.FromArgb(0xFF, 0x17, 0x18, 0x1A) : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)));
                         }
                         // 其他 Panel 使用 ContentBackground（浅色和深色模式都需要设置）
                         // 更积极地设置：只要 Panel 有子元素或实际大小，就设置背景
                         else if (panel.Children.Count > 0 || panel.ActualWidth > 0 || panel.ActualHeight > 0)
                         {
-                            panel.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                            Snapshot(panel, Panel.BackgroundProperty);
+                            panel.Background = new SolidColorBrush(contentBackground);
                         }
                     }
                 }
@@ -973,19 +1275,18 @@ namespace PVZRHTools
                         var currentBg = svBgBrush.Color;
                         if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(svBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(scrollViewer, Control.BackgroundProperty, contentBackground, duration);
                         }
                         else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(svBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(scrollViewer, Control.BackgroundProperty, contentBackground, duration);
                         }
                     }
                     // 强制设置 ScrollViewer 的背景色（即使为 null 或透明，浅色和深色模式都需要设置）
                     else
                     {
-                        scrollViewer.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                        Snapshot(scrollViewer, Control.BackgroundProperty);
+                        scrollViewer.Background = new SolidColorBrush(contentBackground);
                     }
                 }
                 // 处理 HandyControl 的 ScrollViewer
@@ -996,19 +1297,18 @@ namespace PVZRHTools
                         var currentBg = hcSvBgBrush.Color;
                         if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(hcSvBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(hcScrollViewer, Control.BackgroundProperty, contentBackground, duration);
                         }
                         else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(hcSvBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(hcScrollViewer, Control.BackgroundProperty, contentBackground, duration);
                         }
                     }
                     // 强制设置 HandyControl ScrollViewer 的背景色（即使为 null 或透明，浅色和深色模式都需要设置）
                     else
                     {
-                        hcScrollViewer.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                        Snapshot(hcScrollViewer, Control.BackgroundProperty);
+                        hcScrollViewer.Background = new SolidColorBrush(contentBackground);
                     }
                 }
                 // 处理 Control 类型的背景和前景色（包括 Button, TextBox, ComboBox, CheckBox, Label 等）
@@ -1021,83 +1321,37 @@ namespace PVZRHTools
                         // 检查是否是白色或浅色背景
                         if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(controlBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(control, Control.BackgroundProperty, contentBackground, duration);
                         }
                         // 浅色模式：深色背景改为白色
                         else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(controlBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(control, Control.BackgroundProperty, contentBackground, duration);
                         }
                     }
 
                     // 对 ComboBox 做更强制的处理，确保在深/浅色切换时"盒子"背景正确更新
                     if (control is System.Windows.Controls.ComboBox stdCombo)
                     {
-                        var targetBg = (Color)targetColors.ContentBackground;
-                        var targetBorder = (Color)targetColors.ContentBorderBrush;
-                        
-                        // 处理背景色
-                        if (stdCombo.Background is SolidColorBrush comboBgBrush && !comboBgBrush.IsFrozen)
-                        {
-                            var currentBg = comboBgBrush.Color;
-                            AnimateColor(comboBgBrush, currentBg, targetBg, duration);
-                        }
-                        else
-                        {
-                            // 如果没有背景画笔或已冻结，创建新的并动画化
-                            var newBgBrush = new SolidColorBrush(stdCombo.Background is SolidColorBrush oldBg ? oldBg.Color : Colors.Transparent);
-                            stdCombo.Background = newBgBrush;
-                            AnimateColor(newBgBrush, newBgBrush.Color, targetBg, duration);
-                        }
-                        
+                        var targetBg = contentBackground;
+                        var targetBorder = contentBorder;
+
+                        // 处理背景色（一律走 ApplyThemeBrush：内部先快照，且不就地改共享画笔）
+                        ApplyThemeBrush(stdCombo, Control.BackgroundProperty, new SolidColorBrush(targetBg), duration);
+
                         // 处理边框色
-                        if (stdCombo.BorderBrush is SolidColorBrush comboBorderBrush && !comboBorderBrush.IsFrozen)
-                        {
-                            var currentBorder = comboBorderBrush.Color;
-                            AnimateColor(comboBorderBrush, currentBorder, targetBorder, duration);
-                        }
-                        else
-                        {
-                            // 如果没有边框画笔或已冻结，创建新的并动画化
-                            var newBorderBrush = new SolidColorBrush(stdCombo.BorderBrush is SolidColorBrush oldBorder ? oldBorder.Color : Colors.Transparent);
-                            stdCombo.BorderBrush = newBorderBrush;
-                            AnimateColor(newBorderBrush, newBorderBrush.Color, targetBorder, duration);
-                        }
+                        ApplyThemeBrush(stdCombo, Control.BorderBrushProperty, new SolidColorBrush(targetBorder), duration);
                     }
                     else if (control is HandyControl.Controls.ComboBox handyCombo)
                     {
-                        var targetBg = (Color)targetColors.ContentBackground;
-                        var targetBorder = (Color)targetColors.ContentBorderBrush;
-                        
+                        var targetBg = contentBackground;
+                        var targetBorder = contentBorder;
+
                         // 处理背景色
-                        if (handyCombo.Background is SolidColorBrush comboBgBrush && !comboBgBrush.IsFrozen)
-                        {
-                            var currentBg = comboBgBrush.Color;
-                            AnimateColor(comboBgBrush, currentBg, targetBg, duration);
-                        }
-                        else
-                        {
-                            // 如果没有背景画笔或已冻结，创建新的并动画化
-                            var newBgBrush = new SolidColorBrush(handyCombo.Background is SolidColorBrush oldBg ? oldBg.Color : Colors.Transparent);
-                            handyCombo.Background = newBgBrush;
-                            AnimateColor(newBgBrush, newBgBrush.Color, targetBg, duration);
-                        }
-                        
+                        ApplyThemeBrush(handyCombo, Control.BackgroundProperty, new SolidColorBrush(targetBg), duration);
+
                         // 处理边框色
-                        if (handyCombo.BorderBrush is SolidColorBrush comboBorderBrush && !comboBorderBrush.IsFrozen)
-                        {
-                            var currentBorder = comboBorderBrush.Color;
-                            AnimateColor(comboBorderBrush, currentBorder, targetBorder, duration);
-                        }
-                        else
-                        {
-                            // 如果没有边框画笔或已冻结，创建新的并动画化
-                            var newBorderBrush = new SolidColorBrush(handyCombo.BorderBrush is SolidColorBrush oldBorder ? oldBorder.Color : Colors.Transparent);
-                            handyCombo.BorderBrush = newBorderBrush;
-                            AnimateColor(newBorderBrush, newBorderBrush.Color, targetBorder, duration);
-                        }
+                        ApplyThemeBrush(handyCombo, Control.BorderBrushProperty, new SolidColorBrush(targetBorder), duration);
                     }
 
                     // 更新前景色（深色/灰色文字改为白色）
@@ -1105,14 +1359,13 @@ namespace PVZRHTools
                     {
                         var currentFg = controlFgBrush.Color;
                         var shouldUpdate = false;
-                        Color targetFg;
+                        Color targetFg = textForeground;
 
-                        // 检查是否是标题标签（粉色 #FFFF69B4 或绿色 #FF2FA42F）
+                        // 检查是否是标题标签（粉色 #FFE0568F 或绿色 #FF6FBF7A）
                         if ((currentFg.R > 200 && currentFg.G < 100 && currentFg.B > 150) || // 粉色
                             (currentFg.R < 100 && currentFg.G > 150 && currentFg.B < 100)) // 绿色
                         {
-                            var currentLabelFg = (Color)currentColors.LabelForeground;
-                            targetFg = (Color)targetColors.LabelForeground;
+                            targetFg = labelForeground;
                             shouldUpdate = true;
                         }
                         // 检查是否是深色或灰色文本（需要改为白色）
@@ -1120,22 +1373,20 @@ namespace PVZRHTools
                         else if (isDarkMode && currentFg.A > 200 && 
                                  (currentFg.R < 150 && currentFg.G < 150 && currentFg.B < 150))
                         {
-                            var currentTextFg = (Color)currentColors.TextForeground;
-                            targetFg = (Color)targetColors.TextForeground;
+                            targetFg = textForeground;
                             shouldUpdate = true;
                         }
                         // 浅色模式：白色文字改为深色
                         else if (!isDarkMode && currentFg.A > 200 &&
                                  (currentFg.R > 200 && currentFg.G > 200 && currentFg.B > 200))
                         {
-                            var currentTextFg = (Color)currentColors.TextForeground;
-                            targetFg = (Color)targetColors.TextForeground;
+                            targetFg = textForeground;
                             shouldUpdate = true;
                         }
 
                         if (shouldUpdate)
                         {
-                            AnimateColor(controlFgBrush, currentFg, targetFg, duration);
+                            ApplyThemeColor(control, Control.ForegroundProperty, targetFg, duration);
                         }
                     }
                 }
@@ -1150,17 +1401,13 @@ namespace PVZRHTools
                         if (isDarkMode && currentFg.A > 200 && 
                             (currentFg.R < 150 && currentFg.G < 150 && currentFg.B < 150))
                         {
-                            var currentTextFg = (Color)currentColors.TextForeground;
-                            var targetFg = (Color)targetColors.TextForeground;
-                            AnimateColor(textBlockFgBrush, currentTextFg, targetFg, duration);
+                            ApplyThemeColor(textBlock, TextBlock.ForegroundProperty, textForeground, duration);
                         }
                         // 浅色模式：白色文字改为深色
                         else if (!isDarkMode && currentFg.A > 200 &&
                                  (currentFg.R > 200 && currentFg.G > 200 && currentFg.B > 200))
                         {
-                            var currentTextFg = (Color)currentColors.TextForeground;
-                            var targetFg = (Color)targetColors.TextForeground;
-                            AnimateColor(textBlockFgBrush, currentTextFg, targetFg, duration);
+                            ApplyThemeColor(textBlock, TextBlock.ForegroundProperty, textForeground, duration);
                         }
                     }
                 }
@@ -1171,21 +1418,17 @@ namespace PVZRHTools
                     if (rectangle.Fill is SolidColorBrush rectFillBrush)
                     {
                         var currentFill = rectFillBrush.Color;
-                        // 检查是否是粉色（#FFFF69B4 或类似）
+                        // 检查是否是粉色（#FFE0568F 或类似）
                         if (isDarkMode && currentFill.A > 0 && 
                             currentFill.R > 180 && currentFill.G < 160 && currentFill.B > 140)
                         {
-                            var currentLabelFg = (Color)currentColors.LabelForeground;
-                            var targetFill = (Color)targetColors.LabelForeground;
-                            AnimateColor(rectFillBrush, currentLabelFg, targetFill, duration);
+                            ApplyThemeColor(rectangle, System.Windows.Shapes.Shape.FillProperty, labelForeground, duration);
                         }
                         // 浅色模式：绿色线条改为粉色
                         else if (!isDarkMode && currentFill.A > 0 &&
                                  currentFill.R < 120 && currentFill.G > 140 && currentFill.B < 120)
                         {
-                            var currentLabelFg = (Color)currentColors.LabelForeground;
-                            var targetFill = (Color)targetColors.LabelForeground;
-                            AnimateColor(rectFillBrush, currentLabelFg, targetFill, duration);
+                            ApplyThemeColor(rectangle, System.Windows.Shapes.Shape.FillProperty, labelForeground, duration);
                         }
                     }
                 }
@@ -1197,36 +1440,33 @@ namespace PVZRHTools
                     {
                         var currentFg = labelFgBrush.Color;
                         var shouldUpdate = false;
-                        Color targetFg;
+                        Color targetFg = textForeground;
 
-                        // 检查是否是标题标签（粉色 #FFFF69B4 或绿色 #FF2FA42F）
+                        // 检查是否是标题标签（粉色 #FFE0568F 或绿色 #FF6FBF7A）
                         if ((currentFg.R > 180 && currentFg.G < 160 && currentFg.B > 140) || // 粉色
                             (currentFg.R < 120 && currentFg.G > 140 && currentFg.B < 120)) // 绿色
                         {
-                            var currentLabelFg = (Color)currentColors.LabelForeground;
-                            targetFg = (Color)targetColors.LabelForeground;
+                            targetFg = labelForeground;
                             shouldUpdate = true;
                         }
                         // 检查是否是深色或灰色文本（需要改为白色）
                         else if (isDarkMode && currentFg.A > 200 && 
                                  (currentFg.R < 150 && currentFg.G < 150 && currentFg.B < 150))
                         {
-                            var currentTextFg = (Color)currentColors.TextForeground;
-                            targetFg = (Color)targetColors.TextForeground;
+                            targetFg = textForeground;
                             shouldUpdate = true;
                         }
                         // 浅色模式：白色文字改为深色
                         else if (!isDarkMode && currentFg.A > 200 &&
                                  (currentFg.R > 200 && currentFg.G > 200 && currentFg.B > 200))
                         {
-                            var currentTextFg = (Color)currentColors.TextForeground;
-                            targetFg = (Color)targetColors.TextForeground;
+                            targetFg = textForeground;
                             shouldUpdate = true;
                         }
 
                         if (shouldUpdate)
                         {
-                            AnimateColor(labelFgBrush, currentFg, targetFg, duration);
+                            ApplyThemeColor(label, Control.ForegroundProperty, targetFg, duration);
                         }
                     }
                 }
@@ -1239,28 +1479,27 @@ namespace PVZRHTools
                         var currentBg = tabItemBgBrush.Color;
                         if (isDarkMode && currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(tabItemBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(tabItem, Control.BackgroundProperty, contentBackground, duration);
                         }
                         else if (!isDarkMode && currentBg.A > 0 && currentBg.R < 50 && currentBg.G < 50 && currentBg.B < 50)
                         {
-                            var targetBg = (Color)targetColors.ContentBackground;
-                            AnimateColor(tabItemBgBrush, currentBg, targetBg, duration);
+                            ApplyThemeColor(tabItem, Control.BackgroundProperty, contentBackground, duration);
                         }
                     }
                     else if (tabItem.Background == null || tabItem.Background == Brushes.Transparent)
                     {
                         // TabItem 内容区域应该使用 ContentBackground
-                        tabItem.Background = new SolidColorBrush((Color)targetColors.ContentBackground);
+                        Snapshot(tabItem, Control.BackgroundProperty);
+                        tabItem.Background = new SolidColorBrush(contentBackground);
                     }
                     
                     // 特别处理 TabItem 的 Content（通常是 Border）
                     // TabItem 的内容区域（Border）需要直接处理
-                    if (tabItem.Content is Border contentBorder)
+                    if (tabItem.Content is Border tabContentBorder)
                     {
                         // 更新 Border 的背景 - 强制设置，不依赖动画（因为可能是硬编码的画笔）
-                        var targetBg = (Color)targetColors.ContentBackground;
-                        if (contentBorder.Background is SolidColorBrush contentBgBrush)
+                        var targetBg = contentBackground;
+                        if (tabContentBorder.Background is SolidColorBrush contentBgBrush)
                         {
                             var currentBg = contentBgBrush.Color;
                             // 检查是否是白色背景（#FFFFFFFF）或深色背景需要切换
@@ -1276,34 +1515,28 @@ namespace PVZRHTools
                             
                             if (needsUpdate)
                             {
-                                // 如果画笔被冻结或动画失败，直接创建新画笔
+                                // 如果画笔被冻结，直接创建新画笔；否则走统一入口（内部先快照）
                                 if (contentBgBrush.IsFrozen)
                                 {
-                                    contentBorder.Background = new SolidColorBrush(targetBg);
+                                    Snapshot(tabContentBorder, Border.BackgroundProperty);
+                                    tabContentBorder.Background = new SolidColorBrush(targetBg);
                                 }
                                 else
                                 {
-                                    try
-                                    {
-                                        AnimateColor(contentBgBrush, currentBg, targetBg, duration);
-                                    }
-                                    catch
-                                    {
-                                        // 如果动画失败，直接设置
-                                        contentBorder.Background = new SolidColorBrush(targetBg);
-                                    }
+                                    ApplyThemeColor(tabContentBorder, Border.BackgroundProperty, targetBg, duration);
                                 }
                             }
                         }
                         else
                         {
                             // 如果背景为 null 或透明，强制设置背景色
-                            contentBorder.Background = new SolidColorBrush(targetBg);
+                            Snapshot(tabContentBorder, Border.BackgroundProperty);
+                            tabContentBorder.Background = new SolidColorBrush(targetBg);
                         }
                         
                         // 更新 Border 的边框颜色（粉色改为绿色）
-                        var targetBorderColor = (Color)targetColors.ContentBorderBrush;
-                        if (contentBorder.BorderBrush is SolidColorBrush contentBorderBrush)
+                        var targetBorderColor = contentBorder;
+                        if (tabContentBorder.BorderBrush is SolidColorBrush contentBorderBrush)
                         {
                             var currentBorderColor = contentBorderBrush.Color;
                             bool needsBorderUpdate = false;
@@ -1322,44 +1555,42 @@ namespace PVZRHTools
                             {
                                 if (contentBorderBrush.IsFrozen)
                                 {
-                                    contentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
+                                    Snapshot(tabContentBorder, Border.BorderBrushProperty);
+                                    tabContentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
                                 }
                                 else
                                 {
-                                    try
-                                    {
-                                        var currentBorder = (Color)currentColors.ContentBorderBrush;
-                                        AnimateColor(contentBorderBrush, currentBorder, targetBorderColor, duration);
-                                    }
-                                    catch
-                                    {
-                                        contentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
-                                    }
+                                    ApplyThemeColor(tabContentBorder, Border.BorderBrushProperty, targetBorderColor, duration);
                                 }
                             }
                         }
-                        else if (contentBorder.BorderBrush == null)
+                        else if (tabContentBorder.BorderBrush == null)
                         {
-                            contentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
+                            Snapshot(tabContentBorder, Border.BorderBrushProperty);
+                            tabContentBorder.BorderBrush = new SolidColorBrush(targetBorderColor);
                         }
                     }
                 }
 
                 // 递归处理子元素
-                UpdateAllControlsTheme(child, currentColors, targetColors, duration, isDarkMode, rootGrid);
+                UpdateAllControlsTheme(child, contentBackground, contentBorder, textForeground, titleForeground, labelForeground, duration, isDarkMode, rootGrid);
             }
         }
 
         /// <summary>
-        /// 强制更新所有白色背景为深色背景（用于确保所有硬编码的白色背景都被更新）
+        /// 强制更新所有白色背景为深色背景（用于确保所有硬编码的白色背景都被更新）。
+        /// ★ 只在深色方向执行 —— 浅色方向由 ApplyThemeWithAnimation 开头的 RestoreThemeSnapshots() 负责，
+        ///   这是"对称且可逆"的两半，缺一不可。
+        /// ★ 目标色来自当前主题令牌（不再写死 #FF212125 / #FF2FA42F）。
+        /// ★ 本方法内**所有**写入都经过 Snapshot(...)，且不再就地改共享画笔。
         /// </summary>
         private void ForceUpdateWhiteBackgrounds(bool isDarkMode)
         {
             if (!isDarkMode) return; // 只在深色模式下执行
-            
-            var targetBg = Color.FromArgb(0xFF, 0x21, 0x21, 0x25); // #FF212125
-            var targetBorder = Color.FromArgb(0xFF, 0x2F, 0xA4, 0x2F); // #FF2FA42F
-            var targetText = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF); // White
+
+            var targetBg = ResolveThemeColor("ContentBackgroundBrush", Color.FromArgb(0xFF, 0x1E, 0x1F, 0x22));
+            var targetBorder = ResolveThemeColor("ContentBorderBrush", Color.FromArgb(0xFF, 0x30, 0x32, 0x36));
+            var targetText = ResolveThemeColor("TextForegroundBrush", Color.FromArgb(0xFF, 0xE8, 0xEA, 0xED));
             
             // 递归查找所有控件
             void UpdateControls(DependencyObject parent)
@@ -1395,6 +1626,7 @@ namespace PVZRHTools
                         // 强制设置背景色（不依赖原画笔）
                         if (shouldUpdate)
                         {
+                            Snapshot(border, Border.BackgroundProperty);
                             border.Background = new SolidColorBrush(targetBg);
                             // 确保设置生效
                             border.InvalidateVisual();
@@ -1408,6 +1640,7 @@ namespace PVZRHTools
                             if (currentBorderColor.A > 0 && 
                                 currentBorderColor.R > 180 && currentBorderColor.G < 160 && currentBorderColor.B > 140)
                             {
+                                Snapshot(border, Border.BorderBrushProperty);
                                 border.BorderBrush = new SolidColorBrush(targetBorder);
                             }
                         }
@@ -1420,6 +1653,7 @@ namespace PVZRHTools
                             var currentBg = panelBgBrush.Color;
                             if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                             {
+                                Snapshot(panel, Panel.BackgroundProperty);
                                 panel.Background = new SolidColorBrush(targetBg);
                             }
                         }
@@ -1427,6 +1661,7 @@ namespace PVZRHTools
                         {
                             if (panel.Children.Count > 0 || panel.ActualWidth > 0 || panel.ActualHeight > 0)
                             {
+                                Snapshot(panel, Panel.BackgroundProperty);
                                 panel.Background = new SolidColorBrush(targetBg);
                             }
                         }
@@ -1439,6 +1674,7 @@ namespace PVZRHTools
                             var currentBg = controlBgBrush.Color;
                             if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                             {
+                                Snapshot(control, Control.BackgroundProperty);
                                 control.Background = new SolidColorBrush(targetBg);
                             }
                         }
@@ -1449,6 +1685,7 @@ namespace PVZRHTools
                             var currentFg = controlFgBrush.Color;
                             if (currentFg.A > 200 && currentFg.R < 100 && currentFg.G < 100 && currentFg.B < 100)
                             {
+                                Snapshot(control, Control.ForegroundProperty);
                                 control.Foreground = new SolidColorBrush(targetText);
                             }
                         }
@@ -1461,6 +1698,7 @@ namespace PVZRHTools
                             var currentFg = textFgBrush.Color;
                             if (currentFg.A > 200 && currentFg.R < 100 && currentFg.G < 100 && currentFg.B < 100)
                             {
+                                Snapshot(textBlock, TextBlock.ForegroundProperty);
                                 textBlock.Foreground = new SolidColorBrush(targetText);
                             }
                         }
@@ -1473,11 +1711,13 @@ namespace PVZRHTools
                             var currentBg = svBgBrush.Color;
                             if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                             {
+                                Snapshot(scrollViewer, Control.BackgroundProperty);
                                 scrollViewer.Background = new SolidColorBrush(targetBg);
                             }
                         }
                         else if (scrollViewer.Background == null || scrollViewer.Background == Brushes.Transparent)
                         {
+                            Snapshot(scrollViewer, Control.BackgroundProperty);
                             scrollViewer.Background = new SolidColorBrush(targetBg);
                         }
                     }
@@ -1489,11 +1729,13 @@ namespace PVZRHTools
                             var currentBg = hcSvBgBrush.Color;
                             if (currentBg.A > 0 && currentBg.R > 200 && currentBg.G > 200 && currentBg.B > 200)
                             {
+                                Snapshot(hcScrollViewer, Control.BackgroundProperty);
                                 hcScrollViewer.Background = new SolidColorBrush(targetBg);
                             }
                         }
                         else if (hcScrollViewer.Background == null || hcScrollViewer.Background == Brushes.Transparent)
                         {
+                            Snapshot(hcScrollViewer, Control.BackgroundProperty);
                             hcScrollViewer.Background = new SolidColorBrush(targetBg);
                         }
                     }
@@ -1534,7 +1776,11 @@ namespace PVZRHTools
             var source = e.OriginalSource as DependencyObject;
             if (source != null)
             {
-                // 向上遍历可视化树，检查是否在 Popup 中
+                // 向上遍历可视化树，检查是否在 Popup 中。
+                // ★ 2026-09-24 修复：原实现无条件 VisualTreeHelper.GetParent(current)，
+                //   当滚轮落点是文本节点（System.Windows.Documents.Run 等 ContentElement）时，
+                //   VisualTreeHelper 会抛 InvalidOperationException("'…Run' is not a Visual or Visual3D")
+                //   （用户实测报错框，栈顶即本方法）。ContentElement 必须走逻辑树。
                 var current = source;
                 while (current != null)
                 {
@@ -1543,7 +1789,10 @@ namespace PVZRHTools
                         // 如果鼠标在打开的 Popup 中，不处理此事件，让 Popup 自己处理
                         return;
                     }
-                    current = VisualTreeHelper.GetParent(current);
+
+                    current = current is Visual || current is System.Windows.Media.Media3D.Visual3D
+                        ? VisualTreeHelper.GetParent(current)
+                        : LogicalTreeHelper.GetParent(current);
                 }
             }
             
@@ -1660,6 +1909,128 @@ namespace PVZRHTools
                 _scrollTimer?.Stop();
         }
 
+        // ===== 旅行词条搜索（5.3.1 B1）：按纯文本过滤 Tab3 全部 5 个词条 DataGrid =====
+        // ★ 2026-09-25 两处改动：
+        //   ① 崩溃修复：原先用 CollectionViewSource.GetDefaultView(src).Filter —— 但 VM 里这 5 个
+        //      列表是 **BindingList<T>**，其默认视图是 BindingListCollectionView，**CanFilter=false**，
+        //      赋值 Filter 直接抛 NotSupportedException（用户实测：搜索框一输入就弹异常框）。
+        //      现改为「把过滤后的 List 直接赋给 DataGrid.ItemsSource」。
+        //   ② 性能/交互：原先挂 TextChanged，每敲一个字符就把 5 个网格 × 数百行的 TMP 富文本
+        //      逐条剥标签（TmpMarkup.ToPlainText 是解析器），实测"输入后要等一阵才刷新"。
+        //      现改为**输入 + 确认按钮 / Enter** 两段式：只在明确提交时算一次；
+        //      并把「渲染文本 → 纯文本」的结果按词条对象缓存，重复搜索不再重解析。
+        private string _travelBuffSearchKeyword = string.Empty;
+        private bool _travelBuffSearchHooked;
+
+        /// <summary>词条纯文本缓存：TmpMarkup.ToPlainText 是解析器，同一词条只剥一次。</summary>
+        private readonly Dictionary<TravelBuffVM, string> _travelBuffPlainTextCache = new();
+
+        private void TravelBuffSearchButton_Click(object sender, RoutedEventArgs e)
+        {
+            CommitTravelBuffSearch();
+        }
+
+        private void TravelBuffSearchBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                CommitTravelBuffSearch();
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>提交当前输入框内容并重放过滤（按钮 / Enter 都走这里）。</summary>
+        private void CommitTravelBuffSearch()
+        {
+            _travelBuffSearchKeyword = TravelBuffSearchBox?.Text ?? string.Empty;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            ApplyTravelBuffFilters();
+            sw.Stop();
+            if (sw.ElapsedMilliseconds >= 200)
+                System.Diagnostics.Debug.WriteLine($"[词条搜索] '{_travelBuffSearchKeyword}' 用时 {sw.ElapsedMilliseconds} ms");
+        }
+
+        /// <summary>按当前关键词重放 5 个词条网格的过滤（提交搜索 / VM 集合实例变化时调用）。</summary>
+        private void ApplyTravelBuffFilters()
+        {
+            if (DataContext is not ModifierViewModel vm) return;
+            HookTravelBuffSearchReload(vm);
+            ApplyTravelBuffFilter(TravelBuffs, vm.TravelBuffs);
+            ApplyTravelBuffFilter(InGameBuffs, vm.InGameBuffs);
+            ApplyTravelBuffFilter(Debuffs, vm.Debuffs);
+            ApplyTravelBuffFilter(InGameInvestBuffs, vm.InGameInvestBuffs);
+            ApplyTravelBuffFilter(InGameDebuffs, vm.InGameDebuffs);
+        }
+
+        /// <summary>VM 重建 BindingList（InitData 重载）后重放过滤，避免界面停留在旧实例的快照上。</summary>
+        private void HookTravelBuffSearchReload(ModifierViewModel vm)
+        {
+            if (_travelBuffSearchHooked) return;
+            _travelBuffSearchHooked = true;
+            vm.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName is nameof(ModifierViewModel.TravelBuffs)
+                    or nameof(ModifierViewModel.InGameBuffs)
+                    or nameof(ModifierViewModel.Debuffs)
+                    or nameof(ModifierViewModel.InGameInvestBuffs)
+                    or nameof(ModifierViewModel.InGameDebuffs))
+                {
+                    _travelBuffPlainTextCache.Clear();
+                    Dispatcher.BeginInvoke(new Action(ApplyTravelBuffFilters), DispatcherPriority.Background);
+                }
+            };
+        }
+
+        /// <summary>取词条的纯文本（剥 TMP 标签），按对象缓存；词条本身不可变，故可长期复用。</summary>
+        private string GetTravelBuffPlainText(TravelBuffVM item)
+        {
+            if (item is null) return string.Empty;
+            if (_travelBuffPlainTextCache.TryGetValue(item, out var cached)) return cached;
+
+            var text = item.TravelBuff?.Text;
+            var plain = string.IsNullOrEmpty(text) ? string.Empty : PVZRHTools.Utils.TmpMarkup.ToPlainText(text);
+            _travelBuffPlainTextCache[item] = plain;
+            return plain;
+        }
+
+        private void ApplyTravelBuffFilter(System.Windows.Controls.DataGrid? grid,
+            System.ComponentModel.BindingList<TravelBuffVM>? source)
+        {
+            if (grid is null || source is null) return;
+
+            // 过滤按纯文本匹配：查询词与词条原文都先剥 TMP 标签（显示仍走渲染层，原文不改）
+            var keyword = PVZRHTools.Utils.TmpMarkup.ToPlainText(_travelBuffSearchKeyword).Trim();
+
+            if (keyword.Length == 0)
+            {
+                if (!ReferenceEquals(grid.ItemsSource, source))
+                    grid.ItemsSource = source;
+                return;
+            }
+
+            var filtered = new List<TravelBuffVM>(source.Count);
+            foreach (var item in source)
+            {
+                var plain = GetTravelBuffPlainText(item);
+                if (plain.Length == 0) continue;
+                if (plain.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    filtered.Add(item);
+            }
+
+            // 过滤结果与当前一致时不动 ItemsSource，避免无谓的重建与滚动条跳动
+            if (grid.ItemsSource is List<TravelBuffVM> prev && prev.Count == filtered.Count)
+            {
+                var same = true;
+                for (var i = 0; i < prev.Count; i++)
+                {
+                    if (!ReferenceEquals(prev[i], filtered[i])) { same = false; break; }
+                }
+                if (same) return;
+            }
+
+            grid.ItemsSource = filtered;
+        }
+
         public void TitleBar_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton is MouseButtonState.Pressed && e.RightButton is MouseButtonState.Released &&
@@ -1674,6 +2045,12 @@ namespace PVZRHTools
 
             Width = 800;
             Height = 450;
+        }
+
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            // 最小化修饰窗口（标题栏原「关于」入口已迁至杂项 Tab7，原位让给最小化）。
+            WindowState = WindowState.Minimized;
         }
 
         protected override void OnClosed(EventArgs e)

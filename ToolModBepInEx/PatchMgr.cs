@@ -16,6 +16,8 @@ using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Newtonsoft.Json;
 using TMPro;
 using GameLevel.RogueShooting;
+// 诸神进化试炼词条筛选需要 BaseCurse（AdvBuff 14000~14003 的词条实现基类）
+using GameLevel.RogueShooting.CurseBuffs;
 using ToolModData;
 using UI;
 using Unity.VisualScripting;
@@ -73,11 +75,25 @@ public static class BoardPatchA
 {
     public static void Postfix()
     {
+        // 换关/进关时清空「僵尸原始速度/攻击力」基线表。
+        // 上一局的僵尸对象已随 Board 销毁，旧基线既无意义又会让字典长期占用内存
+        //（这两个表的清理函数原先零调用点）。必须在取基线之前清，避免复用已死对象的键。
+        try
+        {
+            ZombieSpeedModifyPatch.ResetCache();
+            ZombieAttackMultiplierPatch.ResetCache();
+        }
+        catch { }
+
         var t = Board.Instance.boardTag;
         originalTravel = t.enableTravelPlant;
         t.isScaredyDream |= PatchMgr.GameModes.ScaredyDream;
         t.isColumn |= PatchMgr.GameModes.ColumnPlanting;
         t.isSeedRain |= PatchMgr.GameModes.SeedRain;
+        // 【5.3.1 修复】解除融合限制不再写 boardTag 的 isTravel/enableTravelPlant/
+        // enableAllTravelPlant 三个位——旧写法把普通关标成旅行关，导致 InitBoard.InitMower()
+        // 在 isTravel 时提前 return（不造车）= 小推车消失；副作用还会误开旅行词条机件。
+        // 现改由 RemoveFusionLimitPatch 前缀短路 CreatePlant.Lim / LimTravel（见该补丁）。
         t.enableAllTravelPlant |= UnlockAllFusions;
         Board.Instance.boardTag = t;
     }
@@ -786,11 +802,17 @@ public static class BulletPatchA
 {
     public static void Postfix(Bullet __instance)
     {
+        // 性能：本补丁挂在 Bullet.Update 上，属于「每颗子弹每帧」的热路径。
+        // BulletDamage 默认是空表（未启用「子弹伤害修改」时），
+        // 原实现每帧对每颗子弹都要跨越 native->managed 边界取 theBulletType 再做一次字典查找。
+        // 先做空表早退：未启用该功能时本补丁的代价降到一次静态字段读取 + 一次 Count 比较。
+        var table = BulletDamage;
+        if (table == null || table.Count == 0) return;
         try
         {
             if (__instance == null) return;
             var bulletType = __instance.theBulletType;
-            if (!BulletDamage.TryGetValue(bulletType, out var damage)) return;
+            if (!table.TryGetValue(bulletType, out var damage)) return;
             if (damage >= 0 && __instance.Damage != damage)
                 __instance.Damage = damage;
         }
@@ -1636,9 +1658,14 @@ public static class DriverZombiePatch
         try
         {
             if (__instance == null || Board.Instance == null) return;
-            for (var i = 0; i < Board.Instance.iceRoads.Count; i++)
-                if (Board.Instance.iceRoads[i].theRow == __instance.theZombieRow)
-                    Board.Instance.iceRoads[i].fadeTimer = 0;
+            // 修复「不生成冰道无效」：只重置 fadeTimer 不够 —— 冰道已经被摆在棋盘上了，
+            // 必须同时把它推离棋盘（x = 10）才会真正看不见；
+            // 且不能按行过滤（与参考版一致，处理全部冰道），否则非当前行的冰道仍会残留。
+            foreach (var t in Board.Instance.iceRoads)
+            {
+                t.fadeTimer = 0;
+                t.x = 10;
+            }
         }
         catch { }
     }
@@ -2355,9 +2382,19 @@ public static class GlovePatchA
         try
         {
             if (__instance == null) return;
+            // 射击小游戏（斗蛐蛐/坚果保龄球等）里手套不走正常冷却，别去干预。
+            if (Board.Instance != null && Board.Instance.boardTag.isShooting) return;
             __instance.gameObject.transform.GetChild(0).gameObject.SetActive(!GloveNoCD);
-            if (GloveFullCD > 0) __instance.fullCD = (float)GloveFullCD;
-            if (GloveNoCD) __instance.CD = __instance.fullCD;
+
+            // 仅在主动开启「无CD」或用户指定了自定义 CD 时才覆盖 fullCD；
+            // 否则一律交回游戏按模式实时计算 —— 否则会把陈旧的 OriginalGloveFullCD(可能为 0) 写回，
+            // 导致没开无CD 时手套也变成无CD（即「僵尸手套无CD」）。
+            if (GloveNoCD || GloveFullCD >= 0)
+            {
+                __instance.fullCD = GloveFullCD >= 0 ? (float)GloveFullCD : OriginalGloveFullCD;
+                if (GloveNoCD) __instance.CD = __instance.fullCD;
+            }
+
             var cdChild = __instance.transform.FindChild("ModifierGloveCD");
             if (cdChild == null) return;
             if (__instance.avaliable || !ShowGameInfo)
@@ -2380,6 +2417,8 @@ public static class GlovePatchB
 {
     public static void Postfix(Glove __instance)
     {
+        // 采集开局基线，避免 OriginalGloveFullCD 保持 0 导致关闭无CD 后手套仍然无CD。
+        if (__instance != null) OriginalGloveFullCD = __instance.fullCD;
         GameObject obj = new("ModifierGloveCD");
         var text = obj.AddComponent<TextMeshProUGUI>();
         text.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
@@ -2470,6 +2509,11 @@ public static class WheelPatchA
                     __instance.cdMask.gameObject.SetActive(false);
             }
 
+            // 罗盘自定义冷却值（REF WheelPatch:21-22 同语义：WheelFullCD>0 时锁定 fullCD；
+            // 关闭态静态值为 -1，与无CD开关互斥时无CD分支已先行处理）
+            if (WheelFullCD > 0)
+                __instance.fullCD = (float)WheelFullCD;
+
             var cdChild = __instance.transform.FindChild("ModifierWheelCD");
             if (cdChild == null)
             {
@@ -2523,33 +2567,32 @@ public static class InGameBtnPatch
     {
         if (__instance.buttonNumber == 3)
         {
-            // 只有在游戏速度功能开启时才允许时停/慢速操作
-            if (!GameSpeedEnabled)
-            {
-                return; // 功能关闭时，不处理时停/慢速，让游戏内部速度调整功能正常工作
-            }
-            
-            TimeSlow = !TimeSlow;
-            TimeStop = false;
-            if (TimeSlow)
-            {
-                Time.timeScale = 0.2f;
-            }
-            else
-            {
-                // 恢复速度时，如果功能开启且修改器主动设置了速度，使用修改器速度，否则使用游戏内部速度
-                if (GameSpeedEnabled && SyncSpeed >= 0 && IsSpeedModifiedByTool)
-                {
-                    Time.timeScale = SyncSpeed;
-                }
-                else
-                {
-                    Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
-                }
-            }
+            // ★ 2026-09-25：**该入口交还游戏**（同按键3的处理，见 Update 里的长注释）。
+            //   游戏内按钮3 是游戏自身的慢速开关，插件不再切换自己的 TimeSlow ——
+            //   否则同一次点击被两边各消费一次，出现「一方关了另一方还开着」⇒ 慢速解除不掉（用户实测+日志实锤）。
+            return;
         }
 
         if (__instance.buttonNumber == 13) BottomEnabled = GameObject.Find("Bottom") is not null;
+    }
+}
+
+// ============================================================================
+// 游戏内 SlowTrigger（时停控件）点击 → 时停/慢速标志切换（REF SlowTriggerPatch:9-15 同语义；
+// SWEEP §2-D2：TARGET 此前只改其显示文本，双入口里这一真实控件入口缺失）。
+// 只写 TimeStop/TimeSlow 静态位 —— timeScale 由 Update 循环按位消费（本文件现行机制），
+// 与 InGameBtn#3 同门槛（游戏速度功能关闭时不接管）。
+// VA=0x73E390 全库独占（sharedMembers=1），安全；点击级方法，非热路径。
+// ============================================================================
+[HarmonyPatch(typeof(SlowTrigger), "OnMouseUpAsButton")]
+public static class SlowTriggerOnMouseUpPatch
+{
+    public static void Prefix()
+    {
+        // ★ 2026-09-25：**该入口交还游戏**（同按键3/按钮3）。
+        //   SlowTrigger 是游戏自身的时停减速控件（它自己的 OnMouseUpAsButton 会走 TriggerSlow），
+        //   插件不再在这里切换 TimeSlow，避免同一次点击被两边消费导致慢速关不掉。
+        return;
     }
 }
 
@@ -2595,6 +2638,25 @@ public static class InitBoardPatch
     public static void PreRightMoveCamera(InitBoard __instance)
     {
         __instance.StartCoroutine(PostInitBoard());
+    }
+
+    /// <summary>
+    ///     功能 #9：进关卡时自动开启诸神进化隐藏难度（PortMap §9 的第二处触发）。
+    ///     语义与游戏 shoothard 作弊码相同；REF 同样挂在 InitBoard 上。
+    ///     放在 Postfix 是为了让 ShootingManager 组件先就位（它与 Board 一同初始化）。
+    /// </summary>
+    [HarmonyPostfix]
+    [HarmonyPatch("RightMoveCamera")]
+    public static void PostRightMoveCamera()
+    {
+        if (!GodEvolutionCheatHard) return;
+        try
+        {
+            var shooting = ShootingManager.Instance;
+            if (shooting != null && !shooting.cheatHard)
+                shooting.CheatHard();
+        }
+        catch { }
     }
 }
 
@@ -2981,58 +3043,110 @@ public static class ZombieJalaedExplodeLimitPatch
 [HarmonyPatch(typeof(Zombie), nameof(Zombie.Update))]
 public static class ZombieSpeedModifyPatch
 {
-    // 用于存储每个僵尸的原始速度，避免重复乘以倍率
-    private static readonly Dictionary<int, float> _originalSpeeds = new Dictionary<int, float>();
-    
+    // 每个僵尸的【真实基线速度】，用于：
+    //   ① 计算 newSpeed = 基线 × 倍率（绝不把乘过倍率的值写回本表，否则会复利）
+    //   ② 关闭功能时把 theOriginSpeed 还原为基线
+    //
+    // 键用 IntPtr（对象原生指针）而不是 GetInstanceID()：
+    // Unity 的 InstanceID 会在对象销毁后被回收复用，复用后 ContainsKey 命中旧记录，
+    // 新僵尸会继承【上一只已乘过倍率】的值，再乘一次 ⇒ 速度失控（复利 bug）。
+    private static readonly Dictionary<IntPtr, float> _originalSpeeds = new Dictionary<IntPtr, float>();
+
+    // 上一帧本补丁是否处于启用态，用于检测「启用→关闭」的边沿并做一次还原。
+    private static bool _wasEnabled;
+
     [HarmonyPrefix]
     public static void Prefix(Zombie __instance)
     {
-        if (!ZombieSpeedModifyEnabled || ZombieSpeedMultiplier == 1.0f) return;
+        bool enabled = ZombieSpeedModifyEnabled && ZombieSpeedMultiplier != 1.0f;
+
+        // 关闭态：只在「刚被关闭」的那一帧做一次还原（边沿触发），
+        // 之后每帧仅付一次静态 bool 读取 —— 原实现关闭时也什么都不做，
+        // 但会因为字典残留导致重新开启时基线错误。
+        if (!enabled)
+        {
+            if (_wasEnabled)
+            {
+                _wasEnabled = false;
+                RestoreAll();
+            }
+            return;
+        }
+        _wasEnabled = true;
+
         try
         {
             if (__instance == null) return;
-            
-            int instanceId = __instance.GetInstanceID();
-            
-            // 如果是第一次处理这个僵尸，记录其原始速度
-            if (!_originalSpeeds.ContainsKey(instanceId))
+
+            IntPtr key = __instance.Pointer;
+
+            // 只在【首次见到】时记录基线；此后永不覆盖。
+            // 注意这里写入的是 theOriginSpeed 的当前值，即游戏随机滚出的原生基础速度。
+            if (!_originalSpeeds.TryGetValue(key, out float originalSpeed))
             {
-                _originalSpeeds[instanceId] = __instance.theOriginSpeed;
+                originalSpeed = __instance.theOriginSpeed;
+                _originalSpeeds[key] = originalSpeed;
             }
-            
-            float originalSpeed = _originalSpeeds[instanceId];
+
             float newSpeed = originalSpeed * ZombieSpeedMultiplier;
-            
-            // 修改僵尸的速度属性
-            __instance.theSpeed = newSpeed;
+
+            // 始终更新基础速度：这样冰冻/定身等控制效果结束后能恢复到「倍率后」的正确速度。
             __instance.theOriginSpeed = newSpeed;
-            
-            // 修改动画速度以匹配移动速度
-            if (__instance.anim != null)
+
+            // ★ 仅当僵尸未被冰冻/黄油定身等控制效果压制时才覆盖当前速度与动画速度。
+            // 修复：滑步入场僵尸被冰冻后一直滑步进家的问题
+            //（theSpeed 为 0 表示当前被控制，此时若强行写回 newSpeed 会解除滑步/冰冻表现）。
+            if (__instance.theSpeed > 0f)
             {
-                __instance.anim.SetFloat("Speed", newSpeed);
-            }
-        }
-        catch { }
-    }
-    
-    // 清理已死亡僵尸的记录，避免内存泄漏
-    public static void CleanupDeadZombies()
-    {
-        try
-        {
-            var keysToRemove = new List<int>();
-            foreach (var kvp in _originalSpeeds)
-            {
-                // 简单的清理逻辑：当字典过大时清空
-                if (_originalSpeeds.Count > 1000)
+                __instance.theSpeed = newSpeed;
+
+                // 修改动画速度以匹配移动速度
+                if (__instance.anim != null)
                 {
-                    _originalSpeeds.Clear();
-                    break;
+                    __instance.anim.SetFloat("Speed", newSpeed);
                 }
             }
         }
         catch { }
+    }
+
+    /// <summary>
+    /// 关闭功能时把所有僵尸还原为真实基线速度（只遍历本插件登记过的僵尸）。
+    /// </summary>
+    private static void RestoreAll()
+    {
+        // 逐个 try/catch：条目里可能混有已被销毁的僵尸（原生指针悬空）。
+        // 单个条目出错不能中断整轮还原，且 AccessViolation 无法被 catch，
+        // 因此在真正解引用前先做一次 Unity 侧的存活判定。
+        foreach (var kvp in _originalSpeeds)
+        {
+            try
+            {
+                var zombie = new Zombie(kvp.Key);
+                // 先判空再访问任何字段：null 检查走 Unity 的 op_Equality，
+                // 对已销毁对象返回 true，可拦住绝大多数悬空指针。
+                if (zombie == null) continue;
+                if (zombie.gameObject == null) continue;
+
+                zombie.theOriginSpeed = kvp.Value;
+                if (zombie.theSpeed > 0f)
+                {
+                    zombie.theSpeed = kvp.Value;
+                    if (zombie.anim != null) zombie.anim.SetFloat("Speed", kvp.Value);
+                }
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>
+    /// 换关时清空基线表。
+    /// 由 Board 重建/关卡开始时调用：僵尸全没了，旧基线既无意义又会占用内存。
+    /// </summary>
+    public static void ResetCache()
+    {
+        _originalSpeeds.Clear();
+        _wasEnabled = false;
     }
 }
 
@@ -3044,43 +3158,153 @@ public static class ZombieSpeedModifyPatch
 [HarmonyPatch(typeof(Zombie), nameof(Zombie.AttackEffect))]
 public static class ZombieAttackMultiplierPatch
 {
-    // 用于存储每个僵尸的原始攻击力，避免重复乘以倍率
-    private static readonly Dictionary<int, int> _originalAttackDamages = new Dictionary<int, int>();
-    
+    // 用于存储每个僵尸的原始攻击力，避免重复乘以倍率。
+    // 键用 IntPtr（对象原生指针）而不是 GetInstanceID()：
+    // InstanceID 会在对象销毁后被回收复用，复用后 ContainsKey 命中旧记录，
+    // 新僵尸会拿到上一只的基线值（该值虽未被本补丁写回，但仍会导致基线错误）。
+    private static readonly Dictionary<IntPtr, int> _originalAttackDamages = new Dictionary<IntPtr, int>();
+
+    // 上一帧本补丁是否处于启用态，用于检测「启用→关闭」边沿并做一次还原（#28）。
+    private static bool _wasEnabled;
+
     [HarmonyPrefix]
     public static void Prefix(Zombie __instance)
     {
-        if (!ZombieAttackMultiplierEnabled || ZombieAttackMultiplier == 1.0f) return;
+        // 热路径纪律：首句只读两个静态字段，关闭态只付一次静态读取。
+        bool enabled = ZombieAttackMultiplierEnabled && ZombieAttackMultiplier != 1.0f;
+
+        // #28 关闭态：仅在「刚被关闭」的那一次按登记基线还原攻击力（边沿触发）。
+        // 原实现直接 return —— 取消勾选后 theAttackDamage 永久保持被乘过的值，
+        // 即「僵尸修改条目无法通过勾选框取消修改」。还原放在前缀里，
+        // 触发还原的那一次攻击本身也会用还原后的原始攻击力结算。
+        if (!enabled)
+        {
+            if (_wasEnabled)
+            {
+                _wasEnabled = false;
+                RestoreAll();
+            }
+            return;
+        }
+        _wasEnabled = true;
         try
         {
             if (__instance == null) return;
-            
-            int instanceId = __instance.GetInstanceID();
-            
-            // 如果是第一次处理这个僵尸，记录其原始攻击力
-            if (!_originalAttackDamages.ContainsKey(instanceId))
+
+            IntPtr key = __instance.Pointer;
+
+            // 只在首次见到时记录基线；此后永不覆盖
+            if (!_originalAttackDamages.TryGetValue(key, out int originalDamage))
             {
-                _originalAttackDamages[instanceId] = __instance.theAttackDamage;
+                originalDamage = __instance.theAttackDamage;
+                _originalAttackDamages[key] = originalDamage;
             }
-            
-            int originalDamage = _originalAttackDamages[instanceId];
+
             int newDamage = Mathf.RoundToInt(originalDamage * ZombieAttackMultiplier);
-            
+
             // 修改僵尸的攻击伤害
             __instance.theAttackDamage = newDamage;
         }
         catch { }
     }
-    
-    // 清理已死亡僵尸的记录，避免内存泄漏
-    public static void CleanupDeadZombies()
+
+    /// <summary>
+    /// 关闭功能时把登记过的僵尸攻击力还原为基线（#28：取消勾选即取消修改）。
+    /// </summary>
+    private static void RestoreAll()
+    {
+        // 逐个 try/catch：条目里可能混有已被销毁的僵尸（原生指针悬空），
+        // 解引用前先做 Unity 侧存活判定（与 ZombieSpeedModifyPatch.RestoreAll 同款）。
+        foreach (var kvp in _originalAttackDamages)
+        {
+            try
+            {
+                var zombie = new Zombie(kvp.Key);
+                if (zombie == null) continue;
+                if (zombie.gameObject == null) continue;
+                zombie.theAttackDamage = kvp.Value;
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>
+    /// 换关时清空基线表（由关卡开始处调用）。僵尸已不存在，旧基线既无意义又占内存。
+    /// </summary>
+    public static void ResetCache()
+    {
+        _originalAttackDamages.Clear();
+        _wasEnabled = false;
+    }
+}
+
+/// <summary>
+/// 植物速度/攻击/血量三件套（5.3.1 #7「植物速度，攻击，伤害修改」+ 缺号6「植物血量倍率」）：
+/// Plant.Start 后缀对【新种】植物实例字段乘倍率，语义对应参考版 ToolMod\Patches\PlantPatch.cs:11-32。
+/// 挂点核验：Plant.Start VA=0x18046B820 全库独占（sharedMembers=1）；Cecil 读 interop =
+///   Public/Virtual/HideBySig；CustomizeLib ApplyNativeHook 只占 Plant.Update/FixedUpdate/SavePlantData..ctor，
+///   Start 不在占用清单，Harmony 可安全 patch（2026-09-23 记忆）。203 个子类 override Start 多数显式
+///   base.Start()，会走到本体方法，覆盖面与 REF 相同。
+/// TARGET 语义：enabled &amp;&amp; value != 1.0f 才乘（Enabled+值双判，不抄 REF 的 -1 哨兵）。
+/// 关闭不回滚已乘值（REF 等价，重进关卡自然还原）。
+/// </summary>
+[HarmonyPatch(typeof(Plant), nameof(Plant.Start))]
+public static class PlantStatMultiplierPatch
+{
+    [HarmonyPostfix]
+    public static void PostStart(Plant __instance)
     {
         try
         {
-            if (_originalAttackDamages.Count > 1000)
+            if (__instance == null) return;
+
+            if (PlantSpeedMultiplierEnabled && PlantSpeedMultiplier != 1.0f)
             {
-                _originalAttackDamages.Clear();
+                __instance.thePlantSpeed *= PlantSpeedMultiplier;
+                __instance.attributeSpeed *= PlantSpeedMultiplier;
+                __instance.attackSpeedAdder *= PlantSpeedMultiplier;
             }
+
+            if (PlantAttackMultiplierEnabled && PlantAttackMultiplier != 1.0f)
+            {
+                __instance.attackDamage = (int)(__instance.attackDamage * PlantAttackMultiplier);
+            }
+
+            if (PlantHealthMultiplierEnabled && PlantHealthMultiplier != 1.0f)
+            {
+                __instance.thePlantHealth = (int)(__instance.thePlantHealth * PlantHealthMultiplier);
+                __instance.thePlantMaxHealth = (int)(__instance.thePlantMaxHealth * PlantHealthMultiplier);
+            }
+        }
+        catch { }
+    }
+}
+
+/// <summary>
+/// 僵尸血量倍率（更新日志 5.1.6「添加全体僵尸血量翻倍和僵尸血量倍率功能」）：
+/// 新生成僵尸的本体与一/二类甲血量按倍率缩放，语义逐字对应参考版
+/// ToolMod\Patches\CreateZombiePatch.cs（六字段同步缩放）。
+/// ★ 合并 thunk 核查（契约 §6）：CreateZombie.SetZombie 自己的 [Address(VA="0x180990660")]
+///   在 4.0 反编译全库共享数 = 1（独占地址，安全，2026-09-23 实测）。
+///   只挂 SetZombie：图鉴预览(SetZombieInAlmanac)与魅惑生成(SetZombieWithMindControl)是另外两个方法，不缩放。
+/// </summary>
+[HarmonyPatch(typeof(CreateZombie), nameof(CreateZombie.SetZombie))]
+public static class CreateZombieHealthMultiplierPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(Zombie __result)
+    {
+        // 热路径纪律：首句只读静态 float（-1 哨兵），未启用时零成本，不碰任何 Il2Cpp 对象。
+        float mult = ZombieHealthMultiplier;
+        if (mult <= 0f || __result == null) return;
+        try
+        {
+            __result.theHealth = (int)(__result.theHealth * mult);
+            __result.theFirstArmorHealth = (int)(__result.theFirstArmorHealth * mult);
+            __result.theSecondArmorHealth = (int)(__result.theSecondArmorHealth * mult);
+            __result.theMaxHealth = (int)(__result.theMaxHealth * mult);
+            __result.theFirstArmorMaxHealth = (int)(__result.theFirstArmorMaxHealth * mult);
+            __result.theSecondArmorMaxHealth = (int)(__result.theSecondArmorMaxHealth * mult);
         }
         catch { }
     }
@@ -3171,8 +3395,8 @@ public static class BoardUpdateCursePatch
 {
     private static float _curseClearTimer = 0f;
     private const float _curseClearInterval = 1f;
-    private static float _trampleImmunityTimer = 0f;
-    private const float _trampleImmunityInterval = 0.1f;
+    // 原 _trampleImmunityTimer / _trampleImmunityInterval 已随 SetAllPlantsCanBeCrashed 一并删除：
+    // 该逻辑是空操作（canBeCrashed 属性不存在），此处不再需要这两个字段。
     
     [HarmonyPostfix]
     public static void Postfix(Board __instance)
@@ -3180,7 +3404,8 @@ public static class BoardUpdateCursePatch
         try
         {
             // 处理无限积分（使用新的独立开关或旧的兼容开关）
-            if ((UnlimitedScore || BuffRefreshNoLimit) && __instance != null)
+            // 性能：Board.Update 每帧执行，先判值是否已达标再写，避免每帧一次无谓的 native 字段写入。
+            if ((UnlimitedScore || BuffRefreshNoLimit) && __instance != null && __instance.thePoints != 999999f)
             {
                 __instance.thePoints = 999999f;
             }
@@ -3196,16 +3421,19 @@ public static class BoardUpdateCursePatch
                 }
             }
             
-            // 处理踩踏免疫 - 通过设置 canBeCrashed 属性
-            if (TrampleImmunity)
-            {
-                _trampleImmunityTimer += Time.deltaTime;
-                if (_trampleImmunityTimer >= _trampleImmunityInterval)
-                {
-                    _trampleImmunityTimer = 0f;
-                    SetAllPlantsCanBeCrashed(false);
-                }
-            }
+            // 踩踏免疫（碾压免疫）由下方 #region TrampleImmunity 的
+            // TypeMgrUncrashablePlantPatch 正确处理（挂 TypeMgr.UncrashablePlant，命中即 __result = true）。
+            //
+            // 移除说明（性能）：此处原先还有一段「每 0.1 秒遍历全部植物、对每株调用
+            // GetType().GetProperty("canBeCrashed") 并 SetValue」的逻辑，已删除。原因：
+            //   ① 该属性在本作中【不存在】—— 4.0 的 Assembly-CSharp 全文搜索 canBeCrashed 命中 0 次，
+            //      Plant.cs 只有 public bool uncrashable；
+            //   ② 因此 GetProperty 恒返回 null，整段循环是【纯开销、零效果】（每 0.1 秒一次
+            //      植物数 × 反射查找 + Lawnf.GetAllPlants() 的 List 分配）；
+            //   ③ 真正的免疫已由 TypeMgrUncrashablePlantPatch 生效，删除不影响功能。
+            // 若将来要按实例级实现「无视碾压」，应改用 Plant.uncrashable（实例字段）或
+            // TypeMgr.UncrashablePlant 路径，并同时在 Plant.Crashed 上挂 Prefix
+            //（碾压共有 4 条原生路径，只挡走查表的两条不足以防住僵尸球 boss 与僵尸砸击）。
             
             // 处理两波间最大刷怪CD - 持续设置waveInterval，防止被游戏重置
             if (NewZombieUpdateCD > 0f && NewZombieUpdateCD <= 30f && __instance != null)
@@ -3216,8 +3444,64 @@ public static class BoardUpdateCursePatch
                     __instance.config.waveInterval = NewZombieUpdateCD;
                 }
             }
+
+            // ---- 4.0 新增：锁定全场光照（功能 #16）----
+            // 挂在这里而不是新加 Harmony 补丁：Board.Update 的 Postfix 已是"每帧一次"的现成挂点
+            // （契约 §6 要求优先并入既有逐帧补丁，避免再多一个 detour）。开关关时只付一次静态读。
+            // 注：「植物全升级 / 全星辉」由本文件另一处逐帧块负责，此处不重复实现。
+            if (LockLightLevel >= 0)
+                ApplyLockedLightLevel();
+
+            // 图鉴全解锁是一次性动作：执行后就地复位，避免每帧重复写整张植物表。
+            if (UnlockAllAlmanac)
+            {
+                UnlockAllAlmanac = false;
+                DoUnlockAllAlmanac();
+            }
         }
         catch { }
+    }
+
+    /// <summary>
+    ///     锁定全场光照等级：遍历 gridSystem 的每个格子写 lightLevel（-1 由调用方拦掉）。
+    ///     GridSystem 实现 IEnumerable&lt;BoardGrid&gt;，用 IL2CPP 的枚举器接口逐个 MoveNext。
+    /// </summary>
+    private static void ApplyLockedLightLevel()
+    {
+        if (Board.Instance?.gridSystem == null) return;
+        try
+        {
+            var e = Board.Instance.gridSystem.System_Collections_IEnumerable_GetEnumerator();
+            while (e.MoveNext())
+                e.Current.Cast<BoardGrid>().lightLevel = LockLightLevel;
+        }
+        catch { }
+    }
+
+    /// <summary>
+    ///     图鉴全解锁：把所有植物写进 config.meetPlant_runTime（运行时的"已遇见"集合）。
+    ///     ★ GameConfig.meetPlants 是 private List（非 public），只有 meetPlant_runTime 是 public HashSet；
+    ///     图鉴读取走运行时的 meetPlant_runTime，因此只写它即可，避免对 private 字段做反射。
+    /// </summary>
+    private static void DoUnlockAllAlmanac()
+    {
+        try
+        {
+            var config = GameAPP.config;
+            if (config?.meetPlant_runTime == null) return;
+
+            var allPlants = GameAPP.resourcesManager?.allPlants;
+            if (allPlants == null) return;
+
+            // allPlants 是 Il2Cpp List<PlantType>（有 Count 与索引器，可用 for；切勿 foreach）
+            var n = allPlants.Count;
+            for (var i = 0; i < n; i++)
+                config.meetPlant_runTime.Add(allPlants[i]);
+        }
+        catch (Exception ex)
+        {
+            MLogger?.LogError($"[PVZRHTools] 图鉴全解锁失败: {ex.Message}");
+        }
     }
     
     private static void RemoveCurseFromAllPlants()
@@ -3242,33 +3526,12 @@ public static class BoardUpdateCursePatch
     /// 设置所有植物的 canBeCrashed 属性
     /// 参考 SuperMachinePotComponent.cs 的实现
     /// </summary>
-    private static void SetAllPlantsCanBeCrashed(bool value)
-    {
-        try
-        {
-            if (Board.Instance == null) return;
-            
-            var allPlants = Lawnf.GetAllPlants();
-            if (allPlants == null) return;
-            
-            foreach (var plant in allPlants)
-            {
-                if (plant != null && plant.thePlantHealth > 0)
-                {
-                    try
-                    {
-                        var plantType = plant.GetType();
-                        var crashedProp = plantType.GetProperty("canBeCrashed");
-                        
-                        if (crashedProp != null && crashedProp.CanWrite)
-                            crashedProp.SetValue(plant, value);
-                    }
-                    catch { }
-                }
-            }
-        }
-        catch { }
-    }
+    // 已删除 SetAllPlantsCanBeCrashed（性能）：
+    // 它循环调用 plant.GetType().GetProperty("canBeCrashed")，而该属性在本作中不存在
+    // （4.0 的 Assembly-CSharp 全文 canBeCrashed 命中 0 次；Plant.cs 只有 uncrashable），
+    // 因此原实现恒为空操作，只有反射与 List 分配的开销。
+    // 踩踏免疫真正的实现见下方 TypeMgrUncrashablePlantPatch。
+    // 同时删除了仅供它使用的 _trampleImmunityTimer / _trampleImmunityInterval 字段。
 }
 
 #endregion
@@ -3954,6 +4217,13 @@ public static class PresentPatchC
 [HarmonyPatch(typeof(LevelProgress), "Awake")]
 public static class ProgressMgrPatchA
 {
+    /// <summary>
+    /// 本补丁在 Awake 里无条件创建 "ModifierGameInfo" 子物体（与 ShowGameInfo 开关无关）。
+    /// 这里把它的引用缓存下来，供 ProgressMgrPatchB 每帧直接使用，
+    /// 免去每帧一次 Transform.FindChild（native 字符串查找）。
+    /// </summary>
+    internal static GameObject? InfoObject;
+
     public static void Postfix(LevelProgress __instance)
     {
         GameObject obj = new("ModifierGameInfo");
@@ -3964,56 +4234,79 @@ public static class ProgressMgrPatchA
         obj.transform.localScale = new Vector3(0.4f, 0.2f, 0.2f);
         obj.transform.localPosition = new Vector3(9f, 15f, 0);
         obj.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
+        InfoObject = obj;
     }
 }
 
 [HarmonyPatch(typeof(LevelProgress), "Update")]
 public static class ProgressMgrPatchB
 {
+    /// <summary>
+    /// 缓存的文本组件。原实现每帧都做
+    /// transform.FindChild("ModifierGameInfo") + GetComponent&lt;TextMeshProUGUI&gt;()，
+    /// 而该物体由 ProgressMgrPatchA 在 Awake 创建后即固定不变 ⇒ 只需解析一次。
+    /// </summary>
+    private static TextMeshProUGUI? _infoText;
+
     public static void Postfix(LevelProgress __instance)
     {
+        // 性能：LevelProgress.Update 是每帧调用。
+        // 原实现把 Transform.FindChild 放在 ShowGameInfo 判断【之前】，
+        // 导致功能关闭时也要每帧付一次 native 字符串查找 —— 属于反向守卫。
+        // 现改为：功能关闭时走轻量分支（仅按需隐藏），完全不触碰 Transform/GetComponent。
         try
         {
             if (__instance == null) return;
-            var infoChild = __instance.transform.FindChild("ModifierGameInfo");
-            if (infoChild == null) return;
-            if (ShowGameInfo)
+
+            if (!ShowGameInfo)
             {
-                infoChild.GameObject().active = true;
-                // 使用 timeUntilNextWave 显示刷新CD（3.3.1版本中newZombieWaveCountDown字段已被移除）
-                float refreshCD = 0f;
-                int currentWave = 0;
-                int maxWave = 0;
-                if (Board.Instance != null)
+                // 关闭时只需确保已隐藏；缓存命中才处理，避免多余 native 调用。
+                if (_infoText != null && _infoText.gameObject.activeSelf)
                 {
-                    refreshCD = Board.Instance.timeUntilNextWave;
-                    currentWave = Board.Instance.theWave;
-                    maxWave = Board.Instance.theMaxWave;
-                    
-                    // 如果刷新CD为0或负数，但游戏还在进行中（不是最后一波），
-                    // 可能是刚刚触发了"生成下一波"，此时等待游戏更新 timeUntilNextWave
-                    // 如果游戏还没有更新（通常会在 NewZombieUpdate() 中更新），
-                    // 则使用 NewZombieUpdateCD 作为临时显示值
-                    if (refreshCD <= 0f && currentWave > 0 && currentWave < maxWave)
-                    {
-                        // 检查 NewZombieUpdateCD 是否有效（通常在 0-30 秒之间）
-                        if (NewZombieUpdateCD > 0f && NewZombieUpdateCD <= 30f)
-                        {
-                            // 使用 NewZombieUpdateCD 作为临时显示值
-                            // 游戏会在 NewZombieUpdate() 中更新 timeUntilNextWave
-                            refreshCD = NewZombieUpdateCD;
-                        }
-                        // 如果 NewZombieUpdateCD 无效，保持 refreshCD 为 0，显示 "N/A"
-                    }
+                    _infoText.gameObject.SetActive(false);
                 }
-                string cdText = refreshCD > 0f ? $"{refreshCD:F1}" : "N/A";
-                infoChild.GameObject().GetComponent<TextMeshProUGUI>().text =
-                    $"波数: {currentWave}/{maxWave} 刷新CD: {cdText}";
+                return;
             }
-            else
+
+            if (_infoText == null)
             {
-                infoChild.GameObject().active = false;
+                var infoChild = __instance.transform.FindChild("ModifierGameInfo");
+                if (infoChild == null) return;
+                var go = infoChild.GameObject();
+                _infoText = go.GetComponent<TextMeshProUGUI>();
+                if (_infoText == null) return;
             }
+
+            if (!_infoText.gameObject.activeSelf) _infoText.gameObject.SetActive(true);
+
+            // 使用 timeUntilNextWave 显示刷新CD（3.3.1版本中newZombieWaveCountDown字段已被移除）
+            float refreshCD = 0f;
+            int currentWave = 0;
+            int maxWave = 0;
+            if (Board.Instance != null)
+            {
+                refreshCD = Board.Instance.timeUntilNextWave;
+                currentWave = Board.Instance.theWave;
+                maxWave = Board.Instance.theMaxWave;
+
+                // 如果刷新CD为0或负数，但游戏还在进行中（不是最后一波），
+                // 可能是刚刚触发了"生成下一波"，此时等待游戏更新 timeUntilNextWave
+                // 如果游戏还没有更新（通常会在 NewZombieUpdate() 中更新），
+                // 则使用 NewZombieUpdateCD 作为临时显示值
+                if (refreshCD <= 0f && currentWave > 0 && currentWave < maxWave)
+                {
+                    // 检查 NewZombieUpdateCD 是否有效（通常在 0-30 秒之间）
+                    if (NewZombieUpdateCD > 0f && NewZombieUpdateCD <= 30f)
+                    {
+                        // 使用 NewZombieUpdateCD 作为临时显示值
+                        // 游戏会在 NewZombieUpdate() 中更新 timeUntilNextWave
+                        refreshCD = NewZombieUpdateCD;
+                    }
+                    // 如果 NewZombieUpdateCD 无效，保持 refreshCD 为 0，显示 "N/A"
+                }
+            }
+            string cdText = refreshCD > 0f ? $"{refreshCD:F1}" : "N/A";
+            _infoText.text = $"波数: {currentWave}/{maxWave} 刷新CD: {cdText}";
         }
         catch { }
     }
@@ -4387,7 +4680,9 @@ public static class GodEvolutionHelper
     public static float GetLuckyMultiplier()
     {
         if (!GodEvolutionLuckyEnabled) return 1f;
-        return Mathf.Max(0.01f, GodEvolutionLucky);
+        // #2 幸运值需支持负数：去掉 Mathf.Max(0.01f, …) 钳制，让负值直通
+        //（负数在游戏闸门 (Lucky*0.3+1)*AppearWeight 中= 降低词条出现率，参考版同样不钳制）。
+        return GodEvolutionLucky;
     }
 
     public static bool IsQualitativeBuff(BaseBuff buff)
@@ -4401,6 +4696,25 @@ public static class GodEvolutionHelper
     }
 
     public static bool IsSuperQualitativeBuff(BaseBuff buff) => IsQualitativeBuff(buff);
+
+    /// <summary>
+    /// 是否为「质变词条」。判定沿用参考版口径（按标题含「质变」），
+    /// 用于把「质变词条概率提升 / 强制超质变」的作用域限制在质变词条上，
+    /// 避免把超进化（SuperUpgrade）等稀有词条一起变成必出。
+    /// </summary>
+    public static bool IsMutationBuff(BaseBuff buff)
+    {
+        if (buff == null) return false;
+        try
+        {
+            return !string.IsNullOrEmpty(buff.Title)
+                   && buff.Title.Contains("质变", StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public static bool GetAppearSuperQualitative(ShootingManager mgr)
     {
@@ -4431,7 +4745,17 @@ public static class GodEvolutionHelper
         _inRegisterCoreBuff = true;
         _coreBuffMgr = mgr;
         _savedLucky = mgr.Lucky;
-        mgr.Lucky = 99999f;
+        // ★ 修复「质变词条概率提升会连带超进化词条」的【首要根因】：
+        // 这里原本把 Lucky 抬到 99999，于是原版稀有度闸门
+        //     if (Random.value > (Lucky * 0.3f + 1f) * AppearWeight) continue;
+        // 对【每一个】词条都恒不成立 ⇒ 超进化等稀有词条被一并变成必出，
+        // 而这不是「只改 IsQualitativeBuff」能修好的（该闸门不经过任何定性判定）。
+        //
+        // 现在不再全局抬高 Lucky：质变词条改由 GodEvolutionAppearWeightPatch /
+        // GodEvolutionCanAppearPatch 两个 **按词条** 的闸门强制放行（只对 IsMutationBuff 生效），
+        // 非质变词条则完全走原版概率，从而与参考版语义一致。
+        // 注意 Lucky 保持原值，避免连带改变超进化的出现概率。
+        mgr.Lucky = _savedLucky;
     }
 
     public static void EndCoreBuffForce()
@@ -4468,8 +4792,10 @@ public static class GodEvolutionHelper
             if (_advQualitativeCallbackMethod == null) return false;
 
             var callback = Delegate.CreateDelegate(typeof(UnityAction), mgr, _advQualitativeCallbackMethod);
+            // 超质变必须按 Quality.iridescent（棱彩）注册 —— 参考版四个超质变分支用的都是 iridescent；
+            // 此前误用 diamond，导致「超质变词条颜色写错」。
             menu.RegisterOption("超质变", "随机获得一个诸神质变词条", (UnityAction)callback,
-                (PlantType)254, ZombieType.Nothing, Quality.diamond, true);
+                (PlantType)254, ZombieType.Nothing, Quality.iridescent, true);
             return true;
         }
         catch
@@ -4518,7 +4844,8 @@ public static class GodEvolutionHelper
                 catch { }
             });
 
-            menu.RegisterOption(title, desc, callback, (PlantType)254, ZombieType.Nothing, Quality.diamond, true);
+            // 同上：超质变选项一律用 Quality.iridescent。
+            menu.RegisterOption(title, desc, callback, (PlantType)254, ZombieType.Nothing, Quality.iridescent, true);
         }
         catch { }
     }
@@ -4549,9 +4876,36 @@ public static class GodEvolutionHelper
         catch { }
     }
 
+    // 品质权重「本局开局基线」：Start 时捕获一份原权重，供关闭自定义权重时还原
+    //（REF ShootingManagerPatch.PostStart:325-333 OriginalQualityWeights 的同用途；此前 TARGET 只写不还原）
+    private static float[]? _originalQualityWeights;
+    private static bool _qualityWeightsOverridden;
+
     private static void SyncQualityWeights(ShootingManager mgr)
     {
-        if (!GodEvolutionQualityWeightEnabled) return;
+        if (!GodEvolutionQualityWeightEnabled)
+        {
+            // 关闭分支：只在本局被我们覆写过时还原创一次（避免每帧无效写；标记在捕获基线时重置）
+            try
+            {
+                if (_qualityWeightsOverridden && _originalQualityWeights != null)
+                {
+                    _qualityWeightsField ??= typeof(ShootingManager).GetField("qualityWeights",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                    object? weightsObj = _qualityWeightsField?.GetValue(mgr);
+                    if (weightsObj != null)
+                    {
+                        SetQualityWeight(weightsObj, Quality.Default, _originalQualityWeights[0]);
+                        SetQualityWeight(weightsObj, Quality.silver, _originalQualityWeights[1]);
+                        SetQualityWeight(weightsObj, Quality.gold, _originalQualityWeights[2]);
+                        SetQualityWeight(weightsObj, Quality.diamond, _originalQualityWeights[3]);
+                        _qualityWeightsOverridden = false;
+                    }
+                }
+            }
+            catch { }
+            return;
+        }
         try
         {
             _qualityWeightsField ??= typeof(ShootingManager).GetField("qualityWeights",
@@ -4563,6 +4917,7 @@ public static class GodEvolutionHelper
             SetQualityWeight(weightsObj, Quality.silver, GodEvolutionQualitySilver * luckyMult);
             SetQualityWeight(weightsObj, Quality.gold, GodEvolutionQualityGold * luckyMult);
             SetQualityWeight(weightsObj, Quality.diamond, GodEvolutionQualityDiamond * luckyMult);
+            _qualityWeightsOverridden = true;
         }
         catch { }
     }
@@ -4571,6 +4926,38 @@ public static class GodEvolutionHelper
     {
         var setItem = weights.GetType().GetMethod("set_Item");
         setItem?.Invoke(weights, new object[] { quality, value });
+    }
+
+    /// <summary>
+    /// 开局基线捕获（REF ShootingManagerPatch.PostStart 同用途）：每次 Start 重新记一份原权重并
+    /// 重置覆写标记（新一局原权重可能被游戏改动）。与 REF 不同的是 superUpgrade 的写入半边
+    /// TARGET 已由 ApplySettings 每帧覆盖（mgr.superUpgrade = ...），不在此重复。
+    /// </summary>
+    public static void CaptureOriginalQualityWeights(ShootingManager mgr)
+    {
+        try
+        {
+            _qualityWeightsField ??= typeof(ShootingManager).GetField("qualityWeights",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            object? weightsObj = _qualityWeightsField?.GetValue(mgr);
+            if (weightsObj == null) return;
+            _originalQualityWeights = new[]
+            {
+                GetQualityWeight(weightsObj, Quality.Default),
+                GetQualityWeight(weightsObj, Quality.silver),
+                GetQualityWeight(weightsObj, Quality.gold),
+                GetQualityWeight(weightsObj, Quality.diamond)
+            };
+            _qualityWeightsOverridden = false;
+        }
+        catch { }
+    }
+
+    private static float GetQualityWeight(object weights, Quality quality)
+    {
+        var getItem = weights.GetType().GetMethod("get_Item");
+        var v = getItem?.Invoke(weights, new object[] { quality });
+        return v is float f ? f : 0f;
     }
 
     public static Quality RollQuality()
@@ -4601,11 +4988,29 @@ public static class GodEvolutionUpdatePatch
     }
 }
 
+// ============================================================================
+// 诸神进化 - 品质权重开局基线捕获（REF ShootingManagerPatch.PostStart:325-333 的基线半边）
+// VA=0x8FF640 全库独占（sharedMembers=1），安全；Start 期一次性调用。
+// REF 的 superUpgrade 写入半边 TARGET 已由 GodEvolutionHelper.ApplySettings 每帧覆盖，不重复。
+// ============================================================================
+[HarmonyPatch(typeof(ShootingManager), "Start")]
+public static class GodEvolutionQualityBaselinePatch
+{
+    public static void Postfix(ShootingManager __instance)
+    {
+        GodEvolutionHelper.CaptureOriginalQualityWeights(__instance);
+    }
+}
+
 [HarmonyPatch(typeof(ShootingManager), "GetRandomQuality")]
 public static class GodEvolutionGetRandomQualityPatch
 {
     public static bool Prefix(ref Quality __result)
     {
+        // 必出棱彩/随机（REF PostGetRandomQuality 后缀语义：棱彩写在随机之后 = 两开关同开时棱彩胜出，
+        // 故此处棱彩先判；两开关都关时只读两个静态位即落到原有品质权重逻辑）
+        if (GodEvolutionForceIridescentBuff) { __result = Quality.iridescent; return false; }
+        if (GodEvolutionForceRandomBuff) { __result = Quality.random; return false; }
         if (!GodEvolutionQualityWeightEnabled) return true;
         __result = GodEvolutionHelper.RollQuality();
         return false;
@@ -4616,10 +5021,28 @@ public static class GodEvolutionGetRandomQualityPatch
 public static class GodEvolutionRegisterCoreBuffPatch
 {
     [HarmonyPrefix]
-    public static void Prefix(ShootingManager __instance)
+    public static bool Prefix(ShootingManager __instance, MultipleChoiceMenu menu)
     {
         GodEvolutionHelper.ApplySettings(__instance);
         GodEvolutionHelper.BeginCoreBuffForce(__instance);
+
+        // 质变词条必出（REF ShootingManagerPatch.PreRegisterCoreBuff :169-257 同语义）：
+        // 接管本次注册，把质变词条直接推进选项池；开关关闭时行为与此前完全一致
+        if (!GodEvolutionForceMutationBuff) return true;
+        try
+        {
+            RegisterMutationOptions(__instance, menu);
+            // 手动收窗：无论 Harmony Finalizer 是否在 prefix 跳过原方法时执行，都保证窗口闭合
+            //（EndCoreBuffForce 幂等，Finalizer 再调一次无副作用）
+            GodEvolutionHelper.EndCoreBuffForce();
+            return false;
+        }
+        catch
+        {
+            // 注册失败一律退回原生逻辑（此时窗口仍开，由原生执行段 + Finalizer 正常收尾），
+            // 绝不吞掉整个菜单 —— 同试炼/战术补丁惯例
+            return true;
+        }
     }
 
     [HarmonyFinalizer]
@@ -4627,6 +5050,108 @@ public static class GodEvolutionRegisterCoreBuffPatch
     {
         GodEvolutionHelper.EndCoreBuffForce();
         return __exception;
+    }
+
+    // REF ShootingManagerPatch.PreRegisterCoreBuff 的移植：遍历当前植物的词条配置，
+    // 质变词条（Title 含「质变」）绕过幸运闸门注册；已有质变记录的植物跳过质变词条，
+    // 非质变词条保留原版幸运判定（避免「质变必出」连带把超进化等稀有词条变成必出）
+    private static void RegisterMutationOptions(ShootingManager __instance, MultipleChoiceMenu menu)
+    {
+        if (__instance == null || menu == null) return;
+        var plantUnlocks = __instance.PlantUnlocks;
+        var mgrBoard = __instance.board;
+        var reporter = mgrBoard != null ? mgrBoard.damageReporter : null;
+        var plants = __instance.CurrentPlants;
+        var plantTotal = plants?.Count ?? 0;
+        for (var pi = 0; pi < plantTotal; pi++)
+        {
+            var plantType = plants![pi];
+            if (!Config.configs.TryGetValue(plantType, out var config)) continue;
+
+            // 伤害占比描述用（REF：总伤害为 0 时按 1 处理，避免除零）
+            float totalDamage = reporter != null ? reporter.totalDamage : 0f;
+            if (totalDamage == 0f) totalDamage = 1f;
+            float damageShare = reporter != null ? reporter.GetDamage(plantType) / totalDamage : 0f;
+            int totalBuffCount = __instance.GetPlantBuffsCount(plantType);
+
+            var buffs = config.Buffs;
+            var buffTotal = buffs?.Count ?? 0;
+            for (var bi = 0; bi < buffTotal; bi++)
+            {
+                var buff = buffs![bi];
+                if (buff == null) continue;
+
+                // 升级词条未解锁则跳过（REF:186-188）
+                if (buff is UpgradeBuff
+                    && (plantUnlocks == null || !plantUnlocks.IsUpgradeUnlocked(plantType, buff.ShowType)))
+                    continue;
+
+                int choiceCount = __instance.GetBuffChoiceCount(plantType, buff.Title);
+                if (choiceCount >= buff.MaxCount || !buff.CanAppear) continue;
+
+                bool isMutation = GodEvolutionHelper.IsMutationBuff(buff);
+
+                // 质变词条：该植物已有质变记录则不再出现（REF:196-212；
+                // Il2Cpp Dictionary 声明了公共 GetEnumerator，foreach 按模式绑定合法 —— REF 同款写法）
+                if (isMutation
+                    && __instance.plantBuffRecords != null
+                    && __instance.plantBuffRecords.TryGetValue(plantType, out var records)
+                    && records != null)
+                {
+                    var hasMutation = false;
+                    foreach (var record in records)
+                    {
+                        if (!string.IsNullOrEmpty(record.Key)
+                            && record.Key.Contains("质变", StringComparison.Ordinal))
+                        {
+                            hasMutation = true;
+                            break;
+                        }
+                    }
+                    if (hasMutation) continue;
+                }
+
+                // 非质变词条保留原版幸运加成概率判定（REF:214-218）
+                if (!isMutation
+                    && buff.AppearWeight < 1f
+                    && Random.value > (__instance._lucky * 0.3f + 1f) * buff.AppearWeight)
+                    continue;
+
+                var originalOnGet = (UnityAction)(buff.OnGet);
+                var capturedTitle = buff.Title;
+                var capturedPlant = plantType;
+
+                var description = choiceCount > 0
+                    ? string.Format("{0}\n已选了{1}次", buff.Description, choiceCount)
+                    : buff.Description;
+
+                if (buff is UpgradeBuff)
+                {
+                    if (Config.configs.TryGetValue(buff.ShowType, out var targetConfig))
+                        description = string.Concat(description, "\n\n定位：", targetConfig.Role);
+                }
+                else if (buff is GeneralBuff)
+                {
+                    description += string.Format(
+                        "\n\n伤害占比：{0:F2}%\n总词条数：{1}",
+                        damageShare * 100f,
+                        totalBuffCount);
+                }
+
+                menu.RegisterOption(
+                    buff.Title,
+                    description,
+                    (UnityAction)(() =>
+                    {
+                        originalOnGet?.Invoke();
+                        __instance.RecordBuffChoice(capturedPlant, capturedTitle);
+                    }),
+                    buff.ShowType,
+                    (ZombieType)(-1),
+                    buff.Rarity,
+                    true);
+            }
+        }
     }
 }
 
@@ -4660,17 +5185,22 @@ public static class GodEvolutionTravelUltimatePatch
     }
 }
 
-[HarmonyPatch(typeof(Random), "Range", typeof(float), typeof(float))]
-public static class GodEvolutionRandomRangePatch
-{
-    public static bool Prefix(float minInclusive, float maxInclusive, ref float __result)
-    {
-        if (!GodEvolutionForceSuperQuality || !GodEvolutionHelper.InRegisterCoreBuff) return true;
-        if (minInclusive != 0f || maxInclusive != 1f) return true;
-        __result = 0f;
-        return false;
-    }
-}
+// ★ 已删除 GodEvolutionRandomRangePatch（原目标：UnityEngine.Random.Range(float,float)）。
+//
+// 它原本在「强制超质变」窗口内把 Random.Range(0f, 1f) 恒返回 0f，等于在 RegisterCoreBuff 期间
+// 把所有 [0,1) 随机数压成 0。这是与「质变词条概率提升会连带超进化词条」同族的**全局**改写：
+// 它并不区分词条，任何在该窗口内用 Range(0f,1f) 做的稀有度/权重掷骰都会被一并短路。
+//
+// 删它的依据（两版对照）：
+//   · 原版真正决定词条是否出现的闸门是 `if (Random.value > (lucky*0.3f+1f) * buff.AppearWeight) continue;`
+//     —— 用的是 **Random.value**，与本补丁改写的 Random.Range(0f,1f) 是**两个不同的成员**，
+//     所以这条改写从来不是「让质变词条必出」的手段（真正的手段是抬高 mgr.Lucky，已一并移除）。
+//   · 参考版（ShootingManagerPatch.cs:216-218）的做法是**逐词条**判定 isMutation，
+//     非质变词条保留原版概率 —— 不存在任何全局随机数改写。
+//   · 现在质变词条的强制放行改由 GodEvolutionAppearWeightPatch / GodEvolutionCanAppearPatch
+//     两个按词条的闸门承担（只对 IsMutationBuff 生效），功能不受影响、作用域反而更精确。
+//
+// 若将来确实需要「窗口内改变某个随机结果」，请针对**具体调用点**做补丁，不要改写全局 Random。
 
 [HarmonyPatch(typeof(ShootingManager), "get_LuckyMultiplier")]
 public static class GodEvolutionLuckyMultiplierPatch
@@ -4697,7 +5227,14 @@ public static class GodEvolutionAppearWeightPatch
             if (tierBoost > 0f)
                 __result *= tierBoost;
         }
-        if (GodEvolutionForceSuperQuality && GodEvolutionHelper.IsQualitativeBuff(__instance))
+        // ★ 修复「质变词条概率提升会连带超进化词条」：
+        // 「强制超质变」只应作用于【质变】词条。此前用 IsQualitativeBuff 判定，
+        // 而该判定同时命中 SuperUpgrade（超进化）/ SuperBuff / SuperForce，
+        // 于是超进化这类稀有词条也被拉成必出。
+        // 注意：参考版对「非质变词条」还有一条原版幸运加成概率判定（AppearWeight < 1 时按
+        // (Lucky*0.3+1)*AppearWeight 掷骰），TARGET 的幸运倍率已由本 Postfix 上方的
+        // GodEvolutionLuckyEnabled 分支统一乘算，语义等价，故此处只需收窄作用域。
+        if (GodEvolutionForceSuperQuality && GodEvolutionHelper.IsMutationBuff(__instance))
             __result = Mathf.Max(__result, 1f);
     }
 }
@@ -4708,7 +5245,8 @@ public static class GodEvolutionCanAppearPatch
     public static void Postfix(BaseBuff __instance, ref bool __result)
     {
         if (!GodEvolutionForceSuperQuality || __instance == null || __result) return;
-        if (GodEvolutionHelper.IsQualitativeBuff(__instance))
+        // 同上：可出现性也只对质变词条强制放行，不再连带给超进化等稀有词条。
+        if (GodEvolutionHelper.IsMutationBuff(__instance))
             __result = true;
     }
 }
@@ -4796,6 +5334,284 @@ public static class CreatePlantLimTravelUnlockAllPlantsPatch
     }
 }
 
+// ============================================================================
+// 解除融合限制（5.3.1 修复，REF ToolMod\Patches\CreatePlantPatch.cs:16-29 同形意图）
+// 前缀短路融合限制判定函数，不再碰 boardTag（旧写法置 isTravel 致 InitMower 提前 return=小推车消失）。
+// ★ 目标挂法（勘误 scan §1.3 的「类级双 [HarmonyPatch]」写法）：0Harmony 反编译实锤
+//   HarmonyMethod.Merge 按字段折叠、非空【后者覆盖前者】——类级叠两个带 methodName 的
+//   [HarmonyPatch] 合并后只剩最后一个目标，前一个被静默丢弃（asmdiff patchcheck 同语义：
+//   这就是单类双特性只验 1 条、OK 比「每目标 +1」预期少 1 的根因）。
+//   正确姿势 = 类级只给 declaring type，两个 [HarmonyPrefix] 各自在【方法级】给自己的方法名。
+// Lim 是 private → 字符串目标（#Blob 堆）；VA：Lim=0x180987B60、LimTravel=0x180987480，全库各=1（独占）。
+// Prefix 返回 false 只跳过原方法，其它补丁（如 UnlockAllPlants 的 Postfix）照常执行。
+// ============================================================================
+[HarmonyPatch(typeof(CreatePlant))]
+public static class RemoveFusionLimitPatch
+{
+    [HarmonyPrefix]
+    [HarmonyPatch("Lim")]
+    public static bool RemoveFusionLimitPrefix(ref bool __result)
+    {
+        if (!PatchMgr.GameModes.RemoveFusionLimit)
+        {
+            return true;
+        }
+        __result = false;
+        return false;
+    }
+
+    [HarmonyPrefix]
+    [HarmonyPatch("LimTravel")]
+    public static bool RemoveFusionLimitTravelPrefix(ref bool __result)
+    {
+        if (!PatchMgr.GameModes.RemoveFusionLimit)
+        {
+            return true;
+        }
+        __result = false;
+        return false;
+    }
+}
+
+// ============================================================================
+// 解锁全部选卡（功能 #5，PortMap §5）
+// REF 挂在 PlantDataManager.CheckIfPlantUnlock 的 Postfix，强制 true。
+// VA=0x6619D0 全库独占（sharedMembers=1），安全。
+// ============================================================================
+[HarmonyPatch(typeof(PlantDataManager), nameof(PlantDataManager.CheckIfPlantUnlock))]
+public static class EnableAllCardsPatch
+{
+    [HarmonyPostfix]
+    public static void PostCheckIfPlantUnlock(ref bool __result)
+    {
+        if (EnableAllCards) __result = true;
+    }
+}
+
+// ============================================================================
+// 植物子弹秒杀僵尸（功能 #6，PortMap §6）
+// REF 挂在 Zombie.ApplyDamage 的 Prefix 并直接 Die()（不是 TakeDamage/BodyTakeDamage）。
+// VA=0x644030 全库独占（sharedMembers=1），安全。
+// ★ 热路径纪律：Zombie.ApplyDamage 每次受伤都走，首句必须是只读静态字段的早退。
+// ★ 作用域闸：board==null 的不是关卡内实例（图鉴预览/手套/预制体死重组件），必须放行，
+//   否则会在启动阶段误伤克隆体（本仓库已多次踩过）。
+// ============================================================================
+[HarmonyPatch(typeof(Zombie), nameof(Zombie.ApplyDamage))]
+public static class HardBulletKillPatch
+{
+    [HarmonyPrefix]
+    public static void PreApplyDamage(Zombie __instance)
+    {
+        if (!HardBullet) return;
+        try
+        {
+            // board==null ⇒ 非关卡内实例，直接放行
+            if (__instance == null || __instance.board == null) return;
+            __instance.Die();
+        }
+        catch { }
+    }
+}
+
+// ============================================================================
+// 星辉冒险 - 天赋节点免费点亮（REF TalentNodePatch.cs:9-27）
+// 前缀把 cost 压成 int.MinValue 保证点击检查通过，后缀归 0 避免污染存档（REF 同款成对写法）。
+// VA=0x1807C94B0 全库独占（sharedMembers=1），安全；点击级方法，非热路径。
+// ============================================================================
+[HarmonyPatch(typeof(TalentNode), "OnPointerDown")]
+public static class TalentNodeStarAdvFreeBuffPatch
+{
+    [HarmonyPrefix]
+    public static void PreOnPointerDown(TalentNode __instance)
+    {
+        // 首行只读静态位（开关关闭时零成本直通原逻辑）；data 判空防 IL2CPP 空包装 NRE
+        if (StarAdvFreeBuff && __instance != null && __instance.data != null)
+            __instance.data.cost = int.MinValue;
+    }
+
+    [HarmonyPostfix]
+    public static void PostOnPointerDown(TalentNode __instance)
+    {
+        if (StarAdvFreeBuff && __instance != null && __instance.data != null)
+            __instance.data.cost = 0;
+    }
+}
+
+// ============================================================================
+// 诸神进化 - 超进化（星辉）词条概率大幅提升（REF StarUpBuffPatch）
+// REF: get_AppearWeight 后缀 → 权重恒 1。StarUpBuff 重写了 AppearWeight（Slot 11），
+// 必须挂在 StarUpBuff 自己的 getter 上（挂 BaseBuff 不会命中重写分派）。
+// VA=0x180931FF0 全库独占（sharedMembers=1），安全；getter 仅词条注册期调用，非热路径。
+// ============================================================================
+[HarmonyPatch(typeof(StarUpBuff), "get_AppearWeight")]
+public static class GodEvolutionForceStarUpBuffPatch
+{
+    [HarmonyPostfix]
+    public static void PostAppearWeight(ref float __result)
+    {
+        if (GodEvolutionForceStarUpBuff) __result = 1f;
+    }
+}
+
+// ============================================================================
+// 诸神进化 - 专家邀请词条概率大幅提升（REF ShootingManagerPatch.PreRegisterExpertBuff :67-91）
+// VA=0x8FBFF0 全库独占（sharedMembers=1），安全；注册期一次性调用，非热路径。
+// ============================================================================
+[HarmonyPatch(typeof(ShootingManager), "RegisterExpertBuff")]
+public static class GodEvolutionForceExpertBuffPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(ShootingManager __instance, MultipleChoiceMenu menu)
+    {
+        if (!GodEvolutionForceExpertBuff) return true;
+        try
+        {
+            if (__instance == null || menu == null) return true;
+
+            // 收集「尚未拥有」的专家植物作候选（REF 的 candidates.GetRandom() 结果被丢弃 = 无副作用死调用，此处省略）
+            var expert = __instance.ExpertPlants;
+            var yours = __instance.YourPlants;
+            var count = expert?.Count ?? 0;
+            var hasCandidate = false;
+            for (var i = 0; i < count; i++)
+            {
+                var p = expert![i];
+                if (yours == null || !yours.Contains(p)) { hasCandidate = true; break; }
+            }
+            // 没有可邀请的专家 → 跳过原生注册（同 REF return false）
+            if (!hasCandidate) return false;
+
+            menu.RegisterOption(
+                "专家邀请",
+                "从多个选项中自选一株专家植物",
+                (UnityAction)(() => menu.actionOnExit += (Action)__instance.ShowExpertBuffMenu),
+                PlantType.EndPumpiner,
+                (ZombieType)(-1),
+                Quality.diamond,
+                true);
+            return false;
+        }
+        catch
+        {
+            // 注册失败退回原生逻辑，绝不吞掉整个菜单（同试炼/战术补丁惯例）
+            return true;
+        }
+    }
+}
+
+// ============================================================================
+// 诸神进化 - 试炼词条概率大幅提升（功能 #7，PortMap §7）
+// REF: ShootingManager.RefisterMissionBuff 的 Prefix；词条池 = AdvBuff 14000~14003。
+// VA=0x8FB060 全库独占（sharedMembers=1），安全。
+// ============================================================================
+[HarmonyPatch(typeof(ShootingManager), nameof(ShootingManager.RefisterMissionBuff))]
+public static class GodEvolutionForceMissionBuffPatch
+{
+    [HarmonyPrefix]
+    public static bool PreRefisterMissionBuff(MultipleChoiceMenu menu)
+    {
+        if (!GodEvolutionForceMissionBuff) return true;
+        try
+        {
+            var pool = new List<AdvBuff>
+            {
+                (AdvBuff)14000, (AdvBuff)14001, (AdvBuff)14002, (AdvBuff)14003
+            };
+
+            var candidates = new List<AdvBuff>();
+            foreach (var a in pool)
+            {
+                var data = TravelMgr.AdvBuffData[a];
+                var curse = data?.Cast<BaseCurse>();
+                if (curse != null && curse.CanAppear)
+                    candidates.Add(a);
+            }
+            if (candidates.Count <= 0)
+                return false;
+
+            var buff = candidates[Random.Range(0, candidates.Count)];
+            var text = TravelMgr.AdvBuffData[buff].Description;
+            if (string.IsNullOrEmpty(text))
+                return false;
+
+            var idx = text.IndexOf('：');
+            var title = idx >= 0 ? text.Substring(0, idx) : text;
+            var body = idx >= 0 ? text.Substring(idx + 1) : string.Empty;
+
+            menu.RegisterOption(
+                "试炼：" + title,
+                body,
+                (UnityAction)(() => TravelMgr.Instance.GetNormalBuff(buff)),
+                PlantType.EndoFlame,
+                (ZombieType)(-1),
+                Quality.curse,
+                true);
+            return false;
+        }
+        catch
+        {
+            // 任何解析/注册失败都退回原生逻辑，绝不吞掉整个菜单
+            return true;
+        }
+    }
+}
+
+// ============================================================================
+// 诸神进化 - 战术词条概率大幅提升（功能 #8，PortMap §8）
+// REF: ShootingGroupBuff.RegisterGeneralBuff 的 Prefix。
+// VA=0x8F4EF0 全库独占（sharedMembers=1），安全。
+// ============================================================================
+[HarmonyPatch(typeof(ShootingGroupBuff), nameof(ShootingGroupBuff.RegisterGeneralBuff))]
+public static class GodEvolutionForceTacticalBuffPatch
+{
+    [HarmonyPrefix]
+    public static bool PreRegisterGeneralBuff(MultipleChoiceMenu menu, ShootingManager manager)
+    {
+        if (!GodEvolutionForceTacticalBuff) return true;
+        try
+        {
+            var available = ShootingGroupBuff.GetAvailableWeights();
+            if (available == null || available.Count == 0)
+                return false;
+
+            menu.RegisterOption(
+                "通用战术",
+                "从多个选项中自选一种战术词条",
+                (UnityAction)(() => menu.actionOnExit += (Action)ShootingGroupBuff.ShowGeneralBuffMenu),
+                PlantType.EndoFlame,
+                (ZombieType)(-1),
+                Quality.diamond,
+                true);
+
+            // 按权重随机取一个 NameToBuffs 条目，注册其 4 个词条
+            var total = 0f;
+            foreach (var kv in available) total += kv.Value;
+            if (total <= 0f) return false;
+
+            var roll = Random.Range(0f, total);
+            string picked = null;
+            foreach (var kv in available)
+            {
+                roll -= kv.Value;
+                if (roll <= 0f) { picked = kv.Key; break; }
+            }
+            if (picked == null) return false;
+
+            var nameToBuffs = ShootingGroupBuff.NameToBuffs;
+            if (nameToBuffs == null || !nameToBuffs.ContainsKey(picked)) return false;
+            var buffs = nameToBuffs[picked];
+            if (buffs == null || buffs.Length < 4) return false;
+
+            ShootingGroupBuff.RegisterGeneralBuffGroup(menu, buffs[0], buffs[1], buffs[2], buffs[3]);
+            return false;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+}
+
 /*
 [HarmonyPatch(typeof(CreatePlant), "Lim")]
 public static class CreatePlantPatchA
@@ -4874,7 +5690,12 @@ public static class UIMgrPatch
         var text1 = obj1.AddComponent<TextMeshProUGUI>();
         text1.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
         text1.color = new Color(1f, 0.41f, 0.71f, 1);
-        text1.text = "修改器原创@Infinite75，\n这是@梧萱梦汐X从@听雨夜荷的fork接手的分支\n若存在任何付费/要求三连+关注/私信发链接的情况\n说明你被盗版骗了，请注意隐私和财产安全！！！\n此信息仅在游戏主菜单和修改窗口显示";
+        // 5.3.1 B2：反盗版覆盖层文本追加「已加载N个Mod」（游戏内中文硬编码，REF 同款）；
+        // 计数 = BepInEx IL2CPP 加载器已注册插件数（含 ToolMod 自身与前置库）。
+        // 注：先把 Count 取到局部变量 —— 插值串洞里 `global::` 的冒号会被当成格式说明符（CS0103）。
+        var modCount = global::BepInEx.Unity.IL2CPP.IL2CPPChainloader.Instance.Plugins.Count;
+        text1.text = "修改器原创@Infinite75，\n这是@梧萱梦汐X从@听雨夜荷的fork接手的分支\n若存在任何付费/要求三连+关注/私信发链接的情况\n说明你被盗版骗了，请注意隐私和财产安全！！！\n此信息仅在游戏主菜单和修改窗口显示"
+                     + $" ｜ 已加载{modCount}个Mod";
         obj1.transform.SetParent(GameObject.Find("Leaves").transform);
         obj1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
         obj1.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
@@ -4963,7 +5784,12 @@ public static class MousePatch
     [HarmonyPrefix]
     public static bool Prefix(Mouse __instance)
     {
-        if (ColumnGlove)
+        // 修复「手套动一列功能刷植物」：只有在手套搬运的两个位置处于【同一行】时才做整列搬家。
+        // 跨行拖动时原实现仍会按源列复制整列植物，等于凭空多刷出一批植物。
+        // 注意 thePlantOnGlove 可能为 null（空手点击），必须先判空再读 thePlantRow。
+        if (ColumnGlove
+            && __instance.thePlantOnGlove != null
+            && __instance.thePlantOnGlove.thePlantRow == __instance.theMouseRow)
         {
             aa = __instance.thePlantOnGlove;   
             int vcol = __instance.theMouseColumn - __instance.thePlantOnGlove.thePlantColumn;
@@ -5012,6 +5838,10 @@ public static class MousePatch
     [HarmonyPostfix]
     public static void Postfix(Mouse __instance)
     {
+        // 手套每次搬运后刷新冷却基线：不同模式下 GetGloveCD() 返回值不同，
+        // 不刷新就会一直用开局那次的旧基线（对应参考版 MousePatch 的同一处理）。
+        try { OriginalGloveFullCD = Lawnf.GetGloveCD(); } catch { }
+
         if (ColumnGlove)
         {
             if (Board.Instance.boardTag.isColumn && aa != null)
@@ -5019,6 +5849,21 @@ public static class MousePatch
                 CreatePlant.Instance.SetPlant(aa.thePlantColumn, aa.thePlantRow, aa.thePlantType);
             }
         }
+    }
+}
+
+// ============================================================================
+// 僵尸手套放卡后刷新冷却基线（REF MousePatch.PostTryToSetZombieByCard:81-86 同语义）——
+// 不刷新则用过僵尸手套后手套 CD 基线过期（SWEEP §2-D3）。
+// VA=0x6A1E50 全库独占（sharedMembers=1），安全；放卡级方法，非热路径。
+// ============================================================================
+[HarmonyPatch(typeof(Mouse), "TryToSetZombieByCard")]
+public static class MouseZombieCardCdPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix()
+    {
+        try { OriginalGloveFullCD = Lawnf.GetGloveCD(); } catch { }
     }
 }
 
@@ -5594,6 +6439,28 @@ public static class ZombieImmuneChomperChompPatch
 
 #endregion
 
+// #20 「对着植物按 H 出现的数据窗口内容消失」修复（PORTMAP_bugfixes.md 第 20 条）：
+// 参考版只在 ModCore.cs:59 注册了 PlantStatisticsModifier 而没有明确的 AddComponent 挂接点
+//（其 PlantDataMenuPatch 是空类）。本目标按任务约定改用现有补丁模式挂接：窗口 Start 之后
+// 幂等地补挂组件，组件自身在 Start 里重建 ScrollRect + 属性行，从而恢复数据窗口内容。
+// ★ 合并 thunk 核查（契约 §6）：PlantDataMenu.Start 自己的 [Address(VA="0x18072A7A0")]，
+//   在 4.0 反编译全库中仅出现 1 次（独占地址，安全）。
+[HarmonyPatch(typeof(PlantDataMenu), "Start")]
+public static class PlantDataMenuStartAttachPatch
+{
+    public static void Postfix(PlantDataMenu __instance)
+    {
+        try
+        {
+            if (__instance == null) return;
+            // 幂等：同一窗口实例只挂一次（每次打开窗口都是新实例，Start 会重新跑）
+            if (__instance.GetComponent<PlantStatisticsModifier>() != null) return;
+            __instance.gameObject.AddComponent<PlantStatisticsModifier>();
+        }
+        catch { }
+    }
+}
+
 public class PatchMgr : MonoBehaviour
 {
     public static Board board = new();
@@ -5643,12 +6510,44 @@ public class PatchMgr : MonoBehaviour
     public static bool GodEvolutionForceSuperQuality { get; set; } = false;
     public static bool GodEvolutionUncrashable { get; set; } = false;
     public static bool GodEvolutionQualityWeightEnabled { get; set; } = false;
-    public static float GodEvolutionQualityDefault { get; set; } = 1f;
-    public static float GodEvolutionQualitySilver { get; set; } = 1f;
-    public static float GodEvolutionQualityGold { get; set; } = 1f;
-    public static float GodEvolutionQualityDiamond { get; set; } = 1f;
+    // #29 游戏侧默认值同样须匹配游戏真实权重 65/23/10/2（否则未收到 UI 同步时按 1/1/1/1 覆盖会把四档拉成等概率）
+    public static float GodEvolutionQualityDefault { get; set; } = 65f;
+    public static float GodEvolutionQualitySilver { get; set; } = 23f;
+    public static float GodEvolutionQualityGold { get; set; } = 10f;
+    public static float GodEvolutionQualityDiamond { get; set; } = 2f;
     public static bool GodEvolutionDamageMultiplierEnabled { get; set; } = false;
     public static float GodEvolutionDamageMultiplier { get; set; } = 1f;
+
+    /// <summary>诸神币修改 - 记录最近一次下发的值（null = 未设置）</summary>
+    public static int? GodEvolutionGodCoin { get; set; } = null;
+
+    /// <summary>诸神进化试炼词条概率大幅提升</summary>
+    public static bool GodEvolutionForceMissionBuff { get; set; } = false;
+
+    /// <summary>诸神进化战术词条概率大幅提升</summary>
+    public static bool GodEvolutionForceTacticalBuff { get; set; } = false;
+
+    /// <summary>诸神进化隐藏难度（等价 shoothard 作弊码）</summary>
+    public static bool GodEvolutionCheatHard { get; set; } = false;
+
+    /// <summary>诸神进化专家邀请词条概率大幅提升</summary>
+    public static bool GodEvolutionForceExpertBuff { get; set; } = false;
+
+    /// <summary>诸神进化超进化（星辉）词条概率大幅提升</summary>
+    public static bool GodEvolutionForceStarUpBuff { get; set; } = false;
+
+    /// <summary>诸神进化质变词条概率大幅提升</summary>
+    public static bool GodEvolutionForceMutationBuff { get; set; } = false;
+
+    /// <summary>诸神进化棱彩词条概率大幅提升</summary>
+    public static bool GodEvolutionForceIridescentBuff { get; set; } = false;
+
+    /// <summary>诸神进化随机词条概率大幅提升</summary>
+    public static bool GodEvolutionForceRandomBuff { get; set; } = false;
+
+    /// <summary>星辉冒险 - 天赋节点免费点亮（REF StarAdvFreeBuff；由 DataProcessor 按协议同步，
+    /// TalentNodeStarAdvFreeBuffPatch 消费）</summary>
+    public static bool StarAdvFreeBuff { get; set; } = false;
     public static bool IsRefreshUnlimited =>
         UnlimitedRefresh || BuffRefreshNoLimit || GodEvolutionUnlimitedRefresh;
 
@@ -5686,10 +6585,30 @@ public class PatchMgr : MonoBehaviour
     public static bool GarlicDay { get; set; } = false;
     public static double GloveFullCD { get; set; } = 0;
     public static bool GloveNoCD { get; set; } = false;
+    /// <summary>
+    /// 手套冷却的「开局基线」。在 Glove.Start 采集一次，之后由 Mouse 的种植/放僵尸路径刷新。
+    /// 存在的意义：关闭「无CD」后必须把 fullCD 还原成游戏原本的值，否则会把陈旧的 0 写回
+    /// ⇒ 表现为「僵尸手套无CD」这种关不掉的无CD bug。
+    /// </summary>
+    public static float OriginalGloveFullCD { get; set; } = 0f;
     public static double HammerFullCD { get; set; } = 0;
     public static bool HammerNoCD { get; set; } = false;
     public static bool WheelNoCD { get; set; } = false;
+    /// <summary>罗盘自定义冷却秒数（-1/负值 = 关闭；REF WheelFullCD 单字段协议，WheelPatchA 消费）</summary>
+    public static double WheelFullCD { get; set; } = -1;
     public static bool HardPlant { get; set; } = false;
+    /// <summary>解锁全部选卡 - 强制 PlantDataManager.CheckIfPlantUnlock 返回 true</summary>
+    public static bool EnableAllCards { get; set; } = false;
+    /// <summary>植物子弹秒杀僵尸 - Zombie.ApplyDamage 前缀命中即 Die</summary>
+    public static bool HardBullet { get; set; } = false;
+    /// <summary>图鉴全解锁（一次性触发标志）</summary>
+    public static bool UnlockAllAlmanac { get; set; } = false;
+    /// <summary>植物全升级 - 每帧把场上植物升到 3 级</summary>
+    public static bool PlantsAllUpgrade { get; set; } = false;
+    /// <summary>植物全星辉 - 每帧给场上植物上星辉</summary>
+    public static bool PlantsAllStarUp { get; set; } = false;
+    /// <summary>锁定全场光照等级；-1 = 关闭</summary>
+    public static int LockLightLevel { get; set; } = -1;
     public static bool ImmuneForceDeduct { get; set; } = false;
     public static bool CurseImmunity { get; set; } = false;
     public static bool CrushImmunity { get; set; } = false;
@@ -6038,8 +6957,27 @@ public class PatchMgr : MonoBehaviour
     public static float SyncSpeed { get; set; } = -1;
     private static float _lastGameSpeed = -1; // 记录上次游戏内部速度，用于检测变化
     private static float _lastWrittenTimeScale = -1f; // 上一帧记录的 Time.timeScale，用于检测游戏对时停速率的外部改写
+    // ★ 外部接管闩（修复「游戏弹出失败框时，游戏内时间不暂停」）：游戏菜单/弹窗自行写 timeScale=0 后
+    //   置位，让路期间不写速率也不刷基线，直到游戏恢复速率（BaseMenu.OnExit 还原 gameSpeed）才收回控制权。
+    private static bool _externalTimeScaleHandoff = false;
+
+    /// <summary>由失败界面/外部弹窗主动武装接管闩（看门狗随即停止写入 timeScale，直到游戏恢复速率才收回）。</summary>
+    public static void ArmTimeScaleHandoff()
+    {
+        _externalTimeScaleHandoff = true;
+    }
     public static bool IsSpeedModifiedByTool { get; set; } = false; // 标记修改器是否主动设置了速度
     public static bool GameSpeedEnabled { get; set; } = false; // 游戏速度功能开关，默认关闭
+
+    // ★ 2026-09-25 修复「用完高级时停后，原版按键3的慢速无法解除」：
+    //   旧实现里时停快捷键会**自动打开** GameSpeedEnabled（否则时停没有写 timeScale 的权限），
+    //   但**没有任何对称的自动关闭** ⇒ 用过一次高级时停后，本插件就永久接管了 Time.timeScale，
+    //   并与游戏自身的慢速开关（InGameBtn#3 / SlowTrigger）在**同一入口**上形成双 owner：
+    //   游戏按 3 开慢速、插件也按 3 切自己的 TimeSlow；再按 3 时插件关掉了、游戏那侧还开着
+    //   ⇒ 表现正是「再按 3 解除不了慢速」；手动静停/返回会重置游戏侧状态，故那一次能恢复。
+    //   修法：记下"这个开关是时停自动打开的"，等 TimeStop/TimeSlow 全部关闭时**对称还原为 false**，
+    //   把 timeScale 的所有权还给游戏；用户自己手动开的开关（本标志为 false）不动。
+    private static bool _gameSpeedAutoEnabledByTimeStop = false;
     public static bool TimeSlow { get; set; }
     public static bool TimeStop { get; set; }
     public static bool[] UltiBuffs { get; set; } = [];
@@ -6061,6 +6999,46 @@ public class PatchMgr : MonoBehaviour
     public static float ZombieSpeedMultiplier { get; set; } = 1.0f;
     public static bool ZombieAttackMultiplierEnabled { get; set; } = false;
     public static float ZombieAttackMultiplier { get; set; } = 1.0f;
+    // 僵尸血量倍率：-1 = 关闭（哨兵，与参考版 PatchDataCache.ZombieHealthMultiplier 一致）；
+    // >0 = 对【新生成】僵尸的本体+一二类甲六项血量按倍率缩放（CreateZombieHealthMultiplierPatch 首句 `<=0` 早退）。
+    public static float ZombieHealthMultiplier { get; set; } = -1f;
+    // ---- 植物速度/攻击/血量三件套（5.3.1 #7 + 缺号6；与僵尸三倍率字段并排）----
+    // TARGET 语义：Enabled+值双判（enabled && value != 1.0f 才生效），不用 REF 的 -1 哨兵；
+    // 关闭不回滚已乘值（REF 等价：重进关卡自然还原）。
+    public static bool PlantSpeedMultiplierEnabled { get; set; } = false;
+    public static float PlantSpeedMultiplier { get; set; } = 1.0f;
+    public static bool PlantAttackMultiplierEnabled { get; set; } = false;
+    public static float PlantAttackMultiplier { get; set; } = 1.0f;
+    public static bool PlantHealthMultiplierEnabled { get; set; } = false;
+    public static float PlantHealthMultiplier { get; set; } = 1.0f;
+
+    /// <summary>
+    /// 一次性：对【场上已存在】的全部僵尸按倍率缩放血量并刷新血条
+    /// （对应参考版 ToolMod\Components\DataProcessor.cs:2329 SetZombieHealthRatio 按钮）。
+    /// 与 CreateZombieHealthMultiplierPatch 互补：一个管以后出生的，一个管已经在场的。
+    /// </summary>
+    public static void ApplyZombieHealthRatio(float ratio)
+    {
+        if (ratio <= 0f) return;
+        try
+        {
+            if (Board.Instance == null || Board.Instance.zombieArray == null) return;
+            var zs = Board.Instance.zombieArray;
+            for (int i = 0; i < zs.Count; i++)
+            {
+                var z = zs[i];
+                if (z == null) continue;
+                z.theHealth = (int)(z.theHealth * ratio);
+                z.theFirstArmorHealth = (int)(z.theFirstArmorHealth * ratio);
+                z.theSecondArmorHealth = (int)(z.theSecondArmorHealth * ratio);
+                z.theMaxHealth = (int)(z.theMaxHealth * ratio);
+                z.theFirstArmorMaxHealth = (int)(z.theFirstArmorMaxHealth * ratio);
+                z.theSecondArmorMaxHealth = (int)(z.theSecondArmorMaxHealth * ratio);
+                z.UpdateHealthText();
+            }
+        }
+        catch { }
+    }
     public static bool PickaxeImmunity { get; set; } = false;
     public static bool ZombieBulletReflectEnabled { get; set; } = false;
     public static float ZombieBulletReflectChance { get; set; } = 10.0f;
@@ -6264,6 +7242,60 @@ public class PatchMgr : MonoBehaviour
         }
     }
 
+    // ---- ApplyStarUpBuffSilent 的反射句柄缓存 ----
+    // 契约 §5 性能红线：逐帧方法里禁止反射/GetMethod。这里只在首次调用时解析一次，
+    // 之后都是静态字段读取；解析失败也有独立闩（_starUpReflectionReady），不会每帧重试最贵的操作。
+    private static bool _starUpReflectionReady;
+    private static System.Reflection.MethodInfo? _cachedStarUpMethod;
+    private static System.Reflection.PropertyInfo? _cachedStarUpProperty;
+    private static System.Reflection.FieldInfo? _cachedStarUpField;
+    private static System.Reflection.MethodInfo? _cachedUpdateStarIconMethod;
+
+    /// <summary>
+    ///     静默版上星辉，供「植物全星辉」逐帧循环使用。
+    ///     与 ApplyStarUpBuff 的差别（这是它存在的理由）：
+    ///       ① 反射句柄只解析一次并缓存 —— 逐帧 × 每植物调用，绝不能每次 GetMethod；
+    ///       ② 全程不打日志 —— 原版在失败路径上会 LogWarning/LogError，逐帧 × 大量植物会刷爆日志；
+    ///       ③ 不做事后验证读取 —— 逐帧重复验证没有意义，省一次封送。
+    ///     行为上仍与 ApplyStarUpBuff 一致：StarUp() → 置 starUp 标记 → UpdateStarIcon()。
+    /// </summary>
+    internal static void ApplyStarUpBuffSilent(Plant plant)
+    {
+        if (plant == null) return;
+
+        try
+        {
+            if (!_starUpReflectionReady)
+            {
+                _starUpReflectionReady = true;
+
+                const BindingFlags Flags =
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                _cachedStarUpMethod = typeof(Plant).GetMethod("StarUp", Flags);
+                _cachedStarUpProperty = typeof(Plant).GetProperty("starUp", Flags);
+                _cachedStarUpField = typeof(Plant).GetField("starUp", Flags);
+                _cachedUpdateStarIconMethod = typeof(Plant).GetMethod("UpdateStarIcon", Flags);
+            }
+
+            // 步骤1：调用 StarUp()（原版会走 OnStarUp 否决链，失败也不抛）
+            try { _cachedStarUpMethod?.Invoke(plant, null); }
+            catch { }
+
+            // 步骤2：补置 starUp 标记 —— 必须做，因为部分植物的 OnStarUp 会否决（如模仿者只在旅行关允许）
+            try
+            {
+                if (_cachedStarUpProperty != null) _cachedStarUpProperty.SetValue(plant, true);
+                else _cachedStarUpField?.SetValue(plant, true);
+            }
+            catch { }
+
+            // 步骤3：刷新星辉图标
+            try { _cachedUpdateStarIconMethod?.Invoke(plant, null); }
+            catch { }
+        }
+        catch { }
+    }
+
     /// <summary>
     /// 随机升级模式 - 点击植物操控(WASD移动)
     /// </summary>
@@ -6294,6 +7326,41 @@ public class PatchMgr : MonoBehaviour
         };
     }
 
+    /// <summary>
+    /// #15 判断鼠标世界坐标是否位于棋盘网格区域内。
+    /// 游戏内部 Mouse.GetColumnFromX / GetRowFromY 对网格外的点击总是 clamp 到最近格子的坐标，
+    /// 仅靠 theMouseColumn/theMouseRow 无法区分点击是否在网格外 ——
+    /// 因此必须用原始鼠标世界坐标（mouseX/mouseY）与游戏自身的网格边界
+    /// （Board.gridSystem.GridMinX/GridMaxX/GridMinY/GridMaxY）比对，
+    /// 才能实现「鼠标在网格之外时不识别任何格子」（星辉升级 / 图鉴种植 / 随机升级 / 植物升级等按格操作）。
+    /// 出错时保守放行（return true），避免影响功能可用性。
+    /// </summary>
+    private static bool IsMouseInsideGrid()
+    {
+        try
+        {
+            var board = Board.Instance;
+            var mouse = Mouse.Instance;
+            if (board == null || mouse == null) return false;
+
+            var grid = board.gridSystem;
+            if (grid == null) return false;
+
+            float x = mouse.mouseX;
+            float y = mouse.mouseY;
+
+            // GridMinX/GridMaxX/GridMinY/GridMaxY 由游戏自身按列/行几何计算，
+            // 与点击→格子的映射一致，即为棋盘网格的精确外边界。
+            return x >= grid.GridMinX && x <= grid.GridMaxX &&
+                   y >= grid.GridMinY && y <= grid.GridMaxY;
+        }
+        catch
+        {
+            // 出错时保守放行，避免影响星辉/图鉴功能
+            return true;
+        }
+    }
+
     public void Update()
     {
         try
@@ -6311,9 +7378,12 @@ public class PatchMgr : MonoBehaviour
             bool timeStopKeyPressed = Input.GetKeyDown(Core.KeyTimeStop.Value.Value);
 
             // 使用时停快捷键时，自动开启“启用游戏速度修改”。
+            // ★ 记下这是"自动打开的"：等时停/慢速全部结束时对称关掉，否则本插件会永久接管
+            //   Time.timeScale，把游戏自带的按键3慢速开关顶掉（见 _gameSpeedAutoEnabledByTimeStop 注释）。
             if (timeStopKeyPressed && !GameSpeedEnabled)
             {
                 GameSpeedEnabled = true;
+                _gameSpeedAutoEnabledByTimeStop = true;
             }
 
             // 只有在游戏速度功能开启时才允许时停/慢速操作
@@ -6325,11 +7395,33 @@ public class PatchMgr : MonoBehaviour
                 TimeSlow = false;
             }
 
-            if (Input.GetKeyDown(KeyCode.Alpha3))
+            // ★★ 2026-09-25 修复（实机日志定案）：**按键3 的慢速完全交还游戏本体**。
+            //   证据（用户日志，gate=False 即插件未接管的时段）：
+            //       timeScale 0.20 -> 1.00 | gate=False slow=False
+            //       timeScale 1.00 -> 0.20 | gate=False slow=False
+            //   ⇒ 游戏自己就在 1.00 ↔ 0.20 之间翻转，**每次按3游戏自行开/关慢速**。
+            //   旧实现让插件在同一入口也切换自己的 TimeSlow 位，于是：
+            //      第1次按3：游戏→0.2，插件 TimeSlow→true，也写 0.2（同向，看不出）
+            //      第2次按3：游戏→1.0，插件本应翻回 false；但因两边同帧消费同一次按键，
+            //                插件那次没翻回去（日志 slow 长期=True）⇒ 此后每帧强写 0.2
+            //                ⇒ **游戏写的 1.0 被顶掉**，表现就是「再按3解除不了慢速」。
+            //   现改为：插件**不再消费按键3**（不切 TimeSlow），让游戏独占该开关；
+            //   只保留高级时停（KeyTimeStop）这一条自己的通道。
+
+            // ★ 对称归还所有权：时停与慢速都已关闭，且当初是这个功能"自动开的" ⇒ 还原为关闭，
+            //   让 timeScale 完全交回游戏（此后按键3/时停按钮由游戏自身处理，不会再被顶掉）。
+            if (!TimeStop && !TimeSlow && _gameSpeedAutoEnabledByTimeStop)
             {
-                TimeStop = false;
-                TimeSlow = !TimeSlow;
+                GameSpeedEnabled = false;
+                _gameSpeedAutoEnabledByTimeStop = false;
+                try
+                {
+                    Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
+                    _lastWrittenTimeScale = -1f;      // 交还控制权：清基线，避免下轮看门狗误判"外部改写"
+                    _externalTimeScaleHandoff = false;
                 }
+                catch { }
+            }
             }
             else
             {
@@ -6339,6 +7431,7 @@ public class PatchMgr : MonoBehaviour
                     TimeStop = false;
                     TimeSlow = false;
                 }
+                _gameSpeedAutoEnabledByTimeStop = false;
             }
 
             if (Input.GetKeyDown(Core.KeyShowGameInfo.Value.Value)) ShowGameInfo = !ShowGameInfo;
@@ -6380,29 +7473,76 @@ public class PatchMgr : MonoBehaviour
             // 应用速度设置：只有在功能开启时才修改 Time.timeScale
             if (GameSpeedEnabled)
             {
-                // 检测游戏对 Time.timeScale 的外部直接改写（关卡机制/演出等）：
-                // 非时停/慢速状态下，若实际值与上一帧记录值不一致，说明游戏主动改了时停速率，
-                // 本帧不覆盖，让游戏的速率生效并显示在时停UI上；游戏恢复后工具恢复控制。
-                bool externalTimeScaleChanged = false;
+                // ★★ 2026-09-25 修复：**游戏自己在切时停/慢速时，插件必须整体让路**。
+                //   实机日志证据（gate=False 段）= 游戏自己在 1.00 ↔ 0.20 之间翻转；
+                //   而 gate=True 段的 `1.00 -> 0.20 | latch=True slow=True` 说明：
+                //   插件每帧按自己的位写速率，恰好顶掉了游戏"关慢速"写下的 1.00 ⇒ 慢速关不掉。
+                //   判据：只要观测到 timeScale 偏离我们上次写入值、且**不是**插件自己的 stop/slow 造成的，
+                //   就认为"游戏正在驱动速率" ⇒ 立即放弃所有权（关总开关 + 清基线），
+                //   之后完全由游戏处理按键3/时停按钮，直到玩家再次按高级时停。
+                bool gameDrivingRate = false;
+                try
+                {
+                    gameDrivingRate =
+                        !TimeStop && !TimeSlow && !InGameBtnPatch.BottomEnabled &&
+                        _lastWrittenTimeScale >= 0f &&
+                        Mathf.Abs(Time.timeScale - _lastWrittenTimeScale) > 0.01f;
+                }
+                catch { }
+
+                if (gameDrivingRate)
+                {
+                    // 交还所有权：武装接管闩（本帧就走 externalTakeover ⇒ 不写 timeScale），
+                    // 并把"自动打开的总开关"按对称规则关掉，之后按键3 完全归游戏。
+                    try
+                    {
+                        _externalTimeScaleHandoff = true;
+                        GameSpeedEnabled = false;
+                        _gameSpeedAutoEnabledByTimeStop = false;
+                        _lastWrittenTimeScale = -1f;
+                    }
+                    catch { }
+                }
+
+                // 检测游戏对 Time.timeScale 的外部直接改写（菜单/失败弹窗等会自行 timeScale=0）。
+                // ★ 外部接管闩：外部一改就置位，期间不写、不刷基线，直到游戏自己恢复速率才收回控制权。
+                //   旧实现只让路一帧：基线随即被污染成外部值（0），第 2 帧就把弹窗的暂停顶回 gameSpeed，
+                //   表现正是「弹窗开着、游戏内时间不暂停」。
+                bool externalTakeover = false;
                 try
                 {
                     if (!TimeStop && !TimeSlow && !InGameBtnPatch.BottomEnabled &&
                         _lastWrittenTimeScale >= 0f &&
                         Mathf.Abs(Time.timeScale - _lastWrittenTimeScale) > 0.01f)
                     {
-                        externalTimeScaleChanged = true;
+                        _externalTimeScaleHandoff = true;
+                    }
+                    if (_externalTimeScaleHandoff)
+                    {
+                        float normalRate = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
+                        if (Mathf.Abs(Time.timeScale - normalRate) <= 0.01f ||
+                            Mathf.Abs(Time.timeScale - _lastWrittenTimeScale) <= 0.01f)
+                        {
+                            // 游戏写回「正常速率」或「我们上次写入的值」 = 弹窗已关闭/恢复 → 收回控制权
+                            _externalTimeScaleHandoff = false;
+                        }
+                        else
+                        {
+                            externalTakeover = true; // 仍在接管（弹窗未关）：本帧让路，基线保持不变
+                        }
                     }
                 }
                 catch { }
 
                 // 功能开启时，应用速度设置
-                if (!TimeStop && !TimeSlow)
+                if (externalTakeover)
                 {
-                    if (externalTimeScaleChanged)
-                    {
-                        // 保持游戏设置的速率，本帧不覆盖（仅刷新下方记录）
-                    }
-                    else if (SyncSpeed >= 0 && IsSpeedModifiedByTool)
+                    // 外部接管中：不写 Time.timeScale，也绝不更新 _lastWrittenTimeScale（基线留作恢复握手）
+                }
+                else if (!TimeStop && !TimeSlow)
+                {
+                    _externalTimeScaleHandoff = false;
+                    if (SyncSpeed >= 0 && IsSpeedModifiedByTool)
                     {
                         // 修改器主动设置了速度，应用修改器的速度
                         Time.timeScale = SyncSpeed;
@@ -6412,22 +7552,25 @@ public class PatchMgr : MonoBehaviour
                         // 如果修改器没有设置速度，恢复为游戏内部速度
                         Time.timeScale = GameAPP.config != null ? GameAPP.config.gameSpeed : 1f;
                     }
+                    try { _lastWrittenTimeScale = Time.timeScale; } catch { }
                 }
                 else if (!TimeStop && TimeSlow)
                 {
                     Time.timeScale = 0.2f;
+                    _externalTimeScaleHandoff = false;
+                    try { _lastWrittenTimeScale = Time.timeScale; } catch { }
                 }
                 else if (InGameBtnPatch.BottomEnabled || (TimeStop && !TimeSlow))
                 {
                     Time.timeScale = 0;
+                    _externalTimeScaleHandoff = false;
+                    try { _lastWrittenTimeScale = Time.timeScale; } catch { }
                 }
-
-                // 记录本帧最终的 timeScale，供下一帧检测游戏外部改写
-                try { _lastWrittenTimeScale = Time.timeScale; } catch { }
             }
             else
             {
                 // 功能关闭时不写入，仅跟随记录实际值，避免重新开启时误判外部改写
+                _externalTimeScaleHandoff = false;
                 try { _lastWrittenTimeScale = Time.timeScale; } catch { }
             }
             // 功能关闭时，不修改 Time.timeScale，让游戏内部的速度调整功能正常工作
@@ -6462,8 +7605,8 @@ public class PatchMgr : MonoBehaviour
             {
                 if (PlantUpgrade && Board.Instance != null && Mouse.Instance != null)
                 {
-                    // 检测鼠标右键点击
-                    if (Input.GetMouseButtonDown(1))
+                    // 检测鼠标右键点击（#15：网格外不识别任何格子，避免 clamp 到最近格）
+                    if (Input.GetMouseButtonDown(1) && IsMouseInsideGrid())
                     {
                         // 获取鼠标所在格子的植物
                         int column = Mouse.Instance.theMouseColumn;
@@ -6494,12 +7637,12 @@ public class PatchMgr : MonoBehaviour
             {
                 if (RandomUpgradeMode && Board.Instance != null && Mouse.Instance != null)
                 {
-                    // 左键点击植物来操控，再次点击同一植物则停止操控
-                    if (Input.GetMouseButtonDown(0))
+                    // 左键点击植物来操控，再次点击同一植物则停止操控（#15：网格外不识别任何格子）
+                    if (Input.GetMouseButtonDown(0) && IsMouseInsideGrid())
                     {
                         int column = Mouse.Instance.theMouseColumn;
                         int row = Mouse.Instance.theMouseRow;
-                        
+
                         // 先检查是否点击了当前操控的植物（根据植物当前位置）
                         var controled = Board.Instance.controledPlant;
                         if (controled != null && controled.thePlantColumn == column && controled.thePlantRow == row)
@@ -6554,8 +7697,11 @@ public class PatchMgr : MonoBehaviour
             {
                 if (StarUpBuff && Board.Instance != null && Mouse.Instance != null)
                 {
-                    // 左键点击植物来应用星辉buff
-                    if (Input.GetMouseButtonDown(0))
+                    // 左键点击植物来应用星辉buff。
+                    // 游戏内部 Mouse.GetColumnFromX/GetRowFromY 会把网格外的点击 clamp 到最近的合法格子，
+                    // 仅靠 theMouseColumn/theMouseRow 无法区分点击是否在网格外（#15 星辉升级网格外强制识别最近格），
+                    // 因此先判断鼠标是否真的落在棋盘网格区域内，网格外不识别任何格子。
+                    if (Input.GetMouseButtonDown(0) && IsMouseInsideGrid())
                     {
                         int column = Mouse.Instance.theMouseColumn;
                         int row = Mouse.Instance.theMouseRow;
@@ -6581,8 +7727,9 @@ public class PatchMgr : MonoBehaviour
             {
                 if (Board.Instance != null && Mouse.Instance != null)
                 {
-                    // 放置植物
-                    if (Input.GetKeyDown(Core.KeyAlmanacCreatePlant.Value.Value) && AlmanacSeedType != -1)
+                    // 放置植物（#15：网格外不识别任何格子）
+                    if (Input.GetKeyDown(Core.KeyAlmanacCreatePlant.Value.Value) && AlmanacSeedType != -1 &&
+                        IsMouseInsideGrid())
                     {
                         if (CreatePlant.Instance != null)
                             CreatePlant.Instance.SetPlant(Mouse.Instance.theMouseColumn, Mouse.Instance.theMouseRow,
@@ -6593,9 +7740,10 @@ public class PatchMgr : MonoBehaviour
                     if (Input.GetKeyDown(Core.KeyAlmanacZombieMindCtrl.Value.Value))
                         Core.AlmanacZombieMindCtrl.Value.Value = !Core.AlmanacZombieMindCtrl.Value.Value;
 
-                    // 放置僵尸
+                    // 放置僵尸（#15：网格外不识别任何格子）
                     if (Input.GetKeyDown(Core.KeyAlmanacCreateZombie.Value.Value) &&
-                        AlmanacZombieType is not ZombieType.Nothing)
+                        AlmanacZombieType is not ZombieType.Nothing &&
+                        IsMouseInsideGrid())
                     {
                         if (CreateZombie.Instance != null)
                         {
@@ -6608,8 +7756,9 @@ public class PatchMgr : MonoBehaviour
                         }
                     }
 
-                    // 植物罐子 - 使用 ScaryPot_plant 类型
-                    if (Input.GetKeyDown(Core.KeyAlmanacCreatePlantVase.Value.Value) && AlmanacSeedType != -1)
+                    // 植物罐子 - 使用 ScaryPot_plant 类型（#15：网格外不识别任何格子）
+                    if (Input.GetKeyDown(Core.KeyAlmanacCreatePlantVase.Value.Value) && AlmanacSeedType != -1 &&
+                        IsMouseInsideGrid())
                     {
                         var gridItem = GridItem.SetGridItem(Mouse.Instance.theMouseColumn, Mouse.Instance.theMouseRow,
                             GridItemType.ScaryPot_plant);
@@ -6623,9 +7772,10 @@ public class PatchMgr : MonoBehaviour
                         }
                     }
 
-                    // 僵尸罐子 - 使用 ScaryPot_zombie 类型
+                    // 僵尸罐子 - 使用 ScaryPot_zombie 类型（#15：网格外不识别任何格子）
                     if (Input.GetKeyDown(Core.KeyAlmanacCreateZombieVase.Value.Value) &&
-                        AlmanacZombieType is not ZombieType.Nothing)
+                        AlmanacZombieType is not ZombieType.Nothing &&
+                        IsMouseInsideGrid())
                     {
                         var gridItem = GridItem.SetGridItem(Mouse.Instance.theMouseColumn, Mouse.Instance.theMouseRow,
                             GridItemType.ScaryPot_zombie);
@@ -6667,6 +7817,48 @@ public class PatchMgr : MonoBehaviour
         if (LockSun) Board.Instance!.theSun = LockSunCount;
         if (LockMoney) Board.Instance!.theMoney = LockMoneyCount;
         if (StopSummon) Board.Instance!.iceDoomFreezeTime = 1;
+
+        // 功能 #16：锁定全场光照等级（PortMap §16）
+        // REF 用独立 ToolsUpdater 逐帧遍历 gridSystem 写 BoardGrid.lightLevel；
+        // TARGET 无 ToolsUpdater，挂在同一个 Board.Update 逐帧点。
+        // 热路径纪律：首句只读静态 int，未启用时零开销（不做任何 native 访问）。
+        if (LockLightLevel >= 0 && Board.Instance != null && Board.Instance.gridSystem != null)
+        {
+            try
+            {
+                var gridEnum = Board.Instance.gridSystem.System_Collections_IEnumerable_GetEnumerator();
+                while (gridEnum.MoveNext())
+                {
+                    var grid = gridEnum.Current?.TryCast<BoardGrid>();
+                    if (grid != null) grid.lightLevel = LockLightLevel;
+                }
+            }
+            catch { }
+        }
+
+        // 功能 #10：植物全升级 / 全星辉（PortMap §10）
+        // 同样挂在逐帧点；两个开关都关时只付两次静态 bool 读取。
+        if (PlantsAllUpgrade || PlantsAllStarUp)
+        {
+            try
+            {
+                var plantArr = Board.Instance?.boardEntity?.plantArray;
+                if (plantArr != null)
+                    for (var i = 0; i < plantArr.Count; i++)
+                    {
+                        var plant = plantArr[i];
+                        if (plant == null || !plant) continue;
+
+                        if (PlantsAllUpgrade && plant.theLevel < 3)
+                            plant.Upgrade(3);
+
+                        if (PlantsAllStarUp)
+                            ApplyStarUpBuffSilent(plant);
+                    }
+            }
+            catch { }
+        }
+
         if (ZombieSea)
             if (++seaTime >= ZombieSeaCD &&
                 Board.Instance!.theWave is not 0 && Board.Instance!.theWave < Board.Instance!.theMaxWave &&
@@ -7021,19 +8213,13 @@ public class PatchMgr : MonoBehaviour
         new Thread(SyncInGameBuffs).Start();
 
         // 进入游戏后重新读取所有词条（包括二创插件延迟注册的），并发送给修改器 UI
-        MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 准备重新读取词条数据（第1次）");
         yield return new WaitForSeconds(1.5f);
-        MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 开始重新读取词条数据（第1次）");
         ReloadAndSendBuffsData();
 
-        MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 准备重新读取词条数据（第2次）");
         yield return new WaitForSeconds(1.5f);
-        MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 开始重新读取词条数据（第2次）");
         ReloadAndSendBuffsData();
 
-        MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 准备重新读取词条数据（第3次）");
         yield return new WaitForSeconds(1.0f);
-        MLogger?.LogInfo("[PVZRHTools] PostInitBoard: 开始重新读取词条数据（第3次）");
         ReloadAndSendBuffsData();
 
         yield return null;
@@ -7308,6 +8494,8 @@ public class PatchMgr : MonoBehaviour
     /// 重新读取所有词条数据（包括MOD添加的）并发送给UI
     /// 在进入游戏后调用，确保MOD词条已注册
     /// </summary>
+    private static string? _lastBuffReloadLog;
+
     public static void ReloadAndSendBuffsData()
     {
         try
@@ -7327,9 +8515,14 @@ public class PatchMgr : MonoBehaviour
             List<string> ultiBuffs = BuffDataCollector.ToLines(ultiTexts);
             List<string> debuffs = BuffDataCollector.ToLines(debuffTexts);
 
-            MLogger?.LogInfo($"[PVZRHTools] ReloadAndSendBuffsData: Advanced={advBuffs.Count} (max={BuffDataCollector.GetMaxKey(advTexts)}), " +
-                             $"Ultimate={ultiBuffs.Count} (max={BuffDataCollector.GetMaxKey(ultiTexts)}), " +
-                             $"Debuff={debuffs.Count} (max={BuffDataCollector.GetMaxKey(debuffTexts)})");
+            var summary = $"[PVZRHTools] ReloadAndSendBuffsData: Advanced={advBuffs.Count} (max={BuffDataCollector.GetMaxKey(advTexts)}), " +
+                          $"Ultimate={ultiBuffs.Count} (max={BuffDataCollector.GetMaxKey(ultiTexts)}), " +
+                          $"Debuff={debuffs.Count} (max={BuffDataCollector.GetMaxKey(debuffTexts)})";
+            if (!string.Equals(summary, _lastBuffReloadLog, System.StringComparison.Ordinal))
+            {
+                _lastBuffReloadLog = summary;
+                MLogger?.LogInfo(summary);
+            }
 
             int newAdvSize = BuffDataCollector.GetRequiredArraySize(advTexts);
             if (AdvBuffs == null || AdvBuffs.Length < newAdvSize)
@@ -7952,6 +9145,25 @@ public static class TravelMgrSafeGuardsPatch
             }
             catch { }
             return null; // 吞掉异常
+        }
+        return null;
+    }
+
+    // 旅行解锁兜底（REF TravelMgrPatch.Finalizer_UnlockPlant:205-224 同语义）：
+    // UnlockPlant 抛异常时只记警告并吞掉，防止旅行解锁链路把游戏带崩（SWEEP §2-D14）。
+    // VA=0x6B3800 全库独占（sharedMembers=1），安全；解锁级方法，非热路径。
+    [HarmonyFinalizer]
+    [HarmonyPatch("UnlockPlant")]
+    public static Exception? Finalizer_UnlockPlant(Exception? __exception)
+    {
+        if (__exception != null)
+        {
+            try
+            {
+                PatchMgr.MLogger?.LogWarning($"[PVZRHTools] UnlockPlant 发生异常，已忽略：{__exception.GetType().Name} - {__exception.Message}");
+            }
+            catch { }
+            return null; // 吞掉异常，防止崩溃
         }
         return null;
     }

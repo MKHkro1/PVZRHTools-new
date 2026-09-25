@@ -10,6 +10,8 @@ using CommunityToolkit.Mvvm.Input;
 using FastHotKeyForWPF;
 using HandyControl.Tools.Extension;
 using ToolModData;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace PVZRHTools;
 
@@ -103,6 +105,33 @@ public partial class ModifierViewModel : ObservableObject
     private bool _inGameHotkeysLoadedFromSave;
 
     [ObservableProperty] public partial bool IsLoading { get; set; } = true;
+
+    /// <summary>关于修改器覆盖层（5.3.1 #3）：窗口内嵌弹层开关</summary>
+    [ObservableProperty] public partial bool IsAboutOpen { get; set; }
+
+    /// <summary>标题栏「关于」按钮与覆盖层关闭按钮共用（开↔关）</summary>
+    [RelayCommand]
+    public void ShowAbout()
+    {
+        IsAboutOpen = !IsAboutOpen;
+    }
+
+    /// <summary>左侧栏收起（5.3.1 #5 收起半边；图标半边判 SUPERSEDED 未做）</summary>
+    [ObservableProperty] public partial bool SidebarCollapsed { get; set; }
+
+    /// <summary>
+    /// 自定义面板（2026-09-25 新增「自由度排版」功能区）：
+    /// 玩家把常用功能收藏到自己的页面，可调顺序、可选 1/2/3 列。
+    /// 面板项的控件由 CustomLayoutCatalog 的构建函数**独立实例化**，与原页面互不影响（见该文件设计说明）。
+    /// </summary>
+    public CustomPanelViewModel CustomPanel { get; } = new();
+
+    /// <summary>标题栏侧栏切换按钮</summary>
+    [RelayCommand]
+    public void ToggleSidebar()
+    {
+        SidebarCollapsed = !SidebarCollapsed;
+    }
 
     public ModifierViewModel()
     {
@@ -225,6 +254,11 @@ public partial class ModifierViewModel : ObservableObject
             foreach (var debuff in InGameDebuffs)
                 AllInGameBuffs.Add(debuff);
         }
+
+        // 自定义面板（「自由度排版」）：面板一变动就落盘。
+        // ★ 不走 SyncAll()：后者被「保存设置(NeedSave)」开关门控，而布局是玩家对界面的偏好，
+        //   与"是否把设置同步进游戏"无关 ⇒ 必须独立持久化，否则改了布局重启就丢。
+        CustomPanel.Changed = PersistCustomPanel;
 
         TravelBuffs.ListChanged += (sender, e) => SyncTravelBuffs();
         InGameBuffs.ListChanged += (sender, e) => 
@@ -404,12 +438,23 @@ public partial class ModifierViewModel : ObservableObject
         SuperPresent = s.SuperPresent;
         Times = s.Times;
         TopMostSprite = s.TopMostSprite;
-        EnableAnimations = s.EnableAnimations;
+        EnableAnimations = s.AnimationDefaultMigrated ? s.EnableAnimations : true;
         IsDarkMode = s.IsDarkMode;
+        CustomPanel.LoadFrom(s.CustomPanelItems, s.CustomPanelColumns);
+        CustomPanel.LoadPresets(s.CustomPanelPresets);
         TravelBuffs = [.. s.TravelBuffs];
         InvestBuffs = s.InvestBuffs is not null ? [.. s.InvestBuffs] : new BindingList<TravelBuffVM>();
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
+        ZombieHealthMultiplierEnabled = s.ZombieHealthMultiplierEnabled;
+        ZombieHealthMultiplier = (float)s.ZombieHealthMultiplier;
+        ZombieHealthRatio = (float)s.ZombieHealthRatio;
+        PlantSpeedMultiplierEnabled = s.PlantSpeedMultiplierEnabled;
+        PlantSpeedMultiplier = (float)s.PlantSpeedMultiplier;
+        PlantAttackMultiplierEnabled = s.PlantAttackMultiplierEnabled;
+        PlantAttackMultiplier = (float)s.PlantAttackMultiplier;
+        PlantHealthMultiplierEnabled = s.PlantHealthMultiplierEnabled;
+        PlantHealthMultiplier = (float)s.PlantHealthMultiplier;
         AutoRhythmGame = s.AutoRhythmGame;
         UndeadBullet = s.UndeadBullet;
         OldObsidianBullet = s.OldObsidianBullet;
@@ -459,6 +504,20 @@ public partial class ModifierViewModel : ObservableObject
         GodEvolutionQualityDiamond = s.GodEvolutionQualityDiamond;
         GodEvolutionDamageMultiplierEnabled = s.GodEvolutionDamageMultiplierEnabled;
         GodEvolutionDamageMultiplier = s.GodEvolutionDamageMultiplier;
+        GodEvolutionForceMissionBuff = s.GodEvolutionForceMissionBuff;
+        GodEvolutionForceTacticalBuff = s.GodEvolutionForceTacticalBuff;
+        GodEvolutionCheatHard = s.GodEvolutionCheatHard;
+        GodEvolutionForceExpertBuff = s.GodEvolutionForceExpertBuff;
+        GodEvolutionForceStarUpBuff = s.GodEvolutionForceStarUpBuff;
+        GodEvolutionForceMutationBuff = s.GodEvolutionForceMutationBuff;
+        GodEvolutionForceIridescentBuff = s.GodEvolutionForceIridescentBuff;
+        GodEvolutionForceRandomBuff = s.GodEvolutionForceRandomBuff;
+        StarAdvStar = s.StarAdvStar;
+        StarAdvStarHard = s.StarAdvStarHard;
+        StarAdvFreeBuff = s.StarAdvFreeBuff;
+        WheelFullCD = s.WheelFullCD;
+        WheelFullCDEnabled = s.WheelFullCDEnabled;
+        RemoveFusionLimit = s.RemoveFusionLimit;
         var bi = 0;
         foreach (var b in App.InitData.Value.AdvBuffs)
         {
@@ -656,10 +715,21 @@ public partial class ModifierViewModel : ObservableObject
         SuperPresent = s.SuperPresent;
         Times = s.Times;
         TopMostSprite = s.TopMostSprite;
-        EnableAnimations = s.EnableAnimations;
+        EnableAnimations = s.AnimationDefaultMigrated ? s.EnableAnimations : true;
         IsDarkMode = s.IsDarkMode;
+        CustomPanel.LoadFrom(s.CustomPanelItems, s.CustomPanelColumns);
+        CustomPanel.LoadPresets(s.CustomPanelPresets);
         UltimateRamdomZombie = s.UltimateRamdomZombie;
         UltimateSuperGatling = s.UltimateSuperGatling;
+        ZombieHealthMultiplierEnabled = s.ZombieHealthMultiplierEnabled;
+        ZombieHealthMultiplier = (float)s.ZombieHealthMultiplier;
+        ZombieHealthRatio = (float)s.ZombieHealthRatio;
+        PlantSpeedMultiplierEnabled = s.PlantSpeedMultiplierEnabled;
+        PlantSpeedMultiplier = (float)s.PlantSpeedMultiplier;
+        PlantAttackMultiplierEnabled = s.PlantAttackMultiplierEnabled;
+        PlantAttackMultiplier = (float)s.PlantAttackMultiplier;
+        PlantHealthMultiplierEnabled = s.PlantHealthMultiplierEnabled;
+        PlantHealthMultiplier = (float)s.PlantHealthMultiplier;
         AutoRhythmGame = s.AutoRhythmGame;
         UndeadBullet = s.UndeadBullet;
         OldObsidianBullet = s.OldObsidianBullet;
@@ -707,6 +777,20 @@ public partial class ModifierViewModel : ObservableObject
         GodEvolutionQualityDiamond = s.GodEvolutionQualityDiamond;
         GodEvolutionDamageMultiplierEnabled = s.GodEvolutionDamageMultiplierEnabled;
         GodEvolutionDamageMultiplier = s.GodEvolutionDamageMultiplier;
+        GodEvolutionForceMissionBuff = s.GodEvolutionForceMissionBuff;
+        GodEvolutionForceTacticalBuff = s.GodEvolutionForceTacticalBuff;
+        GodEvolutionCheatHard = s.GodEvolutionCheatHard;
+        GodEvolutionForceExpertBuff = s.GodEvolutionForceExpertBuff;
+        GodEvolutionForceStarUpBuff = s.GodEvolutionForceStarUpBuff;
+        GodEvolutionForceMutationBuff = s.GodEvolutionForceMutationBuff;
+        GodEvolutionForceIridescentBuff = s.GodEvolutionForceIridescentBuff;
+        GodEvolutionForceRandomBuff = s.GodEvolutionForceRandomBuff;
+        StarAdvStar = s.StarAdvStar;
+        StarAdvStarHard = s.StarAdvStarHard;
+        StarAdvFreeBuff = s.StarAdvFreeBuff;
+        WheelFullCD = s.WheelFullCD;
+        WheelFullCDEnabled = s.WheelFullCDEnabled;
+        RemoveFusionLimit = s.RemoveFusionLimit;
 
         if (s.ConveyBeltTypes is { Count: > 0 })
         {
@@ -775,6 +859,52 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new InGameActions { AbyssCheat = true });
     }
 
+    // ---- 功能 #18：冒险秘境抽奖券（4 种券各自可填任意数值）----
+    [ObservableProperty] public partial int AbyssWoodenTicket { get; set; }
+    [ObservableProperty] public partial int AbyssSilverTicket { get; set; }
+    [ObservableProperty] public partial int AbyssGoldTicket { get; set; }
+    [ObservableProperty] public partial int AbyssDiamondTicket { get; set; }
+
+    /// <summary>把四种抽奖券的数值一次性下发给存档（AbyssManager.Data）</summary>
+    [RelayCommand]
+    public void ApplyAbyssTickets()
+    {
+        App.DataSync.Value.SendData(new InGameActions
+        {
+            AbyssWoodenTicket = AbyssWoodenTicket,
+            AbyssSilverTicket = AbyssSilverTicket,
+            AbyssGoldTicket = AbyssGoldTicket,
+            AbyssDiamondTicket = AbyssDiamondTicket
+        });
+    }
+
+    // ---- 星辉冒险修改（REF AbyssAndTreasureView「星辉冒险修改」同组）----
+    /// <summary>普通难度星星数输入框（点「修改」按钮才下发，避免每敲一个数字就写一次存档）</summary>
+    [ObservableProperty] public partial int StarAdvStar { get; set; }
+
+    /// <summary>困难难度星星数输入框（点「修改」按钮才下发）</summary>
+    [ObservableProperty] public partial int StarAdvStarHard { get; set; }
+
+    /// <summary>星辉冒险词条免费点亮（状态开关，随变化即时下发）</summary>
+    [ObservableProperty] public partial bool StarAdvFreeBuff { get; set; }
+
+    [RelayCommand]
+    public void SetStarAdvStar()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SetStarAdvStar = StarAdvStar });
+    }
+
+    [RelayCommand]
+    public void SetStarAdvStarHard()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SetStarAdvStarHard = StarAdvStarHard });
+    }
+
+    partial void OnStarAdvFreeBuffChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new InGameActions { StarAdvFreeBuff = value });
+    }
+
     [RelayCommand]
     public void UnlockAllPlants()
     {
@@ -810,6 +940,77 @@ public partial class ModifierViewModel : ObservableObject
     {
         App.DataSync.Value.SendData(new InGameActions { SpawnPetDrown = true });
     }
+
+    [RelayCommand]
+    public void SpawnPetHorse()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetHorse = true });
+    }
+
+    [RelayCommand]
+    public void SpawnPetImp()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetImp = true });
+    }
+
+    [RelayCommand]
+    public void SpawnPetKirov()
+    {
+        App.DataSync.Value.SendData(new InGameActions { SpawnPetKirov = true });
+    }
+
+    // 游戏作弊码按钮组（照抄 REF CommonSettingsViewModel 17 个 CheatKey 命令）：
+    // 一次性发送 key 串，游戏侧 CheatKey 组件收到即执行对应作弊码
+    [RelayCommand]
+    public void CheatKey_CheatMode() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "cheatmode" });
+
+    [RelayCommand]
+    public void CheatKey_MoreSun() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "moresun" });
+
+    [RelayCommand]
+    public void CheatKey_BigCannon() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "bigcannon" });
+
+    [RelayCommand]
+    public void CheatKey_IrWinner() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "irwinner" });
+
+    [RelayCommand]
+    public void CheatKey_ClearPlant() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "clearplant" });
+
+    [RelayCommand]
+    public void CheatKey_ClearZombie() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "clearzombie" });
+
+    [RelayCommand]
+    public void CheatKey_MysMoney() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "mysmoney" });
+
+    [RelayCommand]
+    public void CheatKey_GiveCard() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "givecard" });
+
+    [RelayCommand]
+    public void CheatKey_Reload() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "reload" });
+
+    [RelayCommand]
+    public void CheatKey_Debug() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "debug" });
+
+    [RelayCommand]
+    public void CheatKey_UpUp() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "upup" });
+
+    [RelayCommand]
+    public void CheatKey_Kill() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "kill" });
+
+    [RelayCommand]
+    public void CheatKey_Report() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "report" });
+
+    [RelayCommand]
+    public void CheatKey_MissionA() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "missiona" });
+
+    [RelayCommand]
+    public void CheatKey_MissionB() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "missionb" });
+
+    [RelayCommand]
+    public void CheatKey_ShootHard() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "shoothard" });
+
+    [RelayCommand]
+    public void CheatKey_OpenBLive() => App.DataSync.Value.SendData(new InGameActions { ExecuteCheatKey = "openblive" });
 
     [RelayCommand]
     public void BulletDamage()
@@ -1254,8 +1455,87 @@ public partial class ModifierViewModel : ObservableObject
     [RelayCommand]
     public void Money()
     {
+        // 同 Sun()：未勾选「锁定金币」时不下发数值。
+        if (!LockMoney) return;
         App.DataSync.Value.SendData(new InGameActions { CurrentMoney = (int)NewMoney });
     }
+
+    // ---- 4.0 新增：一次性动作按钮（不是开关，所以用 RelayCommand 而不是 CheckBox）----
+    /// <summary>图鉴全解锁 - 把所有植物写进 config.meetPlants / meetPlant_runTime</summary>
+    [RelayCommand]
+    public void UnlockAllAlmanac()
+    {
+        App.DataSync.Value.SendData(new BasicProperties { UnlockAllAlmanac = true });
+    }
+
+    /// <summary>清除全部子弹</summary>
+    [RelayCommand]
+    public void ClearAllBullets()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ClearAllBullets = true });
+    }
+
+    /// <summary>清除全部墓碑（一次性；REF RemoveAllGraves 同语义）</summary>
+    [RelayCommand]
+    public void RemoveAllGraves()
+    {
+        App.DataSync.Value.SendData(new InGameActions { RemoveAllGraves = true });
+    }
+
+    /// <summary>生成太阳陨石（一次性；REF CreateSolarMeteorite = itemPrefab[47]）</summary>
+    [RelayCommand]
+    public void CreateSolarMeteorite()
+    {
+        App.DataSync.Value.SendData(new InGameActions { CreateSolarMeteorite = true });
+    }
+
+    /// <summary>跳转到指定波的输入框（点「跳转」按钮才下发）</summary>
+    [ObservableProperty] public partial int JumpWaveValue { get; set; }
+
+    /// <summary>跳转到指定波（一次性；REF SetJumpWave 同语义）</summary>
+    [RelayCommand]
+    public void SetJumpWave()
+    {
+        App.DataSync.Value.SendData(new InGameActions { JumpWave = JumpWaveValue });
+    }
+
+    /// <summary>秒杀非魅惑僵尸（玩家侧/敌方僵尸）</summary>
+    [RelayCommand]
+    public void KillNonMindControlledZombies()
+    {
+        App.DataSync.Value.SendData(new InGameActions { KillNonMindControlledZombies = true });
+    }
+
+    /// <summary>秒杀魅惑僵尸（被魅惑、归玩家一侧的僵尸）</summary>
+    [RelayCommand]
+    public void KillMindControlledZombies()
+    {
+        App.DataSync.Value.SendData(new InGameActions { KillMindControlledZombies = true });
+    }
+
+    /// <summary>秒杀指定行僵尸（UI 1-based；协议侧会 -1 转成 theZombieRow 的 0-based）</summary>
+    [RelayCommand]
+    public void KillZombiesOnRow()
+    {
+        App.DataSync.Value.SendData(new InGameActions { KillZombiesOnRow = true, Row = KillZombiesRow });
+    }
+
+    /// <summary>一键解锁诸神进化（植物 / 路线 / 战术上限）</summary>
+    [RelayCommand]
+    public void GodEvolutionUnlockAll()
+    {
+        App.DataSync.Value.SendData(new GodEvolutionProperties { UnlockAll = true });
+    }
+
+    /// <summary>诸神币修改 - 直接写入 ShootingManager.Data.godCoins（存档数据，写即持久）</summary>
+    [RelayCommand]
+    public void SetGodCoin()
+    {
+        App.DataSync.Value.SendData(new GodEvolutionProperties { GodCoin = NewGodCoin });
+    }
+
+    // 冒险秘境抽奖券（4 个券）的 UI 统一走 ApplyAbyssTicketsCommand（一次性合并下发），
+    // 不再提供逐个券的单独命令 —— 保持单一入口，避免两套写法并存。
 
     [RelayCommand]
     public void NextWave()
@@ -1365,10 +1645,22 @@ public partial class ModifierViewModel : ObservableObject
             Times = Times,
             TopMostSprite = TopMostSprite,
             EnableAnimations = EnableAnimations,
+            AnimationDefaultMigrated = true,
             IsDarkMode = IsDarkMode,
             TravelBuffs = [.. TravelBuffs],
             UltimateRamdomZombie = UltimateRamdomZombie,
             UltimateSuperGatling = UltimateSuperGatling,
+            ZombieHealthMultiplierEnabled = ZombieHealthMultiplierEnabled,
+            ZombieHealthMultiplier = ZombieHealthMultiplier,
+            ZombieHealthRatio = ZombieHealthRatio,
+            PlantSpeedMultiplierEnabled = PlantSpeedMultiplierEnabled,
+            PlantSpeedMultiplier = PlantSpeedMultiplier,
+            PlantAttackMultiplierEnabled = PlantAttackMultiplierEnabled,
+            PlantAttackMultiplier = PlantAttackMultiplier,
+            PlantHealthMultiplierEnabled = PlantHealthMultiplierEnabled,
+            PlantHealthMultiplier = PlantHealthMultiplier,
+            CustomPanelItems = CustomPanel.ToIdList(),
+            CustomPanelColumns = CustomPanel.Columns,
             AutoRhythmGame = AutoRhythmGame,
             UndeadBullet = UndeadBullet,
             OldObsidianBullet = OldObsidianBullet,
@@ -1383,6 +1675,9 @@ public partial class ModifierViewModel : ObservableObject
             ZombieType = ZombieType,
             ZombieSeaLowEnabled = ZombieSeaLowEnabled,
             GloveFullCD = GloveFullCD,
+            WheelFullCD = WheelFullCD,
+            WheelFullCDEnabled = WheelFullCDEnabled,
+            RemoveFusionLimit = RemoveFusionLimit,
             GloveFullCDEnabled = GloveFullCDEnabled,
             HammerFullCD = HammerFullCD,
             HammerFullCDEnabled = HammerFullCDEnabled,
@@ -1420,6 +1715,17 @@ public partial class ModifierViewModel : ObservableObject
             GodEvolutionQualityDiamond = GodEvolutionQualityDiamond,
             GodEvolutionDamageMultiplierEnabled = GodEvolutionDamageMultiplierEnabled,
             GodEvolutionDamageMultiplier = GodEvolutionDamageMultiplier,
+            GodEvolutionForceMissionBuff = GodEvolutionForceMissionBuff,
+            GodEvolutionForceTacticalBuff = GodEvolutionForceTacticalBuff,
+            GodEvolutionCheatHard = GodEvolutionCheatHard,
+            GodEvolutionForceExpertBuff = GodEvolutionForceExpertBuff,
+            GodEvolutionForceStarUpBuff = GodEvolutionForceStarUpBuff,
+            GodEvolutionForceMutationBuff = GodEvolutionForceMutationBuff,
+            GodEvolutionForceIridescentBuff = GodEvolutionForceIridescentBuff,
+            GodEvolutionForceRandomBuff = GodEvolutionForceRandomBuff,
+            StarAdvStar = StarAdvStar,
+            StarAdvStarHard = StarAdvStarHard,
+            StarAdvFreeBuff = StarAdvFreeBuff,
         };
         if (ZombieSeaTypes.Count > 0) s.ZombieSeaTypes.AddRange(from zst in ZombieSeaTypes select zst.Key);
 
@@ -1475,7 +1781,52 @@ public partial class ModifierViewModel : ObservableObject
     [RelayCommand]
     public void Sun()
     {
+        // ★ 未勾选「锁定阳光」时不下发 CurrentSun（保持 null）。
+        // 否则 DataProcessor 的 `if (iga.CurrentSun is not null) Board.Instance.theSun = ...`
+        // 会把数值直接应用到棋盘上 —— 这正是「未勾选时改数值也会应用」的根因。
+        if (!LockSun) return;
         App.DataSync.Value.SendData(new InGameActions { CurrentSun = (int)NewSun });
+    }
+
+    /// <summary>
+    /// 自定义面板改动后立刻落盘（只改 CustomPanelItems/Columns 两个字段，其余字段从当前文件读回后合并写，
+    /// 避免用一份可能过期的内存模型整体覆盖别的设置）。
+    /// 失败一律吞掉：布局存不下不该影响玩家继续用修改器。
+    /// </summary>
+    private void PersistCustomPanel()
+    {
+        try
+        {
+            var path = ModifierPaths.GetSaveSettingsPath();
+            ModifierSaveModel model;
+            if (File.Exists(path))
+            {
+                try
+                {
+                    model = JsonSerializer.Deserialize(File.ReadAllText(path),
+                        ModifierSaveModelSGC.Default.ModifierSaveModel);
+                }
+                catch
+                {
+                    // 存档损坏：不冒险覆盖，直接放弃本次持久化（下次正常保存时会带上面板）
+                    return;
+                }
+            }
+            else
+            {
+                model = new ModifierSaveModel();
+            }
+
+            model.CustomPanelItems = CustomPanel.ToIdList();
+            model.CustomPanelColumns = CustomPanel.Columns;
+            model.CustomPanelPresets = CustomPanel.ExportPresets();
+            File.WriteAllText(path,
+                JsonSerializer.Serialize(model, ModifierSaveModelSGC.Default.ModifierSaveModel));
+        }
+        catch
+        {
+            // 忽略：布局持久化失败不应中断使用
+        }
     }
 
     public void SyncAll()
@@ -1516,6 +1867,9 @@ public partial class ModifierViewModel : ObservableObject
             GaoShuMode = GaoShuMode
         };
         iga.ZombieSeaTypes.AddRange(from zst in ZombieSeaTypes select zst.Key);
+        // 星辉冒险「天赋免费点亮」是状态量：连上修改器时随 SyncAll 整包补发一次，
+        // 否则游戏重启后 WPF 侧存档里的开关状态无法回灌游戏侧静态位
+        iga.StarAdvFreeBuff = StarAdvFreeBuff;
         SyncAll syncAll = new()
         {
             BasicProperties = new BasicProperties
@@ -1556,6 +1910,7 @@ public partial class ModifierViewModel : ObservableObject
                 OldObsidianBullet = OldObsidianBullet,
                 UnlockAllFusions = UnlockAllFusions,
                 GloveFullCD = GloveFullCDEnabled ? (int)GloveFullCD : -1,
+                WheelFullCD = WheelFullCDEnabled ? (int)WheelFullCD : -1,
                 HammerFullCD = HammerFullCDEnabled ? (int)HammerFullCD : -1,
                 NewZombieUpdateCD = NewZombieUpdateCD,
                 PlantUpgrade = PlantUpgrade
@@ -1573,7 +1928,8 @@ public partial class ModifierViewModel : ObservableObject
             {
                 ScaredyDream = ScaredyDream,
                 ColumnPlanting = ColumnPlanting,
-                SeedRain = SeedRain
+                SeedRain = SeedRain,
+                RemoveFusionLimit = RemoveFusionLimit
             }
         };
 
@@ -1824,7 +2180,8 @@ public partial class ModifierViewModel : ObservableObject
         {
             ScaredyDream = ScaredyDream,
             ColumnPlanting = ColumnPlanting,
-            SeedRain = SeedRain
+            SeedRain = SeedRain,
+            RemoveFusionLimit = RemoveFusionLimit
         });
     }
 
@@ -1885,6 +2242,30 @@ public partial class ModifierViewModel : ObservableObject
     {
         App.DataSync.Value.SendData(new BasicProperties { RandomUpgradeMode = value });
     }
+
+    // ---- 4.0 新增开关的同步回调（照抄同页既有条目的写法）----
+    partial void OnEnableAllCardsChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { EnableAllCards = value });
+    }
+    partial void OnHardBulletChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { HardBullet = value });
+    }
+    partial void OnPlantsAllUpgradeChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PlantsAllUpgrade = value });
+    }
+    partial void OnPlantsAllStarUpChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PlantsAllStarUp = value });
+    }
+    partial void OnLockLightLevelChanged(int value)
+    {
+        // 注意：这里必须用 InGameActions 下发 —— DataDef 把 LockLightLevel 放在 InGameActions 结构里，
+        // 发进 BasicProperties 会因为该结构体没有这个属性而编译不过（也就不会生效）。
+        App.DataSync.Value.SendData(new InGameActions { LockLightLevel = value });
+    }
     partial void OnCobCannonNoCDChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { CobCannonNoCD = value });
@@ -1940,6 +2321,21 @@ public partial class ModifierViewModel : ObservableObject
     partial void OnGarlicDayChanged(bool value)
     {
         App.DataSync.Value.SendData(new BasicProperties { GarlicDay = value });
+    }
+
+    // ---- 罗盘自定义冷却（协议为单字段 -1=关；照抄手套 GloveFullCD 的 flag+value 发送方式）----
+    [ObservableProperty] public partial double WheelFullCD { get; set; } = -1;
+    [ObservableProperty] public partial bool WheelFullCDEnabled { get; set; }
+
+    partial void OnWheelFullCDChanged(double value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { WheelFullCD = value });
+    }
+
+    partial void OnWheelFullCDEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties
+            { WheelFullCD = value ? WheelFullCD : -1 });
     }
 
     partial void OnGloveFullCDChanged(double value)
@@ -2026,8 +2422,10 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnLockMoneyChanged(bool value)
     {
+        // #27 勾选+数值：仅在【勾选】时随标志携带数值；取消勾选只发标志（CurrentMoney=null），
+        // 否则接收端会在锁定已关闭的状态下把数值往棋盘上应用一次（未勾选也应用数值）。
         App.DataSync.Value.SendData(new InGameActions
-            { LockMoney = value, CurrentMoney = (int)NewMoney });
+            { LockMoney = value, CurrentMoney = value ? (int)NewMoney : null });
     }
 
     partial void OnLockPresentChanged(int value)
@@ -2094,8 +2492,10 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnLockSunChanged(bool value)
     {
+        // #27 勾选+数值：仅在【勾选】时随标志携带数值；取消勾选只发标志（CurrentSun=null），
+        // 否则接收端会在锁定已关闭的状态下把数值往棋盘上应用一次（未勾选也应用数值）。
         App.DataSync.Value.SendData(new InGameActions
-            { LockSun = value, CurrentSun = (int)NewSun });
+            { LockSun = value, CurrentSun = value ? (int)NewSun : null });
     }
 
     partial void OnMineNoCDChanged(bool value)
@@ -2150,7 +2550,11 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnZombieDamageLimitValueChanged(int value)
     {
-        App.DataSync.Value.SendData(new BasicProperties { ZombieDamageLimitValue = value });
+        // ★ 勾选+数值的通用纪律（PATTERN，对应「未勾选时改数值也会应用」）：
+        // 未勾选时【不下发数值】—— 保持可空字段为 null，接收端以 is not null 判定即可自动跳过。
+        // 这样「取消勾选后仍生效」与「未勾选却改了数值被应用」两个问题同时消除。
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieDamageLimitValue = ZombieDamageLimit200 ? value : null });
     }
 
     partial void OnZombieSpeedModifyEnabledChanged(bool value)
@@ -2160,7 +2564,8 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnZombieSpeedMultiplierChanged(float value)
     {
-        App.DataSync.Value.SendData(new BasicProperties { ZombieSpeedMultiplier = value });
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieSpeedMultiplier = ZombieSpeedModifyEnabled ? value : null });
     }
 
     partial void OnZombieAttackMultiplierEnabledChanged(bool value)
@@ -2170,7 +2575,101 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnZombieAttackMultiplierChanged(float value)
     {
-        App.DataSync.Value.SendData(new BasicProperties { ZombieAttackMultiplier = value });
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieAttackMultiplier = ZombieAttackMultiplierEnabled ? value : null });
+    }
+
+    partial void OnZombieHealthMultiplierEnabledChanged(bool value)
+    {
+        // 开启时携带当前数值（否则插件侧哨兵停在 -1 不生效）；关闭时数值置 null ——
+        // 哨兵纪律：未开启不下发数值（对应「未勾选时改数值也会应用」的根治）。
+        App.DataSync.Value.SendData(new BasicProperties
+        {
+            ZombieHealthMultiplierEnabled = value,
+            ZombieHealthMultiplier = value ? ZombieHealthMultiplier : null
+        });
+    }
+
+    partial void OnZombieHealthMultiplierChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieHealthMultiplier = ZombieHealthMultiplierEnabled ? value : null });
+    }
+
+    /// <summary>「全场血量 ×N」按钮：仅在点击时下发一次性命令（不挂 OnChanged，避免加载即触发）</summary>
+    [RelayCommand]
+    public void ApplyZombieHealthRatio()
+    {
+        App.DataSync.Value.SendData(new BasicProperties { ZombieHealthRatio = ZombieHealthRatio });
+    }
+
+    // ---- 植物速度/攻击/血量三件套（5.3.1 #7+6）：成对下发，照僵尸三倍率模板（VM:2460-2479）----
+    partial void OnPlantSpeedMultiplierEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PlantSpeedMultiplierEnabled = value });
+    }
+
+    partial void OnPlantSpeedMultiplierChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties
+            { PlantSpeedMultiplier = PlantSpeedMultiplierEnabled ? value : null });
+    }
+
+    partial void OnPlantAttackMultiplierEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PlantAttackMultiplierEnabled = value });
+    }
+
+    partial void OnPlantAttackMultiplierChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties
+            { PlantAttackMultiplier = PlantAttackMultiplierEnabled ? value : null });
+    }
+
+    partial void OnPlantHealthMultiplierEnabledChanged(bool value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties { PlantHealthMultiplierEnabled = value });
+    }
+
+    partial void OnPlantHealthMultiplierChanged(float value)
+    {
+        App.DataSync.Value.SendData(new BasicProperties
+            { PlantHealthMultiplier = PlantHealthMultiplierEnabled ? value : null });
+    }
+
+    /// <summary>「全场速度 ×N」按钮：仅在点击时下发一次性命令（不挂 OnChanged，避免加载即触发）</summary>
+    [RelayCommand]
+    public void ApplyPlantSpeedRatio()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ApplyPlantSpeedRatio = PlantSpeedMultiplier });
+    }
+
+    /// <summary>「全场攻击 ×N」按钮：仅在点击时下发一次性命令</summary>
+    [RelayCommand]
+    public void ApplyPlantAttackRatio()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ApplyPlantAttackRatio = PlantAttackMultiplier });
+    }
+
+    /// <summary>「全场血量 ×N」按钮：仅在点击时下发一次性命令</summary>
+    [RelayCommand]
+    public void ApplyPlantHealthRatio()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ApplyPlantHealthRatio = PlantHealthMultiplier });
+    }
+
+    /// <summary>一键获得所有植物皮肤（一次性命令，REF PropertySettingsViewModel:487 同名同语义）</summary>
+    [RelayCommand]
+    public void ObtainAllPlantSkins()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ObtainAllPlantSkins = true });
+    }
+
+    /// <summary>一键应用全部植物皮肤（一次性命令，REF PropertySettingsViewModel:477 同名同语义）</summary>
+    [RelayCommand]
+    public void ApplyAllPlantSkins()
+    {
+        App.DataSync.Value.SendData(new InGameActions { ApplyAllPlantSkins = true });
     }
 
     partial void OnZombieBulletReflectEnabledChanged(bool value)
@@ -2180,7 +2679,8 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnZombieBulletReflectChanceChanged(float value)
     {
-        App.DataSync.Value.SendData(new BasicProperties { ZombieBulletReflectChance = value });
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieBulletReflectChance = ZombieBulletReflectEnabled ? value : null });
     }
 
     partial void OnZombieReviveDebuffCustomEnabledChanged(bool value)
@@ -2190,7 +2690,9 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnZombieReviveDebuffChanceChanged(float value)
     {
-        App.DataSync.Value.SendData(new BasicProperties { ZombieReviveDebuffChance = value });
+        // 同上：未勾选自定义复活 Debuff 时不下发概率。
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieReviveDebuffChance = ZombieReviveDebuffCustomEnabled ? value : null });
     }
 
     partial void OnZombieFreeReviveEnabledChanged(bool value)
@@ -2200,7 +2702,8 @@ public partial class ModifierViewModel : ObservableObject
 
     partial void OnZombieFreeReviveChanceChanged(float value)
     {
-        App.DataSync.Value.SendData(new BasicProperties { ZombieFreeReviveChance = value });
+        App.DataSync.Value.SendData(new BasicProperties
+            { ZombieFreeReviveChance = ZombieFreeReviveEnabled ? value : null });
     }
 
     partial void OnUnlimitedCardSlotsChanged(bool value)
@@ -2303,6 +2806,14 @@ public partial class ModifierViewModel : ObservableObject
         App.DataSync.Value.SendData(new BasicProperties { PvPPotRange = value });
     }
 
+    /// <summary>旅行关解除融合限制（状态开关，随 GameModes 整包下发）</summary>
+    [ObservableProperty] public partial bool RemoveFusionLimit { get; set; }
+
+    partial void OnRemoveFusionLimitChanged(bool value)
+    {
+        GameModes();
+    }
+
     partial void OnSeedRainChanged(bool value)
     {
         GameModes();
@@ -2342,14 +2853,11 @@ public partial class ModifierViewModel : ObservableObject
     {
         Application.Current.Dispatcher.Invoke(() =>
         {
-            // 先播放从浅到深 / 从深到浅的过渡动画
-            // 此时仍然使用旧主题颜色，动画可以平滑地从当前颜色过渡到目标颜色
-            if (MainWindow.Instance != null)
-            {
-                MainWindow.Instance.ApplyThemeWithAnimation(value);
-            }
-
-            // 再切换 HandyControl 皮肤和 ThemeColors 资源，确保 DynamicResource 绑定的控件使用新主题
+            // ★ 2026-09-24 定稿：换肤只走 App.SwitchTheme。
+            //   它现在做两件正确的事：① 用 HandyControl 官方 API（Theme.Skin）真正切换 HC 皮肤；
+            //   ② 原地替换本地令牌字典。两者都是"资源字典级"的，{DynamicResource} 会自动重解析 ⇒
+            //   浅↔深两个方向天然对称，不需要任何逐控件涂色（涂色会写下本地值，正是此前
+            //   "深色切回浅色残留"的元凶；旧实现保留在 MainWindow.ApplyThemeWithAnimation 仅作存档）。
             App.SwitchTheme(value);
         });
     }
@@ -2868,8 +3376,23 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial float ZombieSpeedMultiplier { get; set; } = 1.0f;
 
     [ObservableProperty] public partial bool ZombieAttackMultiplierEnabled { get; set; }
-
     [ObservableProperty] public partial float ZombieAttackMultiplier { get; set; } = 1.0f;
+
+    /// <summary>僵尸血量倍率开关（插件侧单哨兵：关=-1，开=Multiplier）</summary>
+    [ObservableProperty] public partial bool ZombieHealthMultiplierEnabled { get; set; }
+    /// <summary>僵尸血量倍率数值（勾选时才下发）</summary>
+    [ObservableProperty] public partial float ZombieHealthMultiplier { get; set; } = 2.0f;
+    /// <summary>一次性命令：对场上全体僵尸按此倍率缩放血量（按钮触发，不参与存档恢复下发）</summary>
+    [ObservableProperty] public partial float ZombieHealthRatio { get; set; } = 2.0f;
+
+    // ---- 植物速度/攻击/血量三件套（5.3.1 #7 + 缺号6；与僵尸三倍率属性并排）----
+    /// <summary>植物速度倍率开关（勾选后新种植物的速度/攻速按右侧倍率缩放）</summary>
+    [ObservableProperty] public partial bool PlantSpeedMultiplierEnabled { get; set; }
+    [ObservableProperty] public partial float PlantSpeedMultiplier { get; set; } = 1.0f;
+    [ObservableProperty] public partial bool PlantAttackMultiplierEnabled { get; set; }
+    [ObservableProperty] public partial float PlantAttackMultiplier { get; set; } = 1.0f;
+    [ObservableProperty] public partial bool PlantHealthMultiplierEnabled { get; set; }
+    [ObservableProperty] public partial float PlantHealthMultiplier { get; set; } = 1.0f;
 
     [ObservableProperty] public partial bool ZombieBulletReflectEnabled { get; set; }
 
@@ -2942,7 +3465,10 @@ public partial class ModifierViewModel : ObservableObject
 
     [ObservableProperty] public partial bool TopMostSprite { get; set; }
 
-    [ObservableProperty] public partial bool EnableAnimations { get; set; } = false;
+    // ★ 2026-09-25 默认改为 true（用户要求「修改器的动画效果默认开启」）。
+    //   老存档里存的是 false，仅改默认值对老安装无效 ⇒ 由 AnimationDefaultMigrated 一次性迁移，
+    //   迁移后用户仍可自由关掉（关掉后不会再被改回来）。
+    [ObservableProperty] public partial bool EnableAnimations { get; set; } = true;
 
     [ObservableProperty] public partial bool IsDarkMode { get; set; } = false;
 
@@ -2964,6 +3490,20 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool OldObsidianBullet { get; set; }
 
     [ObservableProperty] public partial bool UnlockAllFusions { get; set; }
+
+    // ---- 4.0 新增功能（协议字段早已在 DataDef 里，这里补齐用户可见的开关）----
+    /// <summary>解锁全部选卡 - 强制 PlantDataManager 把每株植物判为已解锁</summary>
+    [ObservableProperty] public partial bool EnableAllCards { get; set; }
+    /// <summary>植物子弹秒杀僵尸 - Zombie.ApplyDamage 前缀命中即 Die</summary>
+    [ObservableProperty] public partial bool HardBullet { get; set; }
+    /// <summary>植物全升级 - 每帧把场上植物升到 3 级</summary>
+    [ObservableProperty] public partial bool PlantsAllUpgrade { get; set; }
+    /// <summary>植物全星辉 - 每帧给场上植物上星辉</summary>
+    [ObservableProperty] public partial bool PlantsAllStarUp { get; set; }
+    /// <summary>锁定全场光照等级（-1 = 关闭）</summary>
+    [ObservableProperty] public partial int LockLightLevel { get; set; } = -1;
+    /// <summary>秒杀指定行僵尸时要杀的行号（UI 1-based，协议侧自行转 0-based）</summary>
+    [ObservableProperty] public partial int KillZombiesRow { get; set; } = 1;
 
     [ObservableProperty] public partial string VasesFieldString { get; set; }
 
@@ -3010,12 +3550,39 @@ public partial class ModifierViewModel : ObservableObject
     [ObservableProperty] public partial bool GodEvolutionForceSuperQuality { get; set; }
     [ObservableProperty] public partial bool GodEvolutionUncrashable { get; set; }
     [ObservableProperty] public partial bool GodEvolutionQualityWeightEnabled { get; set; }
-    [ObservableProperty] public partial float GodEvolutionQualityDefault { get; set; } = 1f;
-    [ObservableProperty] public partial float GodEvolutionQualitySilver { get; set; } = 1f;
-    [ObservableProperty] public partial float GodEvolutionQualityGold { get; set; } = 1f;
-    [ObservableProperty] public partial float GodEvolutionQualityDiamond { get; set; } = 1f;
+    [ObservableProperty] public partial float GodEvolutionQualityDefault { get; set; } = 65f;
+    [ObservableProperty] public partial float GodEvolutionQualitySilver { get; set; } = 23f;
+    [ObservableProperty] public partial float GodEvolutionQualityGold { get; set; } = 10f;
+    [ObservableProperty] public partial float GodEvolutionQualityDiamond { get; set; } = 2f;
     [ObservableProperty] public partial bool GodEvolutionDamageMultiplierEnabled { get; set; }
     [ObservableProperty] public partial float GodEvolutionDamageMultiplier { get; set; } = 1f;
+
+    /// <summary>诸神进化试炼词条概率大幅提升（词条池 AdvBuff 14000~14003）</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceMissionBuff { get; set; }
+
+    /// <summary>诸神进化战术词条概率大幅提升</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceTacticalBuff { get; set; }
+
+    /// <summary>诸神进化隐藏难度（等价游戏 shoothard 作弊码；进关卡时自动开启）</summary>
+    [ObservableProperty] public partial bool GodEvolutionCheatHard { get; set; }
+
+    /// <summary>诸神进化专家邀请词条概率大幅提升</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceExpertBuff { get; set; }
+
+    /// <summary>诸神进化超进化（星辉）词条概率大幅提升</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceStarUpBuff { get; set; }
+
+    /// <summary>诸神进化质变词条概率大幅提升</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceMutationBuff { get; set; }
+
+    /// <summary>诸神进化棱彩词条概率大幅提升</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceIridescentBuff { get; set; }
+
+    /// <summary>诸神进化随机词条概率大幅提升</summary>
+    [ObservableProperty] public partial bool GodEvolutionForceRandomBuff { get; set; }
+
+    /// <summary>诸神币输入框（点「应用」才下发，避免每敲一个数字就写一次存档）</summary>
+    [ObservableProperty] public partial int NewGodCoin { get; set; }
 
     private GodEvolutionProperties BuildGodEvolutionProperties(bool applyNow = false) => new()
     {
@@ -3043,6 +3610,14 @@ public partial class ModifierViewModel : ObservableObject
         QualityDiamond = GodEvolutionQualityDiamond,
         DamageMultiplierEnabled = GodEvolutionDamageMultiplierEnabled,
         DamageMultiplier = GodEvolutionDamageMultiplier,
+        ForceMissionBuff = GodEvolutionForceMissionBuff,
+        ForceTacticalBuff = GodEvolutionForceTacticalBuff,
+        CheatHard = GodEvolutionCheatHard,
+        ForceExpertBuff = GodEvolutionForceExpertBuff,
+        ForceStarUpBuff = GodEvolutionForceStarUpBuff,
+        ForceMutationBuff = GodEvolutionForceMutationBuff,
+        ForceIridescentBuff = GodEvolutionForceIridescentBuff,
+        ForceRandomBuff = GodEvolutionForceRandomBuff,
         ApplyNow = applyNow
     };
 
@@ -3074,10 +3649,11 @@ public partial class ModifierViewModel : ObservableObject
         GodEvolutionForceSuperQuality = false;
         GodEvolutionUncrashable = false;
         GodEvolutionQualityWeightEnabled = false;
-        GodEvolutionQualityDefault = 1f;
-        GodEvolutionQualitySilver = 1f;
-        GodEvolutionQualityGold = 1f;
-        GodEvolutionQualityDiamond = 1f;
+        // #29 词条权重默认值须与游戏一致（游戏实际权重 65/23/10/2），原 1/1/1/1 会使四档等概率
+        GodEvolutionQualityDefault = 65f;
+        GodEvolutionQualitySilver = 23f;
+        GodEvolutionQualityGold = 10f;
+        GodEvolutionQualityDiamond = 2f;
         GodEvolutionDamageMultiplierEnabled = false;
         GodEvolutionDamageMultiplier = 1f;
         SyncGodEvolution();
@@ -3107,6 +3683,16 @@ public partial class ModifierViewModel : ObservableObject
     partial void OnGodEvolutionQualityDiamondChanged(float value) => SyncGodEvolution();
     partial void OnGodEvolutionDamageMultiplierEnabledChanged(bool value) => SyncGodEvolution();
     partial void OnGodEvolutionDamageMultiplierChanged(float value) => SyncGodEvolution();
+    // 八个开关随 GodEvolutionProperties 整体下发（试炼/战术/隐藏难度 + 概率族 5 项：专家邀请/超进化/质变/棱彩/随机），
+    // 游戏侧各自在对应补丁/进关卡钩子里消费。
+    partial void OnGodEvolutionForceMissionBuffChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceTacticalBuffChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionCheatHardChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceExpertBuffChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceStarUpBuffChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceMutationBuffChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceIridescentBuffChanged(bool value) => SyncGodEvolution();
+    partial void OnGodEvolutionForceRandomBuffChanged(bool value) => SyncGodEvolution();
 
     #endregion Properties
 

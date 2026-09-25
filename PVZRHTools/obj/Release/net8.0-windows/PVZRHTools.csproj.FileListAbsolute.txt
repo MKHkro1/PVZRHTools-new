@@ -18,6 +18,7 @@ D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Lang.zh-cn.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\ModifierSprite.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\AnimatedStyles.baml
+D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\SimpleTheme.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsDark.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\Styles\ThemeColorsLight.baml
 D:\Web\二创\插件项目Code\PVZRHTools\PVZRHTools\obj\Release\net8.0-windows\App.baml

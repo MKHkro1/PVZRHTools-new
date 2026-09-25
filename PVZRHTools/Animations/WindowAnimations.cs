@@ -118,8 +118,22 @@ namespace PVZRHTools.Animations
         /// 窗口激活动画 - 从后台切回前台时播放
         /// 更慢、幅度更大、更有弹性的版本
         /// </summary>
+        /// <summary>
+        /// 窗口激活动画（整屏弹性缩放 + 淡入）。
+        /// </summary>
+        /// <remarks>
+        /// ★ 2026-09-25 停用（用户要求「去掉修改器的整屏闪动效果（每次点击修改器整个窗口都抖闪一下）」）。
+        /// 原实现把**整个窗口内容**做 0.92→1.0 的弹性缩放（ElasticEase，Oscillations=2，500ms）
+        /// 与透明度 0.7→1，凡是窗口被激活（点回修改器、从悬浮窗唤出）就整屏抖闪一次。
+        /// 它与 AdvancedAnimations.AddWindowDragTilt 的整屏 Skew（点击即倾斜、松开弹性回正）合起来
+        /// 正是用户描述的「抖 + 闪」两个来源；两者现已同时停用。
+        /// 控件级动画（按钮、标签页、Expander、DataGrid 行等）不受影响，仍随「启用修改器动画效果」开关工作。
+        /// 需要恢复时删掉下面的 return（保留方法签名，调用点无需改动）。
+        /// </remarks>
         public static void PlayActivationAnimation(Window window)
         {
+            return; // 整屏闪动的来源：已停用
+#pragma warning disable CS0162 // 下方为保留的原实现（停用中）
             try
             {
                 // 检查是否启用动画
@@ -222,6 +236,7 @@ namespace PVZRHTools.Animations
                 // 可以在这里添加日志记录，但不要抛出异常
                 System.Diagnostics.Debug.WriteLine($"窗口激活动画失败: {ex.Message}");
             }
+#pragma warning restore CS0162
         }
 
 

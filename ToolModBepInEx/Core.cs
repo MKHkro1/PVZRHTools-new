@@ -77,12 +77,12 @@ namespace ToolModBepInEx
                         GameAPP.resourcesManager.allPlants != null &&
                         GameAPP.resourcesManager.allPlants.Count > 0)
                     {
-                        Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] 基础资源已初始化，开始执行 LateInit (尝试 {i + 1}/10)");
+                        Core.Instance.Value.LoggerInstance.LogDebug($"[PVZRHTools] 基础资源已初始化，开始执行 LateInit (尝试 {i + 1}/10)");
                         if (!Core.inited)
                         {
                             Core.Instance.Value.LateInit();
                             Core.inited = true;
-                            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] LateInit 执行完成");
+                            Core.Instance.Value.LoggerInstance.LogDebug("[PVZRHTools] LateInit 执行完成");
                         }
                         Object.Destroy(gameObject);
                         yield break;
@@ -109,7 +109,7 @@ namespace ToolModBepInEx
             try
             {
                 if (Core.inited) return;
-                Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] GameAPP.Start Postfix 被调用，延迟执行 LateInit");
+                Core.Instance.Value.LoggerInstance.LogDebug("[PVZRHTools] GameAPP.Start Postfix 被调用，延迟执行 LateInit");
                 // 在主线程中创建 GameObject 并启动协程
                 var gameObject = new GameObject("LateInitHelper");
                 Object.DontDestroyOnLoad(gameObject);
@@ -155,7 +155,7 @@ namespace ToolModBepInEx
             
             try
             {
-                LoggerInstance.LogInfo("[PVZRHTools] LateInit 开始执行");
+                LoggerInstance.LogDebug("[PVZRHTools] LateInit 开始执行");
                 if (Port.Value.Value < 10000 || Port.Value.Value > 60000)
                 {
                     MessageBox(0, "Port值无效，已使用默认值13531", "修改器警告", 0);
@@ -189,9 +189,7 @@ namespace ToolModBepInEx
                 needRegen = false;
 #endif
 #endif
-                MLogger.LogWarning("以下id信息为动态生成，仅适用于当前游戏实例！！！");
-                MLogger.LogWarning("以下id信息为动态生成，仅适用于当前游戏实例！！！");
-                MLogger.LogWarning("以下id信息为动态生成，仅适用于当前游戏实例！！！");
+                MLogger.LogDebug("以下id信息为动态生成，仅适用于当前游戏实例！！！");
 
                 // 3.6：优先读取图鉴中文名，失败时回退到枚举名。
                 Dictionary<int, string> plants = [];
@@ -213,7 +211,7 @@ namespace ToolModBepInEx
                     var item = !string.IsNullOrWhiteSpace(displayName)
                         ? $"{displayName} ({(int)pt})"
                         : $"{pt} ({(int)pt})";
-                    MLogger.LogInfo($"Dumping Plant String: {item}");
+                    MLogger.LogDebug($"Dumping Plant String: {item}");
                     plants[(int)pt] = item;
                     HealthPlants[pt] = -1;
                 }
@@ -234,7 +232,7 @@ namespace ToolModBepInEx
                     var item = !string.IsNullOrWhiteSpace(displayName)
                         ? $"{displayName} ({(int)zt})"
                         : $"{zt} ({(int)zt})";
-                    MLogger.LogInfo($"Dumping Zombie String: {item}");
+                    MLogger.LogDebug($"Dumping Zombie String: {item}");
                     zombies[(int)zt] = item;
                     HealthZombies[zt] = -1;
                 }
@@ -309,7 +307,7 @@ namespace ToolModBepInEx
                         investBuffs.Add($"#{id} {text}");
                     }
                     PatchMgr.InvestBuffs = new bool[maxInvestId + 1];
-                    MLogger.LogInfo("[PVZRHTools] Invest 词条文本读取：优先反射 GetText，失败回退枚举名");
+                    MLogger.LogDebug("[PVZRHTools] Invest 词条文本读取：优先反射 GetText，失败回退枚举名");
                 }
                 catch (Exception ex)
                 {
@@ -318,13 +316,13 @@ namespace ToolModBepInEx
                 }
 
                 foreach (var line in advBuffs)
-                    MLogger.LogInfo($"Dumping Advanced Buff String: {line}");
+                    MLogger.LogDebug($"Dumping Advanced Buff String: {line}");
                 foreach (var line in ultiBuffs)
-                    MLogger.LogInfo($"Dumping Ultimate Buff String: {line}");
+                    MLogger.LogDebug($"Dumping Ultimate Buff String: {line}");
                 foreach (var line in debuffs)
-                    MLogger.LogInfo($"Dumping Debuff String: {line}");
+                    MLogger.LogDebug($"Dumping Debuff String: {line}");
                 foreach (var line in investBuffs)
-                    MLogger.LogInfo($"Dumping Invest Buff String: {line}");
+                    MLogger.LogDebug($"Dumping Invest Buff String: {line}");
 
                 Dictionary<int, string> bullets = [];
 
@@ -333,7 +331,7 @@ namespace ToolModBepInEx
                     {
                         var text =
                             $"{GameAPP.resourcesManager.bulletPrefabs[GameAPP.resourcesManager.allBullets[i]].name} ({(int)GameAPP.resourcesManager.allBullets[i]})";
-                        MLogger.LogInfo($"Dumping Bullet String: {text}");
+                        MLogger.LogDebug($"Dumping Bullet String: {text}");
                         bullets.Add((int)GameAPP.resourcesManager.allBullets[i], text);
                         BulletDamage.Add(GameAPP.resourcesManager.allBullets[i], -1);
                     }
@@ -343,9 +341,7 @@ namespace ToolModBepInEx
                 Dictionary<int, string> seconds = [];
                 foreach (var second in Enum.GetValues(typeof(Zombie.SecondArmorType)))
                     seconds.Add((int)second, $"{second}");
-                MLogger.LogWarning("以上id信息为动态生成，仅适用于当前游戏实例！！！");
-                MLogger.LogWarning("以上id信息为动态生成，仅适用于当前游戏实例！！！");
-                MLogger.LogWarning("以上id信息为动态生成，仅适用于当前游戏实例！！！");
+                MLogger.LogDebug("以上id信息为动态生成，仅适用于当前游戏实例！！！");
 
                 InitData initData = new()
                 {
@@ -363,16 +359,16 @@ namespace ToolModBepInEx
                 File.WriteAllText("./PVZRHTools/InitData.json", JsonSerializer.Serialize(initData));
                 
                 // 在 LateInit 完成后，初始化 DataSync（这会启动修改器）
-                MLogger.LogInfo("[PVZRHTools] LateInit: 数据准备完成，现在启动修改器");
+                MLogger.LogDebug("[PVZRHTools] LateInit: 数据准备完成，现在启动修改器");
                 try
                 {
                     DataSync.Initialize();
                     MLogger.LogInfo("[PVZRHTools] LateInit: 修改器启动成功");
                     
                     // 立即发送数据给UI，确保UI使用最新的数据
-                    MLogger.LogInfo($"[PVZRHTools] LateInit: 立即发送词条数据给UI - Advanced={advBuffs.Count}, Ultimate={ultiBuffs.Count}, Debuff={debuffs.Count}");
+                    MLogger.LogDebug($"[PVZRHTools] LateInit: 立即发送词条数据给UI - Advanced={advBuffs.Count}, Ultimate={ultiBuffs.Count}, Debuff={debuffs.Count}");
                     DataSync.Instance.SendData(initData);
-                    MLogger.LogInfo("[PVZRHTools] LateInit: 已发送词条数据给UI");
+                    MLogger.LogDebug("[PVZRHTools] LateInit: 已发送词条数据给UI");
 
                     var reloadGo = new GameObject("BuffReloadScheduler");
                     Object.DontDestroyOnLoad(reloadGo);
@@ -552,10 +548,18 @@ namespace ToolModBepInEx
             ]);
             Config.Save();
 
+            // ★ 游戏版本审核（4.0）：不符则提前退出 —— 不注册组件、不打补丁，插件惰性、修改器不启动。
+            //   判据与 fail-safe 见 GameVersionGate.cs；逃生阀 = 配置 SkipVersionCheck。
+            if (!GameVersionGate.Check(LoggerInstance, Config))
+                return;
+
             ClassInjector.RegisterTypeInIl2Cpp<PatchMgr>();
             ClassInjector.RegisterTypeInIl2Cpp<DataProcessor>();
             ClassInjector.RegisterTypeInIl2Cpp<LateInitHelper>();
             ClassInjector.RegisterTypeInIl2Cpp<BuffReloadScheduler>();
+            // #20 H 键植物数据窗口内容重建组件（移植自参考版，注册方式与参考版 ModCore.cs:59 一致；
+            // 挂接见 PatchMgr.PlantDataMenuStartAttachPatch）
+            ClassInjector.RegisterTypeInIl2Cpp<PlantStatisticsModifier>();
             Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
             if (Time.timeScale == 0) Time.timeScale = 1;
         }

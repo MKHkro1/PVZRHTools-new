@@ -1,6 +1,7 @@
-﻿<Application x:Class="PVZRHTools.App"
+<Application x:Class="PVZRHTools.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
              xmlns:fh="clr-namespace:FastHotKeyForWPF;assembly=FastHotKeyForWPF"
              StartupUri="MainWindow.xaml"
              DispatcherUnhandledException="App_DispatcherUnhandledException">
@@ -8,11 +9,18 @@
 
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/Theme.xaml" />
+                <!-- ★ HandyControl 换肤必须用 hc:Theme 实例（2026-09-24 根因修复）
+                     旧写法是把 SkinDefault.xaml 与 Theme.xaml 当两个普通字典分别合并 ——
+                     那样资源树里**根本不存在 HandyControl.Themes.Theme 实例**，
+                     于是"设 Skin 换肤"无从生效（反编译证实：Theme 的构造函数自己把
+                     皮肤与样式装进自己的 MergedDictionaries，UpdateSkin() 只替换其 [0]）。
+                     换成 hc:Theme 后，App.SwitchTheme 里设它的 Skin 即可真正切换皮肤。 -->
+                <hc:Theme />
                 <ResourceDictionary Source="/Styles/ThemeColorsLight.xaml" />
                 <ResourceDictionary Source="/Lang.zh-cn.xaml" />
                 <ResourceDictionary Source="/Styles/AnimatedStyles.xaml" />
+                <!-- 简约化隐式样式：必须放在最后，才能覆盖前面 HandyControl 的隐式样式 -->
+                <ResourceDictionary Source="/Styles/SimpleTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <Style TargetType="{x:Type fh:HotKeyBox}">
                 <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />

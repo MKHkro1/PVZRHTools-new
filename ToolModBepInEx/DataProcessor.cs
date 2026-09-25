@@ -24,6 +24,71 @@ namespace ToolModBepInEx;
 
 public class DataProcessor : MonoBehaviour
 {
+    /// <summary>
+    /// 一键应用全部植物皮肤（5.0.9 移植；REF ToolMod\Components\DataProcessor.cs:717-754）。
+    /// 逐植物查 _plantPrefabs 皮肤表，取最后一个皮肤索引走游戏原生 SetSkin(PlantType,int)
+    /// （避免直接操作 Il2Cpp 字典索引器）。成员已 Cecil 核（4.0 interop）：
+    /// ResourcesManager._plantPrefabs = Dictionary&lt;PlantType,List&lt;GameObject&gt;&gt;、SetSkin(PlantType,int) Public。
+    /// 反馈走本工程统一的 GameApiCompat.ShowInGameText —— 4.0 interop 无 InGameText 类型（REF 的弹字 API 已不存在）。
+    /// </summary>
+    private static void ApplyAllPlantSkinsImpl()
+    {
+        try
+        {
+            var rm = GameAPP.resourcesManager;
+            if (rm == null) return;
+            var allPlants = rm.allPlants;
+            if (allPlants == null) return;
+
+            var appliedCount = 0;
+            for (var i = 0; i < allPlants.Count; i++)
+            {
+                var plantType = allPlants[i];
+                try
+                {
+                    // 皮肤数 > 1 才有可应用的皮肤（取最后一个 = 最新皮肤，REF 同语义）
+                    if (rm._plantPrefabs.TryGetValue(plantType, out var skinList) &&
+                        skinList != null && skinList.Count > 1)
+                    {
+                        rm.SetSkin(plantType, skinList.Count - 1);
+                        appliedCount++;
+                    }
+                }
+                catch
+                {
+                    // 跳过没有皮肤的植物类型
+                }
+            }
+
+            GameApiCompat.ShowInGameText(appliedCount > 0 ? "已应用全部植物皮肤" : "没有找到可应用的植物皮肤", 2f);
+        }
+        catch (Exception ex)
+        {
+            try { UnityEngine.Debug.LogError($"ApplyAllPlantSkins 异常: {ex.Message}\n{ex.StackTrace}"); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// 一键获得全部植物皮肤（5.0.9 移植；REF ToolMod\Components\DataProcessor.cs:756-768）：
+    /// 把皮肤关卡完成表清空后写入 1..10（冒险关 1-10 全完成 = 解锁全部植物皮肤），逻辑逐字对齐 REF。
+    /// 4.0 interop：GameAPP.skinLevelCompleted = Il2Cpp HashSet&lt;int&gt;（Cecil 实核，Clear/Add 可用）。
+    /// </summary>
+    private static void ObtainAllPlantSkinsImpl()
+    {
+        try
+        {
+            var completed = GameAPP.skinLevelCompleted;
+            if (completed == null) return;
+            completed.Clear();
+            for (var i = 1; i <= 10; i++) completed.Add(i);
+            GameApiCompat.ShowInGameText("已获得所有植物皮肤", 2f);
+        }
+        catch (Exception ex)
+        {
+            try { UnityEngine.Debug.LogError($"ObtainAllPlantSkins 异常: {ex.Message}\n{ex.StackTrace}"); } catch { }
+        }
+    }
+
     // NextWave 在 UI 侧通常会维持 true 一段时间（同步帧）。
     // 若不做边沿触发，会反复执行“触发下一波”，导致 timeUntilNextWave 被反复重置（常见表现：一直卡 30 秒且不出怪）。
     // 使用上一帧的 NextWave 值来检测边沿（false->true）
@@ -565,8 +630,15 @@ public class DataProcessor : MonoBehaviour
     internal static void EnterLoseMenuPreserveStack(string reason = "")
     {
         // 统计与 board.over 由 HandleGameLose 在进入失败界面前已处理，此处仅暂停并叠加 UI
-        GameAPP.theGameStatus = GameStatus.InGame;
+        // ★ 枚举实锤：OpenOptions=-2 / OutGame=-1 / InGame=0 / Pause=1（GameStatus.cs）。
+        //   原版 EnterLoseMenu 写入的是 Pause(1)（IDA 汇编：`mov edi,1; mov [static+0xA8],edi`）。
+        //   此前误写 InGame(0)=局内运行 → Board.Update 的 `if(!theGameStatus)` 每帧继续跑 LevelUpdate
+        //   （波次/AI/计时全没停，失败界面后面僵尸照样动）。对齐原版写 Pause。
+        GameAPP.theGameStatus = GameStatus.Pause;
+        // ★ 主动武装时速看门狗的外部接管闩：保证这里的 timeScale=0 不被每帧写入顶掉
+        PatchMgr.ArmTimeScaleHandoff();
         Time.timeScale = 0f;
+        try { PatchMgr.MLogger?.LogInfo("[EnterLose] 失败界面暂停: status=Pause + timeScale=0 + 已武装接管闩"); } catch { }
 
         try { GameAPP.music?.Pause(); } catch { }
         try { GameAPP.musicDrum?.Pause(); } catch { }
@@ -1025,6 +1097,8 @@ public class DataProcessor : MonoBehaviour
             if (p1.GloveNoCD is not null) GloveNoCD = (bool)p1.GloveNoCD;
             if (p1.HammerNoCD is not null) HammerNoCD = (bool)p1.HammerNoCD;
             if (p1.WheelNoCD is not null) WheelNoCD = (bool)p1.WheelNoCD;
+            // 罗盘自定义冷却：-1/负值 = 关闭（REF WheelFullCD 单字段协议）
+            if (p1.WheelFullCD is not null) WheelFullCD = (double)p1.WheelFullCD;
             if (p1.PlantingNoCD is not null && Board.Instance is not null)
             {
                 FreeCD = (bool)p1.PlantingNoCD;
@@ -1060,6 +1134,13 @@ public class DataProcessor : MonoBehaviour
             if (p1.PvEBlindBoxZombie5 is not null) PvEBlindBoxZombie5 = (int)p1.PvEBlindBoxZombie5;
             if (p1.PvEBlindBoxZombie6 is not null) PvEBlindBoxZombie6 = (int)p1.PvEBlindBoxZombie6;
             if (p1.FastShooting is not null) FastShooting = (bool)p1.FastShooting;
+            // 植物速度/攻击/血量三件套（5.3.1 #7+6）：Enabled+值双判，照僵尸三倍率/ FastShooting 分支直赋
+            if (p1.PlantSpeedMultiplierEnabled is not null) PlantSpeedMultiplierEnabled = (bool)p1.PlantSpeedMultiplierEnabled;
+            if (p1.PlantSpeedMultiplier is not null) PlantSpeedMultiplier = (float)p1.PlantSpeedMultiplier;
+            if (p1.PlantAttackMultiplierEnabled is not null) PlantAttackMultiplierEnabled = (bool)p1.PlantAttackMultiplierEnabled;
+            if (p1.PlantAttackMultiplier is not null) PlantAttackMultiplier = (float)p1.PlantAttackMultiplier;
+            if (p1.PlantHealthMultiplierEnabled is not null) PlantHealthMultiplierEnabled = (bool)p1.PlantHealthMultiplierEnabled;
+            if (p1.PlantHealthMultiplier is not null) PlantHealthMultiplier = (float)p1.PlantHealthMultiplier;
             if (p1.HardPlant is not null) HardPlant = (bool)p1.HardPlant;
             if (p1.ImmuneForceDeduct is not null) ImmuneForceDeduct = (bool)p1.ImmuneForceDeduct;
             if (p1.CurseImmunity is not null) CurseImmunity = (bool)p1.CurseImmunity;
@@ -1145,6 +1226,26 @@ public class DataProcessor : MonoBehaviour
             if (p1.OldObsidianBullet is not null) OldObsidianBullet = (bool)p1.OldObsidianBullet;
             if (p1.StarUpBuff is not null) global::ToolModBepInEx.PatchMgr.StarUpBuff = (bool)p1.StarUpBuff;
             if (p1.RandomUpgradeMode is not null) RandomUpgradeMode = (bool)p1.RandomUpgradeMode;
+            // ---- 4.0 同步新增功能（此前只加了协议字段与 PatchMgr 静态属性，缺这一步赋值，导致功能无效）----
+            if (p1.EnableAllCards is not null) global::ToolModBepInEx.PatchMgr.EnableAllCards = (bool)p1.EnableAllCards;
+            if (p1.HardBullet is not null) global::ToolModBepInEx.PatchMgr.HardBullet = (bool)p1.HardBullet;
+            if (p1.UnlockAllAlmanac is not null) global::ToolModBepInEx.PatchMgr.UnlockAllAlmanac = (bool)p1.UnlockAllAlmanac;
+            if (p1.PlantsAllUpgrade is not null) global::ToolModBepInEx.PatchMgr.PlantsAllUpgrade = (bool)p1.PlantsAllUpgrade;
+            if (p1.PlantsAllStarUp is not null) global::ToolModBepInEx.PatchMgr.PlantsAllStarUp = (bool)p1.PlantsAllStarUp;
+            // 僵尸血量倍率：单静态哨兵（-1=关）。VM 条件成对下发：
+            //   勾选 → {Enabled=true, Multiplier=当前值}；取消 → {Enabled=false, Multiplier=null}；
+            //   改数值 → {Multiplier=勾选?值:null}。数值单独到达时仅在当前启用态下更新（严格门控）。
+            if (p1.ZombieHealthMultiplierEnabled is not null)
+                global::ToolModBepInEx.PatchMgr.ZombieHealthMultiplier = (bool)p1.ZombieHealthMultiplierEnabled
+                    ? (p1.ZombieHealthMultiplier is not null
+                        ? (float)p1.ZombieHealthMultiplier
+                        : global::ToolModBepInEx.PatchMgr.ZombieHealthMultiplier)
+                    : -1f;
+            else if (p1.ZombieHealthMultiplier is not null
+                     && global::ToolModBepInEx.PatchMgr.ZombieHealthMultiplier > 0f)
+                global::ToolModBepInEx.PatchMgr.ZombieHealthMultiplier = (float)p1.ZombieHealthMultiplier;
+            if (p1.ZombieHealthRatio is not null)
+                global::ToolModBepInEx.PatchMgr.ApplyZombieHealthRatio((float)p1.ZombieHealthRatio);
             return;
         }
 
@@ -1483,19 +1584,14 @@ public class DataProcessor : MonoBehaviour
                 ZombieSeaLow = (bool)iga.ZombieSeaLowEnabled;
             }
 
-            if (iga.LockSun is not null
-                && iga.CurrentSun is not null)
-            {
-                LockSun = (bool)iga.LockSun;
-                LockSunCount = (int)iga.CurrentSun;
-            }
+            // #27 勾选与数值解耦：标志到位就更新锁定状态、数值到位就更新锁定目标值。
+            // 原实现要求两者同时在场才写入，导致「取消勾选只发标志」被整段丢弃（锁定关不掉）、
+            // 「锁定中只发数值」时 LockSunCount 不更新（下一帧被每帧锁定分支写回旧值，改了不生效）。
+            if (iga.LockSun is not null) LockSun = (bool)iga.LockSun;
+            if (iga.CurrentSun is not null) LockSunCount = (int)iga.CurrentSun;
 
-            if (iga.LockMoney is not null
-                && iga.CurrentMoney is not null)
-            {
-                LockMoney = (bool)iga.LockMoney;
-                LockMoneyCount = (int)iga.CurrentMoney;
-            }
+            if (iga.LockMoney is not null) LockMoney = (bool)iga.LockMoney;
+            if (iga.CurrentMoney is not null) LockMoneyCount = (int)iga.CurrentMoney;
 
             if (iga.NoFail is not null) EnableAll<GameLose>(!(bool)iga.NoFail);
             if (iga.BuffRefreshNoLimit is not null) BuffRefreshNoLimit = (bool)iga.BuffRefreshNoLimit;
@@ -1535,6 +1631,28 @@ public class DataProcessor : MonoBehaviour
                     }
                 }
                 catch { }
+            }
+
+            // 功能 #18：冒险秘境抽奖券数修改（4 个券各自可传任意数值）
+            // AbyssManager.Data 是存档数据，写它即持久化 —— 与 AbyssCheat 同一入口。
+            if (iga.AbyssWoodenTicket is not null || iga.AbyssSilverTicket is not null
+                || iga.AbyssGoldTicket is not null || iga.AbyssDiamondTicket is not null)
+            {
+                try
+                {
+                    var abyssData = AbyssManager.Data;
+                    if (abyssData != null)
+                    {
+                        if (iga.AbyssWoodenTicket is not null) abyssData.woodenTicket = (int)iga.AbyssWoodenTicket;
+                        if (iga.AbyssSilverTicket is not null) abyssData.silverTicket = (int)iga.AbyssSilverTicket;
+                        if (iga.AbyssGoldTicket is not null) abyssData.goldTicket = (int)iga.AbyssGoldTicket;
+                        if (iga.AbyssDiamondTicket is not null) abyssData.diamondTicket = (int)iga.AbyssDiamondTicket;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] 写入秘境抽奖券失败: {ex.Message}");
+                }
             }
 
             if (iga.LoadCustomPlantData is not null)
@@ -1923,8 +2041,15 @@ all");
                     MLogger?.LogError($"[PVZRHTools] 创建究极陨星失败: {ex.Message}");
                 }
             }
-            if (iga.CurrentSun is not null) Board.Instance.theSun = (int)iga.CurrentSun;
-            if (iga.CurrentMoney is not null) Board.Instance.theMoney = (int)iga.CurrentMoney;
+            // #27「勾选+数值」：只有【锁定开启】时才把数值落到棋盘 —— 未勾选时改数值 / 取消勾选
+            // 携带的数值一律 no-op；锁定期间的持续维持由 PatchMgr 每帧的 LockSun/LockMoney 分支负责。
+            // （LockSun/LockMoney 经 using static 与每帧分支同源，勾选瞬间的即时应用仍保留。）
+            if (iga.CurrentSun is not null && LockSun && Board.Instance != null)
+                Board.Instance.theSun = (int)iga.CurrentSun;
+            if (iga.CurrentMoney is not null && LockMoney && Board.Instance != null)
+                Board.Instance.theMoney = (int)iga.CurrentMoney;
+            // 锁定全场光照等级：-1 表示关闭（关闭时不做任何写入，交回游戏自身光照逻辑）。
+            if (iga.LockLightLevel is not null) global::ToolModBepInEx.PatchMgr.LockLightLevel = (int)iga.LockLightLevel;
 
             if (iga.ClearAllPlants is not null)
             {
@@ -1937,6 +2062,35 @@ all");
 
             if (iga.ClearAllZombies is not null)
                 KillAllZombiesOnBoard();
+
+            // 功能 #12：秒杀细分变体 —— 复用同一套安全链路（ApplyDamage 链路 + board 过滤），
+            // 只加一个字段比较谓词；绝不照抄 REF 的 theHealth=0; Die();
+            if (iga.KillNonMindControlledZombies is true)
+                KillAllZombiesOnBoard(z => !z.isMindControlled);
+            if (iga.KillMindControlledZombies is true)
+                KillAllZombiesOnBoard(z => z.isMindControlled);
+            // 「秒杀指定路僵尸」：UI 里的 Row 是 1-based，theZombieRow 是 0-based
+            if (iga.KillZombiesOnRow is true && iga.Row is not null)
+            {
+                var targetRow = (int)iga.Row - 1;
+                KillAllZombiesOnBoard(z => z.theZombieRow == targetRow);
+            }
+
+            // 功能 #13：清除全部子弹 —— 倒序遍历 boardEntity.bulletArray，逐条 try/catch
+            if (iga.ClearAllBullets is true && Board.Instance?.boardEntity != null)
+            {
+                var bullets = Board.Instance.boardEntity.bulletArray;
+                for (var j = bullets.Count - 1; j >= 0; j--)
+                    try
+                    {
+                        var bullet = bullets[j];
+                        if (bullet == null || !bullet) continue;
+                        bullet.Die();
+                    }
+                    catch
+                    {
+                    }
+            }
 
             if (iga.CancelGameLose is not null)
                 TryCancelGameLose();
@@ -2573,6 +2727,70 @@ all");
                 }
             }
 
+            // ---- 植物三件套「全场×N」一次性乘算（非 null 边沿触发；循环体抄 REF DataProcessor.cs:977-1015，
+            //      守卫：ratio<=0 / Board 判空 / plant null / IsDestroyed。一次性动作消息按条处理，执行即消费）----
+            if (iga.ApplyPlantSpeedRatio is not null)
+            {
+                var ratio = (float)iga.ApplyPlantSpeedRatio;
+                if (ratio > 0f && Board.Instance != null && Board.Instance.boardEntity != null)
+                {
+                    foreach (var p in Lawnf.GetAllPlants())
+                    {
+                        try
+                        {
+                            if (p != null && !p.IsDestroyed())
+                            {
+                                p.thePlantSpeed *= ratio;
+                                p.attributeSpeed *= ratio;
+                                p.attackSpeedAdder *= ratio;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            if (iga.ApplyPlantAttackRatio is not null)
+            {
+                var ratio = (float)iga.ApplyPlantAttackRatio;
+                if (ratio > 0f && Board.Instance != null && Board.Instance.boardEntity != null)
+                {
+                    foreach (var p in Lawnf.GetAllPlants())
+                    {
+                        try
+                        {
+                            if (p != null && !p.IsDestroyed())
+                            {
+                                p.attackDamage = (int)(p.attackDamage * ratio);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            if (iga.ApplyPlantHealthRatio is not null)
+            {
+                var ratio = (float)iga.ApplyPlantHealthRatio;
+                if (ratio > 0f && Board.Instance != null && Board.Instance.boardEntity != null)
+                {
+                    foreach (var p in Lawnf.GetAllPlants())
+                    {
+                        try
+                        {
+                            if (p != null && !p.IsDestroyed())
+                            {
+                                p.thePlantHealth = (int)(p.thePlantHealth * ratio);
+                                p.thePlantMaxHealth = (int)(p.thePlantMaxHealth * ratio);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            // ---- 一键植物皮肤（5.0.9 移植；REF Strings.ApplyAllPlantSkins/ObtainAllPlantSkins，==true 边沿一次性执行）----
+            if (iga.ApplyAllPlantSkins == true) ApplyAllPlantSkinsImpl();
+            if (iga.ObtainAllPlantSkins == true) ObtainAllPlantSkinsImpl();
+
             // 仅当显式请求启动推车时才执行，避免接收 false/默认值时误触发
             if (iga.StartMower == true && Board.Instance != null && Board.Instance.mowerArray != null)
             {
@@ -2694,6 +2912,92 @@ all");
                 MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetDrown);
             }
 
+            // 召唤迷你黑橄榄骑士（REF 5.0.6 的 3 只新宠物，handler 与上面 5 只逐字同模板）
+            if (iga.SpawnPetHorse == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetHorse);
+            }
+
+            // 召唤迷你小鬼国王
+            if (iga.SpawnPetImp == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetImp);
+            }
+
+            // 召唤迷你裂空机甲
+            if (iga.SpawnPetKirov == true && Board.Instance != null && Mouse.Instance != null)
+            {
+                var mousePos = Mouse.Instance.transform.position;
+                MiniPet.SetPet(Board.Instance, new Vector2(mousePos.x, mousePos.y), PetType.PetKirov);
+            }
+
+            // 作弊码一次性执行：与 REF ExecuteCheatKey 同语义 —— 写入游戏 CheatKey 组件的 key，
+            // 由游戏自己的 Update/CheckCheatCodes 分发（key 在 interop 里是 public 属性，可直接赋值）
+            if (iga.ExecuteCheatKey is not null && GameAPP.Instance != null)
+            {
+                var cheat = GameAPP.Instance.GetComponent<CheatKey>();
+                if (cheat != null) cheat.key =iga.ExecuteCheatKey;
+            }
+
+            // 星辉冒险：改普通/困难难度星星数（REF SetStarAdvStar / SetStarAdvStarHard 同语义；一次性值，非 null 即写）
+            if (iga.SetStarAdvStar is not null && AdvantureConfig.data != null)
+                AdvantureConfig.data.enpowerStarCount = iga.SetStarAdvStar.Value;
+            if (iga.SetStarAdvStarHard is not null && AdvantureConfig.data != null)
+                AdvantureConfig.data.enpowerStarCount_hard = iga.SetStarAdvStarHard.Value;
+
+            // 星辉冒险：天赋节点免费点亮状态（状态量；null = 本次消息未携带该字段，不改）
+            if (iga.StarAdvFreeBuff is not null)
+                PatchMgr.StarAdvFreeBuff = iga.StarAdvFreeBuff.Value;
+
+            // 清除全部墓碑（REF RemoveAllGraves:719-729 同语义：倒序遍历 griditemArray 原地删除）
+            if (iga.RemoveAllGraves is true && Board.Instance != null)
+            {
+                var gridItems = Board.Instance.griditemArray;
+                if (gridItems != null)
+                {
+                    for (var i = gridItems.Count - 1; i >= 0; i--)
+                    {
+                        var item = gridItems[i];
+                        if (item == null) continue;
+                        if (item.theItemType == GridItemType.Grave)
+                        {
+                            Object.Destroy(item.gameObject);
+                            gridItems.RemoveAt(i);
+                        }
+                    }
+                }
+            }
+
+            // 太阳陨石（REF CreateSolarMeteorite:974-982 同语义：实例化 itemPrefab[47] 挂到棋盘下）
+            if (iga.CreateSolarMeteorite is true && GameAPP.itemPrefab != null && GameAPP.board != null)
+            {
+                var solarPrefab = GameAPP.itemPrefab[47];
+                if (solarPrefab != null)
+                {
+                    var solarObj = Object.Instantiate(solarPrefab);
+                    if (solarObj != null)
+                        solarObj.transform.SetParent(GameAPP.board.transform);
+                }
+            }
+
+            // 跳转到指定波（REF SetJumpWave:1001-1013 同语义：直接写 theWave，并把进度条切到显示态）
+            if (iga.JumpWave is not null && Board.Instance != null)
+            {
+                var jumpBoard = Board.Instance;
+                if (jumpBoard.theMaxWave > 0)
+                {
+                    if (jumpBoard.theWave == 0 && InGameUI.Instance != null && InGameUI.Instance.LevProgress != null)
+                    {
+                        InGameUI.Instance.LevelName2.gameObject.SetActive(false);
+                        InGameUI.Instance.LevelName3.gameObject.SetActive(true);
+                        InGameUI.Instance.LevProgress.SetActive(true);
+                    }
+                    jumpBoard.theWave = Math.Min(iga.JumpWave.Value, jumpBoard.theMaxWave);
+                }
+            }
+
             // 获取出怪列表
             if (iga.GetZombieList == true && InGame())
             {
@@ -2806,6 +3110,62 @@ all");
             if (ge.DamageMultiplierEnabled is not null)
                 GodEvolutionDamageMultiplierEnabled = (bool)ge.DamageMultiplierEnabled;
             if (ge.DamageMultiplier is not null) GodEvolutionDamageMultiplier = (float)ge.DamageMultiplier;
+
+            // 诸神币修改：ShootingManager.Data 是存档数据（RogueShootingData），写 godCoins 即持久化，
+            // 与 REF 的"命令即执行"语义对齐 —— 每次收到新值立即落盘。
+            if (ge.GodCoin is not null)
+            {
+                GodEvolutionGodCoin = (int)ge.GodCoin;
+                try
+                {
+                    var shootingData = ShootingManager.Data;
+                    if (shootingData != null)
+                        shootingData.godCoins = (int)ge.GodCoin;
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] 写入诸神币失败: {ex.Message}");
+                }
+            }
+
+            if (ge.ForceMissionBuff is not null)
+                GodEvolutionForceMissionBuff = (bool)ge.ForceMissionBuff;
+            if (ge.ForceTacticalBuff is not null)
+                GodEvolutionForceTacticalBuff = (bool)ge.ForceTacticalBuff;
+
+            // 隐藏难度：开关变化时若已进关卡，实时同步给局内 ShootingManager
+            // （REF 用 SimpleSyncBool 的回调实现同一语义；进关卡时的自动触发在 InitBoard 补丁里）
+            if (ge.CheatHard is not null)
+            {
+                GodEvolutionCheatHard = (bool)ge.CheatHard;
+                try
+                {
+                    if (InGame() && ShootingManager.Instance != null
+                        && ShootingManager.Instance.cheatHard != GodEvolutionCheatHard)
+                        ShootingManager.Instance.CheatHard();
+                }
+                catch (Exception ex)
+                {
+                    MLogger?.LogError($"[PVZRHTools] 设置隐藏难度失败: {ex.Message}");
+                }
+            }
+
+            // 诸神概率族 5 个开关（REF GodEvolutionForce* 同名；写入 PatchMgr 静态供各补丁首行早退判断）
+            if (ge.ForceExpertBuff is not null)
+                GodEvolutionForceExpertBuff = (bool)ge.ForceExpertBuff;
+            if (ge.ForceStarUpBuff is not null)
+                GodEvolutionForceStarUpBuff = (bool)ge.ForceStarUpBuff;
+            if (ge.ForceMutationBuff is not null)
+                GodEvolutionForceMutationBuff = (bool)ge.ForceMutationBuff;
+            if (ge.ForceIridescentBuff is not null)
+                GodEvolutionForceIridescentBuff = (bool)ge.ForceIridescentBuff;
+            if (ge.ForceRandomBuff is not null)
+                GodEvolutionForceRandomBuff = (bool)ge.ForceRandomBuff;
+
+            // 一键解锁诸神进化植物/路线/词条（一次性触发）
+            if (ge.UnlockAll is true)
+                GodEvolutionUnlockAll();
+
             if (ShootingManager.Instance != null)
                 GodEvolutionHelper.ApplySettings(ShootingManager.Instance);
         }
@@ -2920,7 +3280,18 @@ all");
         return Math.Max(maxId + 1, fallbackCount);
     }
 
-    private static void KillAllZombiesOnBoard()
+    /// <summary>
+    ///     秒杀场上僵尸（保留原实现的安全链路）。
+    ///     ★ 不要改成 REF 的 theHealth=0; Die(); —— 那会跳过防具阶段且对 board==null 的
+    ///     预制体/未初始化实例直接 NRE 刷屏（本仓库 3.9/4.0 权威写法是 ApplyDamage）。
+    /// </summary>
+    private static void KillAllZombiesOnBoard() => KillAllZombiesOnBoard(null);
+
+    /// <summary>
+    ///     秒杀场上僵尸，可按谓词过滤（功能 #12：非魅惑 / 魅惑 / 指定路）。
+    ///     过滤谓词只做字段比较，且仅在"用户点了按钮"这条稀疏路径上执行。
+    /// </summary>
+    private static void KillAllZombiesOnBoard(Func<Zombie, bool>? filter)
     {
         if (Board.Instance == null) return;
 
@@ -2932,6 +3303,7 @@ all");
             {
                 var zombie = arr[j];
                 if (zombie == null || !zombie) continue;
+                if (filter is not null && !filter(zombie)) continue;
 
                 zombie.ApplyDamage(DamageType.MaxDamage, 2147483647);
                 zombie.BodyTakeDamage(2147483647);
@@ -2941,6 +3313,119 @@ all");
             {
             }
         }
+    }
+
+    /// <summary>
+    ///     一键解锁诸神进化：遍历图鉴目录，把每个根植物/路线/战术上限全部写入玩家数据。
+    ///     实现照 REF 的 GodEvolutionBuyAll（ToolMod\Components\DataProcessor.cs:1888-1948）。
+    ///
+    ///     ★ IL2CPP 互操作要点（本方法是踩坑后定稿的，改动请照做）：
+    ///     catalog.Roots / GetRoutes() / GetEntries() 返回的是
+    ///     Il2CppSystem.Collections.Generic.IReadOnlyList&lt;T&gt; —— 它【既没有 Count 也没有 GetEnumerator】，
+    ///     所以既不能 foreach（CS1579）也不能取 .Count（CS1061）。
+    ///     唯一可行写法：先用 TryCast 转成 Il2Cpp 的 IReadOnlyCollection&lt;T&gt; 取 Count，再用下标索引。
+    /// </summary>
+    private static void GodEvolutionUnlockAll()
+    {
+        try
+        {
+            var data = ShootingManager.Data;
+            if (data == null) return;
+
+            var catalog = ShootingAlmanacCatalog.Build();
+            if (catalog == null) return;
+
+            if (data.unlockedPlants == null)
+                data.unlockedPlants = new Il2CppSystem.Collections.Generic.List<PlantType>();
+            if (data.unlockedRoutes == null)
+                data.unlockedRoutes = new Il2CppSystem.Collections.Generic.List<string>();
+            if (data.unlockedTacticMaxEntries == null)
+                data.unlockedTacticMaxEntries = new Il2CppSystem.Collections.Generic.List<string>();
+
+            // 根植物 → unlockedPlants；顺带把每条路线 ID 写入 unlockedRoutes
+            var roots = catalog.Roots;
+            var rootCount = roots?.TryCast<Il2CppSystem.Collections.Generic.IReadOnlyCollection<PlantType>>()?.Count ?? 0;
+            for (var i = 0; i < rootCount; i++)
+            {
+                var plant = roots![i];
+                if (!data.unlockedPlants.Contains(plant))
+                    data.unlockedPlants.Add(plant);
+
+                var routes = catalog.GetRoutes(plant);
+                var routeCount = routes
+                    ?.TryCast<Il2CppSystem.Collections.Generic.IReadOnlyCollection<
+                        Il2CppSystem.Collections.Generic.List<PlantType>>>()
+                    ?.Count ?? 0;
+                for (var j = 0; j < routeCount; j++)
+                {
+                    var path = routes![j];
+                    if (path == null || path.Count <= 0) continue;
+                    var id = ShootingAlmanacUnlocks.RouteId(
+                        path.Cast<Il2CppSystem.Collections.Generic.IEnumerable<PlantType>>());
+                    if (!string.IsNullOrEmpty(id) && !data.unlockedRoutes.Contains(id))
+                        data.unlockedRoutes.Add(id);
+                }
+            }
+
+            // 战术词条 → unlockedTacticMaxEntries
+            var tactics = catalog.GetEntries(ShootingAlmanacCategory.Tactics);
+            var tacticCount = tactics
+                ?.TryCast<Il2CppSystem.Collections.Generic.IReadOnlyCollection<ShootingAlmanacEntry>>()
+                ?.Count ?? 0;
+            for (var i = 0; i < tacticCount; i++)
+            {
+                var entry = tactics![i];
+                if (entry == null || string.IsNullOrEmpty(entry.Id)) continue;
+                if (!data.unlockedTacticMaxEntries.Contains(entry.Id))
+                    data.unlockedTacticMaxEntries.Add(entry.Id);
+            }
+
+            data.hasPurchasedAlmanacUnlock = true;
+            if (data.unlockVersion < 2)
+                data.unlockVersion = 2;
+
+            // 难度/模式解锁半边（REF DataProcessor.cs:1950-1971 同语义）：总胜利 20 次 → 解锁 canTab/屋顶模式；
+            // 难度 1/2/3 各记 1 胜（更高难度各需前一级至少 1 胜）；模式 0/1/2 各记 1 胜、
+            // 模式 3 记满 10 胜（模式 4 需 stageWins[3] ≥ 10）
+            data.victoryTimes = 20;
+            RecordWin(data.difficultyWin, 1);
+            RecordWin(data.difficultyWin, 2);
+            RecordWin(data.difficultyWin, 3);
+            RecordWin(data.stageWins, 0);
+            RecordWin(data.stageWins, 1);
+            RecordWin(data.stageWins, 2);
+            for (var i = 0; i < 10; i++) RecordWin(data.stageWins, 3);
+
+            // 落盘 + 提示（本工程统一用 GameApiCompat.ShowInGameText，不直接碰 InGameText 类型）
+            try { SaveInfo.Instance?.SavePlayerData(); } catch { }
+            try { GameApiCompat.ShowInGameText("已解锁全部植物、路线、战术词条与难度模式", 5); } catch { }
+        }
+        catch (Exception ex)
+        {
+            MLogger?.LogError($"[PVZRHTools] 解锁诸神进化失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// REF RecordData 的属性版：按 element 在记录列表里查找，找到则胜利次数 +1，找不到则新建 victoryTimes=1 的记录。
+    /// REF 用裸指针（ptr[4]/ptr[5]）是因为它的 interop 没暴露 DataRecord 字段；本仓 interop 把
+    /// element / victoryTimes 暴露为可读写属性，直接用属性即可（victoryTimes 即 REF 注释里的 count，0x14）。
+    /// </summary>
+    private static void RecordWin(Il2CppSystem.Collections.Generic.List<DataRecord<int>> list, int element)
+    {
+        if (list == null) return;
+        var n = list.Count;
+        for (var i = 0; i < n; i++)
+        {
+            var rec = list[i];
+            if (rec == null) continue;
+            if (rec.element == element)
+            {
+                rec.victoryTimes++;
+                return;
+            }
+        }
+        list.Add(new DataRecord<int> { element = element, victoryTimes = 1 });
     }
 
     private static bool IsUnityObjectAlive(Object? obj) => obj != null && obj;

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -23,7 +23,6 @@ public class DataSync
         buffer = new byte[1024 * 64];
         gameSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         gameSocket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), Core.Port.Value.Value));
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: Socket 已绑定");
             
         Process modifier = new();
         ProcessStartInfo info = new()
@@ -38,20 +37,16 @@ public class DataSync
         modifier.StartInfo = info;
             
         gameSocket.Listen(1);
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: Socket 开始监听，准备启动修改器");
             
             // 检查修改器文件是否存在
             var modifierPath = "PVZRHTools/PVZRHTools.exe";
             var fullPath = System.IO.Path.GetFullPath(modifierPath);
-            Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync: 检查修改器文件路径: {fullPath}");
             if (!System.IO.File.Exists(modifierPath))
             {
                 Core.Instance.Value.LoggerInstance.LogError($"[PVZRHTools] DataSync: 修改器文件不存在: {modifierPath} (完整路径: {fullPath})");
                 throw new System.Exception($"修改器文件不存在: {modifierPath}");
             }
-            Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync: 修改器文件存在，准备启动");
             
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: 准备启动修改器进程...");
         modifier.Start();
             Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync: 修改器进程已启动 (PID: {modifier.Id})，等待连接...");
             
@@ -59,13 +54,10 @@ public class DataSync
             gameSocket.ReceiveTimeout = 30000;
             
             // 使用异步 Accept，但用同步方式等待结果（带超时）
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: 开始等待修改器连接（最多30秒）...");
             var acceptResult = gameSocket.BeginAccept(null, null);
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: BeginAccept 已调用，等待连接...");
             
             if (acceptResult.AsyncWaitHandle.WaitOne(30000)) // 等待30秒
             {
-                Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: 检测到连接，正在接受...");
                 modifierSocket = gameSocket.EndAccept(acceptResult);
                 Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync: 修改器已连接成功");
         modifierSocket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, Receive, modifierSocket);
@@ -98,35 +90,21 @@ public class DataSync
     {
         get
         {
-            Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync.Instance.get: 被调用，线程 ID: {Thread.CurrentThread.ManagedThreadId}");
+            // （Instance.get 的过程日志已全部移除——该属性每次被访问都打印，是历史日志噪音的最大来源）
             if (_instance == null)
             {
-                Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: _instance 为 null，准备获取锁");
                 lock (_lock)
                 {
-                    Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: 已获取锁");
                     if (_instance == null)
                     {
-                        Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync.Instance.get: Core.inited = {Core.inited}，等待 LateInit 完成...");
                         // 如果 LateInit 还没完成，等待
                         while (!Core.inited)
                         {
                             Thread.Sleep(100);
                         }
-                        Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: LateInit 已完成，开始创建实例");
                         _instance = new DataSync();
-                        Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: 实例创建完成");
-                    }
-                    else
-                    {
-                        Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: _instance 已被其他线程创建");
                     }
                 }
-                Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: 已释放锁");
-            }
-            else
-            {
-                Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Instance.get: _instance 已存在，直接返回");
             }
             return _instance;
         }
@@ -136,13 +114,9 @@ public class DataSync
     public static void Initialize()
     {
         Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: 开始执行");
-        Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync.Initialize: 当前线程 ID: {Thread.CurrentThread.ManagedThreadId}");
-        Core.Instance.Value.LoggerInstance.LogInfo($"[PVZRHTools] DataSync.Initialize: _instance 当前状态: {(_instance == null ? "null" : "已存在")}");
         
         if (_instance == null)
         {
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: _instance 为 null，准备创建新实例");
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: 准备获取锁...");
             
             bool lockAcquired = false;
             try
@@ -151,25 +125,18 @@ public class DataSync
                 if (Monitor.TryEnter(_lock, 5000)) // 5秒超时
                 {
                     lockAcquired = true;
-                    Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: 已获取锁");
                     
                     if (_instance == null)
                     {
-                        Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: 开始创建 DataSync 实例（这将启动修改器）");
                         try
                         {
                             _instance = new DataSync();
-                            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: DataSync 实例创建成功");
                         }
                         catch (System.Exception ex)
                         {
                             Core.Instance.Value.LoggerInstance.LogError($"[PVZRHTools] DataSync.Initialize: 创建 DataSync 实例失败: {ex.Message}\n{ex.StackTrace}");
                             throw;
                         }
-                    }
-                    else
-                    {
-                        Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: _instance 已被其他线程创建");
                     }
                 }
                 else
@@ -183,13 +150,8 @@ public class DataSync
                 if (lockAcquired)
                 {
                     Monitor.Exit(_lock);
-                    Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: 已释放锁");
                 }
             }
-        }
-        else
-        {
-            Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: _instance 已存在，跳过创建");
         }
         Core.Instance.Value.LoggerInstance.LogInfo("[PVZRHTools] DataSync.Initialize: 执行完成");
     }

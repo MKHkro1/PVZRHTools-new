@@ -31,6 +31,8 @@ public struct BasicProperties : ISyncData
     public double? HammerFullCD { get; set; }
     public bool? HammerNoCD { get; set; }
     public bool? WheelNoCD { get; set; }
+    /// <summary>罗盘自定义冷却秒数（单字段 flag+value 协议：-1 = 关闭；REF WheelFullCD 同语义）</summary>
+    public double? WheelFullCD { get; set; }
     public bool? HardPlant { get; set; }
     public bool? ImmuneForceDeduct { get; set; }
     public bool? CurseImmunity { get; set; }
@@ -70,6 +72,13 @@ public struct BasicProperties : ISyncData
     public float? ZombieSpeedMultiplier { get; set; }
     public bool? ZombieAttackMultiplierEnabled { get; set; }
     public float? ZombieAttackMultiplier { get; set; }
+    // ---- 植物速度/攻击/血量三件套（5.3.1 #7 + 缺号6 植物血量倍率）：Enabled+值双判 ----
+    public bool? PlantSpeedMultiplierEnabled { get; set; }
+    public float? PlantSpeedMultiplier { get; set; }
+    public bool? PlantAttackMultiplierEnabled { get; set; }
+    public float? PlantAttackMultiplier { get; set; }
+    public bool? PlantHealthMultiplierEnabled { get; set; }
+    public float? PlantHealthMultiplier { get; set; }
     public bool? PickaxeImmunity { get; set; }
     public bool? ZombieBulletReflectEnabled { get; set; }
     public float? ZombieBulletReflectChance { get; set; }
@@ -93,6 +102,31 @@ public struct BasicProperties : ISyncData
     /// 取消红卡种植限制 - 允许在非神秘模式种植红卡植物(AbyssSwordStar, UltimateMinigun, SolarSunflower)
     /// </summary>
     public bool? UnlockRedCardPlants { get; set; }
+
+    /// <summary>
+    /// 解锁全部选卡 - 强制 PlantDataManager.CheckIfPlantUnlock 返回 true
+    /// </summary>
+    public bool? EnableAllCards { get; set; }
+
+    /// <summary>
+    /// 植物子弹秒杀僵尸 - 挂在 Zombie.ApplyDamage 前缀，命中即 Die
+    /// </summary>
+    public bool? HardBullet { get; set; }
+
+    /// <summary>
+    /// 图鉴全解锁 - 把 allPlants 全部写入 meetPlants / meetPlant_runTime
+    /// </summary>
+    public bool? UnlockAllAlmanac { get; set; }
+
+    /// <summary>
+    /// 植物全升级 - 每帧把场上植物升到 3 级
+    /// </summary>
+    public bool? PlantsAllUpgrade { get; set; }
+
+    /// <summary>
+    /// 植物全星辉 - 每帧给场上植物上星辉
+    /// </summary>
+    public bool? PlantsAllStarUp { get; set; }
 
     /// <summary>
     /// 击杀升级 - 植物击杀僵尸时自动升级
@@ -123,6 +157,13 @@ public struct BasicProperties : ISyncData
     public bool? ZombieImmuneMindControl { get; set; }
     /// <summary>僵尸免疫吞噬</summary>
     public bool? ZombieImmuneDevour { get; set; }
+
+    /// <summary>僵尸血量倍率 - 开启后新生成僵尸的血量（含一二类甲）按倍率缩放（参考版 CreateZombiePatch 语义）</summary>
+    public bool? ZombieHealthMultiplierEnabled { get; set; }
+    /// <summary>僵尸血量倍率数值（与上面的开关成对下发，未开启时为 null）</summary>
+    public float? ZombieHealthMultiplier { get; set; }
+    /// <summary>一次性命令：对【场上已存在】的全部僵尸按该倍率缩放血量并刷新血条（对应参考版 SetZombieHealthRatio 按钮）</summary>
+    public float? ZombieHealthRatio { get; set; }
 
     /// <summary>
     /// 随机子弹 - 植物发射的子弹类型随机
@@ -181,6 +222,8 @@ public struct GameModes : ISyncData
     public readonly int ID => 7;
     public bool ScaredyDream { get; set; } = false;
     public bool SeedRain { get; set; } = false;
+    /// <summary>旅行关解除融合限制（REF RemoveFusionLimit；Board.Awake 时置 isTravel/enableTravelPlant/enableAllTravelPlant）</summary>
+    public bool RemoveFusionLimit { get; set; } = false;
 }
 
 /// <summary>
@@ -204,6 +247,14 @@ public struct InGameActions : ISyncData
     public bool? ClearAllIceRoads { get; set; }
     public bool? ClearAllPlants { get; set; }
     public bool? ClearAllZombies { get; set; }
+    /// <summary>清除全部子弹 - 倒序遍历 boardEntity.bulletArray 调 Bullet.Die()</summary>
+    public bool? ClearAllBullets { get; set; }
+    /// <summary>秒杀非魅惑僵尸</summary>
+    public bool? KillNonMindControlledZombies { get; set; }
+    /// <summary>秒杀魅惑僵尸</summary>
+    public bool? KillMindControlledZombies { get; set; }
+    /// <summary>秒杀指定路僵尸（复用 Row，1-based，与 UI 一致）</summary>
+    public bool? KillZombiesOnRow { get; set; }
     public bool? ClearOnWritingField { get; set; }
     public bool? GaoShuMode { get; set; }
     public bool? ClearOnWritingVases { get; set; }
@@ -222,6 +273,16 @@ public struct InGameActions : ISyncData
     public bool? LoadCustomPlantData { get; set; }
     public bool? LockMoney { get; set; }
     public bool? LockSun { get; set; }
+    /// <summary>锁定全场光照等级 - 每帧写 BoardGrid.lightLevel；-1 或 null = 关闭</summary>
+    public int? LockLightLevel { get; set; }
+    /// <summary>冒险秘境抽奖券 - 木券</summary>
+    public int? AbyssWoodenTicket { get; set; }
+    /// <summary>冒险秘境抽奖券 - 银券</summary>
+    public int? AbyssSilverTicket { get; set; }
+    /// <summary>冒险秘境抽奖券 - 金券</summary>
+    public int? AbyssGoldTicket { get; set; }
+    /// <summary>冒险秘境抽奖券 - 钻石券</summary>
+    public int? AbyssDiamondTicket { get; set; }
     public bool? MindControlAllZombies { get; set; }
     public bool? NextWave { get; set; }
     public bool? NoFail { get; set; }
@@ -239,6 +300,13 @@ public struct InGameActions : ISyncData
     public bool? SetZombieIdle { get; set; }
     public string? ShowText { get; set; }
     public bool? StartMower { get; set; }
+    // ---- 植物三件套「全场×N」一次性乘算（非 null 边沿触发，REF SetPlantSpeed/Attack/HealthRatio 同语义）----
+    public float? ApplyPlantSpeedRatio { get; set; }
+    public float? ApplyPlantAttackRatio { get; set; }
+    public float? ApplyPlantHealthRatio { get; set; }
+    // ---- 一键植物皮肤（5.5.0.9 移植；REF Strings.ApplyAllPlantSkins/ObtainAllPlantSkins，一次性动作）----
+    public bool? ApplyAllPlantSkins { get; set; }
+    public bool? ObtainAllPlantSkins { get; set; }
     public bool? StopSummon { get; set; }
     public bool? SummonMindControlledZombies { get; set; }
     public int? Times { get; set; }
@@ -288,6 +356,56 @@ public struct InGameActions : ISyncData
     /// 召唤迷你渊海三叉戟
     /// </summary>
     public bool? SpawnPetDrown { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你黑橄榄骑士（REF 5.0.6 新增宠物，与现有 5 只同模板）
+    /// </summary>
+    public bool? SpawnPetHorse { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你小鬼国王（REF 5.0.6 新增宠物）
+    /// </summary>
+    public bool? SpawnPetImp { get; set; }
+    
+    /// <summary>
+    /// 召唤迷你裂空机甲（REF 5.0.6 新增宠物）
+    /// </summary>
+    public bool? SpawnPetKirov { get; set; }
+    
+    /// <summary>
+    /// 游戏作弊码一次性执行：值 = CheatKey 组件接受的 key 串（如 "cheatmode"）；null = 不执行
+    /// </summary>
+    public string? ExecuteCheatKey { get; set; }
+    
+    /// <summary>
+    /// 星辉冒险 - 设置普通难度星星数（一次性；非 null 时写 AdvantureConfig.data.enpowerStarCount）
+    /// </summary>
+    public int? SetStarAdvStar { get; set; }
+    
+    /// <summary>
+    /// 星辉冒险 - 设置困难难度星星数（一次性；非 null 时写 enpowerStarCount_hard）
+    /// </summary>
+    public int? SetStarAdvStarHard { get; set; }
+    
+    /// <summary>
+    /// 星辉冒险 - 天赋节点免费点亮（状态开关；非 null 时同步 PatchMgr.StarAdvFreeBuff）
+    /// </summary>
+    public bool? StarAdvFreeBuff { get; set; }
+
+    /// <summary>
+    /// 一次性动作：清除全部墓碑（REF RemoveAllGraves）
+    /// </summary>
+    public bool? RemoveAllGraves { get; set; }
+
+    /// <summary>
+    /// 一次性动作：生成太阳陨石（REF CreateSolarMeteorite = itemPrefab[47]）
+    /// </summary>
+    public bool? CreateSolarMeteorite { get; set; }
+
+    /// <summary>
+    /// 一次性值：跳转到指定波（REF SetJumpWave；null = 不跳转，写入时钳到最大波数）
+    /// </summary>
+    public int? JumpWave { get; set; }
     
     /// <summary>
     /// 旗帜波词条功能 - 是否启用
@@ -471,6 +589,36 @@ public struct GodEvolutionProperties : ISyncData
     public float? DamageMultiplier { get; set; }
     /// <summary>立即将当前设置应用到局内 ShootingManager</summary>
     public bool? ApplyNow { get; set; }
+
+    /// <summary>诸神币修改 - 直接写入 ShootingManager.Data.godCoins（存档数据，写即持久）</summary>
+    public int? GodCoin { get; set; }
+
+    /// <summary>诸神进化试炼词条概率大幅提升（AdvBuff 14000~14003）</summary>
+    public bool? ForceMissionBuff { get; set; }
+
+    /// <summary>诸神进化战术词条概率大幅提升（复用 ShootingGroupBuff.RegisterGeneralBuff）</summary>
+    public bool? ForceTacticalBuff { get; set; }
+
+    /// <summary>诸神进化隐藏难度 - 等价游戏 shoothard 作弊码</summary>
+    public bool? CheatHard { get; set; }
+
+    /// <summary>诸神进化专家邀请词条概率大幅提升（REF GodEvolutionForceExpertBuff）</summary>
+    public bool? ForceExpertBuff { get; set; }
+
+    /// <summary>诸神进化超进化（星辉）词条概率大幅提升（REF GodEvolutionForceStarUpBuff）</summary>
+    public bool? ForceStarUpBuff { get; set; }
+
+    /// <summary>诸神进化质变词条概率大幅提升（REF GodEvolutionForceMutationBuff）</summary>
+    public bool? ForceMutationBuff { get; set; }
+
+    /// <summary>诸神进化棱彩词条概率大幅提升（REF GodEvolutionForceIridescentBuff）</summary>
+    public bool? ForceIridescentBuff { get; set; }
+
+    /// <summary>诸神进化随机词条概率大幅提升（REF GodEvolutionForceRandomBuff）</summary>
+    public bool? ForceRandomBuff { get; set; }
+
+    /// <summary>一键解锁诸神进化全部植物/路线/词条（一次性触发）</summary>
+    public bool? UnlockAll { get; set; }
 }
 
 /// <summary>

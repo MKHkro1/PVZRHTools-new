@@ -122,7 +122,7 @@ internal static class BuffDataCollector
             }
 
             if (merged > 0)
-                Logger?.LogInfo($"[PVZRHTools] BuffDataCollector: 从 CustomizeLib.{propertyName} 合并 {merged} 条词条");
+                Logger?.LogDebug($"[PVZRHTools] BuffDataCollector: 从 CustomizeLib.{propertyName} 合并 {merged} 条词条");
         }
         catch (Exception ex)
         {
@@ -150,7 +150,7 @@ internal static class BuffDataCollector
             }
 
             if (merged > 0)
-                Logger?.LogInfo($"[PVZRHTools] BuffDataCollector: 从 CustomBuffText(type={customBuffTypeOrdinal}) 合并 {merged} 条词条");
+                Logger?.LogDebug($"[PVZRHTools] BuffDataCollector: 从 CustomBuffText(type={customBuffTypeOrdinal}) 合并 {merged} 条词条");
         }
         catch (Exception ex)
         {

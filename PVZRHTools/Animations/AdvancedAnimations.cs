@@ -34,8 +34,19 @@ namespace PVZRHTools.Animations
         /// <summary>
         /// 为窗口添加拖动时的倾斜效果
         /// </summary>
+        /// <remarks>
+        /// ★ 2026-09-25 整体停用（用户要求「去掉修改器的整屏闪动效果」）。
+        /// 原实现给**整个窗口内容**挂 SkewTransform：按下左键即开始按鼠标位移倾斜（最大 ±5°），
+        /// 松开时用 ElasticEase（Oscillations=2）弹回 —— 表现为**每次点击修改器，整个窗口都抖一下**。
+        /// 与 WindowAnimations.PlayActivationAnimation 的整屏缩放/淡入（表现为"闪"）合起来正是用户描述的「抖闪」。
+        /// 控件级动画（按钮涟漪/悬停、标签页、Expander 等）不受影响，仍然随「启用修改器动画效果」开关工作。
+        /// 需要恢复时把下面的提前 return 去掉即可。
+        /// </remarks>
         public static void AddWindowDragTilt(Window window)
         {
+            // 整屏抖动的来源：不再注册窗口级倾斜。保留方法签名，避免调用点报错。
+            return;
+#pragma warning disable CS0162 // 下方为保留的原实现（停用中）
             if (window.Content is not FrameworkElement content)
                 return;
 
@@ -106,6 +117,7 @@ namespace PVZRHTools.Animations
                     _windowSkew.BeginAnimation(SkewTransform.AngleXProperty, resetAnim);
                 }
             };
+#pragma warning restore CS0162
         }
 
         #endregion

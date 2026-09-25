@@ -2,54 +2,71 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- 浅色模式 - 背景板文字、线条颜色配置（可修改以自定义主题） -->
     
-    <!-- 窗口背景（半透明白） -->
-    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#99FFFFFF"/>
+    <!-- 窗口背景 -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FFFFFFFF"/>
     <!-- 窗口前景/主文字 -->
-    <SolidColorBrush x:Key="WindowForegroundBrush" Color="#FF282C34"/>
+    <SolidColorBrush x:Key="WindowForegroundBrush" Color="#FF1F2329"/>
     
     <!-- 标题栏背景 -->
     <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FFFFFFFF"/>
-    <!-- 标题/标签高亮色（粉色） -->
-    <SolidColorBrush x:Key="TitleForegroundBrush" Color="#FFFF69B4"/>
-    <SolidColorBrush x:Key="LabelForegroundBrush" Color="#FFFF69B4"/>
-    <!-- 分隔线颜色 -->
-    <SolidColorBrush x:Key="LineFillBrush" Color="#FFFF69B4"/>
+    <!-- 标题/标签高亮色（克制版强调色） -->
+    <SolidColorBrush x:Key="TitleForegroundBrush" Color="#FFE0568F"/>
+    <SolidColorBrush x:Key="LabelForegroundBrush" Color="#FFE0568F"/>
+    <!-- 分隔线颜色（淡化，不再用强调色） -->
+    <SolidColorBrush x:Key="LineFillBrush" Color="#FFEFF1F4"/>
     
     <!-- 正文文字颜色 -->
-    <SolidColorBrush x:Key="TextForegroundBrush" Color="#FF333333"/>
+    <SolidColorBrush x:Key="TextForegroundBrush" Color="#FF1F2329"/>
     <!-- 次要文字颜色 -->
-    <SolidColorBrush x:Key="SecondaryTextForegroundBrush" Color="#FF666666"/>
+    <SolidColorBrush x:Key="SecondaryTextForegroundBrush" Color="#FF8A9099"/>
     
     <!-- 内容区背景 -->
     <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#FFFFFFFF"/>
-    <!-- 内容区边框 -->
-    <SolidColorBrush x:Key="ContentBorderBrush" Color="#FFFF69B4"/>
+    <!-- 内容区边框（中性浅灰，不再用强调色） -->
+    <SolidColorBrush x:Key="ContentBorderBrush" Color="#FFE6E8EC"/>
     
-    <!-- TabControl 背景（半透明） -->
-    <SolidColorBrush x:Key="TabControlBackgroundBrush" Color="#80FFFFFF"/>
+    <!-- TabControl 背景（侧栏底） -->
+    <SolidColorBrush x:Key="TabControlBackgroundBrush" Color="#FFF7F8FA"/>
     <!-- TabControl 边框 -->
-    <SolidColorBrush x:Key="TabControlBorderBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="TabControlBorderBrush" Color="#FFE6E8EC"/>
     
     <!-- 复选框边框 -->
-    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#FF3F3F46"/>
+    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#FFC6CAD1"/>
     <!-- 列表/表格背景 -->
-    <SolidColorBrush x:Key="ListBackgroundBrush" Color="#FFF5F5F5"/>
+    <SolidColorBrush x:Key="ListBackgroundBrush" Color="#FFF7F8FA"/>
     <!-- 链接/信息文字色 -->
-    <SolidColorBrush x:Key="LinkForegroundBrush" Color="#FF80C8FF"/>
+    <SolidColorBrush x:Key="LinkForegroundBrush" Color="#FF3B82F6"/>
     <!-- 信息框边框色 -->
-    <SolidColorBrush x:Key="InfoBorderBrush" Color="#FF87CEEB"/>
+    <SolidColorBrush x:Key="InfoBorderBrush" Color="#FFD8E3F2"/>
     <!-- 成功/强调绿色 -->
-    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#FF00AA00"/>
+    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#FF2E9E5B"/>
 
-    <!-- 窗口边框渐变 -->
+    <!-- 简约化新增令牌：中性表面描边 / 分隔线 / 悬停面 / 强调浅底 -->
+    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#FFE6E8EC"/>
+    <SolidColorBrush x:Key="DividerBrush" Color="#FFEFF1F4"/>
+    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#FFF2F3F6"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#FFFCE9F1"/>
+
+    <!-- 窗口边框渐变（克制两段，替换原 8 段彩虹） -->
     <LinearGradientBrush x:Key="WindowBorderBrush" EndPoint="1,1" StartPoint="0,0">
-        <GradientStop Color="#FFDB7093" Offset="1"/>
-        <GradientStop Color="#FFFFB6C1" Offset="0"/>
-        <GradientStop Color="#FFFFB6C1" Offset="0.135"/>
-        <GradientStop Color="#FFDB7093" Offset="0.857"/>
-        <GradientStop Color="#FFFF69B4" Offset="0.274"/>
-        <GradientStop Color="#FFFF69B4" Offset="0.709"/>
-        <GradientStop Color="#FFFF69B4" Offset="0.413"/>
-        <GradientStop Color="#FFDB7093" Offset="0.548"/>
+        <GradientStop Color="#FFF2CBDC" Offset="0"/>
+        <GradientStop Color="#FFE0568F" Offset="1"/>
     </LinearGradientBrush>
+
+    <!-- ============================================================
+         ★ HandyControl 调色板键重定向（浅色版）—— 与 ThemeColorsDark.xaml 里的同名块成对，
+         在 SwitchTheme 里随令牌字典一起原子切换。原理见深色版的注释。 -->
+    <SolidColorBrush x:Key="RegionBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="SecondaryRegionBrush" Color="#FFF2F3F6"/>
+    <SolidColorBrush x:Key="ThirdlyRegionBrush" Color="#FFEFF1F4"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#FFE6E8EC"/>
+    <SolidColorBrush x:Key="SecondaryBorderBrush" Color="#FFE6E8EC"/>
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FF1F2329"/>
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF8A9099"/>
+    <SolidColorBrush x:Key="ThirdlyTextBrush" Color="#FF8A9099"/>
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="DefaultBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="DarkDefaultBrush" Color="#FFF2F3F6"/>
+    <SolidColorBrush x:Key="BlankBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ReverseTextBrush" Color="#FFFFFFFF"/>
 </ResourceDictionary>
