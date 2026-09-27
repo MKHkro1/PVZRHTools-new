@@ -268,6 +268,19 @@ public struct InGameActions : ISyncData
     public bool? CreateUltimateMateorite { get; set; }
     public int? CurrentMoney { get; set; }
     public int? CurrentSun { get; set; }
+    /// <summary>
+    /// ★ 2026-09-26 新增：**一次性**把阳光设为 <see cref="CurrentSun"/>，与「锁定阳光」无关。
+    /// 背景（用户反馈「无法点击修改阳光」）：原实现里「修改阳光」按钮只在勾选了「锁定阳光」时才生效
+    /// （VM 侧 `if (!LockSun) return;` + 插件侧 `CurrentSun is not null &amp;&amp; LockSun`），
+    /// 于是没勾锁定时点按钮**完全没反应**——按钮看着可点、实际静默失效。
+    /// 语义区分：
+    ///   · `CurrentSun`  = 「锁定阳光」的**目标值**（持续维持，配合 LockSun 使用）；
+    ///   · `ApplySunNow` = **一次性**写一次 `theSun`，之后交回游戏正常加减（不持续维持）。
+    /// 两者互不影响：勾了锁定就持续维持，没勾就是普通的一次性修改。
+    /// </summary>
+    public bool? ApplySunNow { get; set; }
+    /// <summary>★ 2026-09-26 新增：一次性把金币设为 <see cref="CurrentMoney"/>（同 ApplySunNow 的语义区分）。</summary>
+    public bool? ApplyMoneyNow { get; set; }
     public readonly int ID => 6;
     public int? ItemType { get; set; }
     public bool? LoadCustomPlantData { get; set; }

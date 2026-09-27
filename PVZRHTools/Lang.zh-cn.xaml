@@ -308,6 +308,11 @@
     <s:String x:Key="About.ModifierVersion">修改器版本</s:String>
     <s:String x:Key="About.License">许可证</s:String>
     <s:String x:Key="About.Close">关闭</s:String>
+    <!-- 2026-09-26 新增：杂项页「关于」右侧的两个跳转按钮 -->
+    <s:String x:Key="About.DownloadLatest">最新版下载</s:String>
+    <s:String x:Key="About.DownloadLatest.Tooltip">打开夸克网盘，获取修改器最新版本</s:String>
+    <s:String x:Key="About.Feedback">Bug/建议反馈</s:String>
+    <s:String x:Key="About.Feedback.Tooltip">打开反馈表单，提交使用中遇到的问题或建议</s:String>
     <s:String x:Key="Window.Minimize">最小化</s:String>
     <s:String x:Key="Tab3.Search">搜索词条…</s:String>
     <s:String x:Key="Tab3.SearchButton">搜索</s:String>

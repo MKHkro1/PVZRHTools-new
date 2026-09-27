@@ -309,6 +309,11 @@
     <s:String x:Key="About.ModifierVersion">Modifier</s:String>
     <s:String x:Key="About.License">License</s:String>
     <s:String x:Key="About.Close">Close</s:String>
+    <!-- Added 2026-09-26: two link buttons next to "About" on the Misc page -->
+    <s:String x:Key="About.DownloadLatest">Latest Version</s:String>
+    <s:String x:Key="About.DownloadLatest.Tooltip">Open Quark Drive to download the latest version</s:String>
+    <s:String x:Key="About.Feedback">Bug / Feedback</s:String>
+    <s:String x:Key="About.Feedback.Tooltip">Open the feedback form to report issues or suggestions</s:String>
     <s:String x:Key="Window.Minimize">Minimize</s:String>
     <s:String x:Key="Tab3.Search">Search buffs</s:String>
     <s:String x:Key="Tab3.SearchButton">Search</s:String>

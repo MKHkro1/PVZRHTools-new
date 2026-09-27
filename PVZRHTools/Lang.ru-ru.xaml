@@ -295,6 +295,11 @@
     <s:String x:Key="About.ModifierVersion">Модификатор</s:String>
     <s:String x:Key="About.License">Лицензия</s:String>
     <s:String x:Key="About.Close">Закрыть</s:String>
+    <!-- Добавлено 2026-09-26: две кнопки-ссылки рядом с «О программе» на странице «Разное» -->
+    <s:String x:Key="About.DownloadLatest">Последняя версия</s:String>
+    <s:String x:Key="About.DownloadLatest.Tooltip">Открыть Quark Drive для загрузки последней версии</s:String>
+    <s:String x:Key="About.Feedback">Ошибка / Отзыв</s:String>
+    <s:String x:Key="About.Feedback.Tooltip">Открыть форму обратной связи для сообщения о проблемах или предложений</s:String>
     <s:String x:Key="Window.Minimize">Свернуть</s:String>
     <s:String x:Key="Tab3.Search">Поиск</s:String>
     <s:String x:Key="Tab3.SearchButton">Найти</s:String>

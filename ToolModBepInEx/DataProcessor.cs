@@ -2048,6 +2048,24 @@ all");
                 Board.Instance.theSun = (int)iga.CurrentSun;
             if (iga.CurrentMoney is not null && LockMoney && Board.Instance != null)
                 Board.Instance.theMoney = (int)iga.CurrentMoney;
+            // ★ 2026-09-26 新增：**一次性应用**（与锁定无关）。
+            //   用户反馈「无法点击修改阳光」：原设计里「修改阳光」按钮只在勾选「锁定阳光」时才生效，
+            //   没勾时点了完全没反应（VM 与插件两侧都要求 LockSun）⇒ 按钮形同虚设。
+            //   现在把两种语义分开：
+            //     · 勾了锁定 → 走上两行（持续维持，由 PatchMgr 每帧 LockSun 分支保持）；
+            //     · 没勾锁定 → 走这里（改一次就交回游戏正常加减）。
+            //   注意：一次性应用**同时更新 LockSunCount/MoneyCount**，这样"先点修改、再勾锁定"
+            //   的连续操作不会把数值弹回过期的旧目标值（否则勾选瞬间会被每帧分支写回旧数）。
+            if (iga.ApplySunNow is true && iga.CurrentSun is not null && Board.Instance != null)
+            {
+                LockSunCount = (int)iga.CurrentSun;
+                Board.Instance.theSun = (int)iga.CurrentSun;
+            }
+            if (iga.ApplyMoneyNow is true && iga.CurrentMoney is not null && Board.Instance != null)
+            {
+                LockMoneyCount = (int)iga.CurrentMoney;
+                Board.Instance.theMoney = (int)iga.CurrentMoney;
+            }
             // 锁定全场光照等级：-1 表示关闭（关闭时不做任何写入，交回游戏自身光照逻辑）。
             if (iga.LockLightLevel is not null) global::ToolModBepInEx.PatchMgr.LockLightLevel = (int)iga.LockLightLevel;
 

@@ -116,6 +116,41 @@ public partial class ModifierViewModel : ObservableObject
         IsAboutOpen = !IsAboutOpen;
     }
 
+    /// <summary>最新版网盘下载地址（夸克网盘）—— 2026-09-26 新增</summary>
+    private const string DownloadUrl = "https://pan.quark.cn/s/958659c83f52";
+
+    /// <summary>bug / 建议反馈表单（飞书多维表格收集表）—— 2026-09-26 新增</summary>
+    private const string FeedbackUrl = "https://dcn50l3v9b6q.feishu.cn/share/base/form/shrcn0jh00o6ua1WfJVdhQ7mA2T";
+
+    /// <summary>打开「最新版下载」（夸克网盘）</summary>
+    [RelayCommand]
+    public void OpenDownload() => OpenExternalUrl(DownloadUrl);
+
+    /// <summary>打开「bug / 建议反馈」（飞书表单）</summary>
+    [RelayCommand]
+    public void OpenFeedback() => OpenExternalUrl(FeedbackUrl);
+
+    /// <summary>
+    /// 用系统默认浏览器打开外部链接。
+    /// · 用 <c>UseShellExecute = true</c>（.NET Core 起必须显式开，否则无法启动 URL）；
+    /// · **失败一律吞掉**：没有默认浏览器 / 被策略拦截 / 沙箱环境等都不该让修改器崩或弹异常，
+    ///   链接打不开是"可容忍的降级"，不是功能故障。
+    /// </summary>
+    private static void OpenExternalUrl(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 打不开就静默失败（不影响修改器其它功能）
+        }
+    }
+
     /// <summary>左侧栏收起（5.3.1 #5 收起半边；图标半边判 SUPERSEDED 未做）</summary>
     [ObservableProperty] public partial bool SidebarCollapsed { get; set; }
 
@@ -1455,9 +1490,12 @@ public partial class ModifierViewModel : ObservableObject
     [RelayCommand]
     public void Money()
     {
-        // 同 Sun()：未勾选「锁定金币」时不下发数值。
-        if (!LockMoney) return;
-        App.DataSync.Value.SendData(new InGameActions { CurrentMoney = (int)NewMoney });
+        // ★ 2026-09-26 修复（同 Sun()）：原实现 `if (!LockMoney) return;` ⇒
+        //   没勾「锁定金币」时点这个按钮完全没反应（插件侧也要求 LockMoney ⇒ 双重失效）。
+        //   现在：勾了锁定 → 持续维持；没勾 → 一次性修改。
+        App.DataSync.Value.SendData(LockMoney
+            ? new InGameActions { CurrentMoney = (int)NewMoney }
+            : new InGameActions { CurrentMoney = (int)NewMoney, ApplyMoneyNow = true });
     }
 
     // ---- 4.0 新增：一次性动作按钮（不是开关，所以用 RelayCommand 而不是 CheckBox）----
@@ -1781,11 +1819,16 @@ public partial class ModifierViewModel : ObservableObject
     [RelayCommand]
     public void Sun()
     {
-        // ★ 未勾选「锁定阳光」时不下发 CurrentSun（保持 null）。
-        // 否则 DataProcessor 的 `if (iga.CurrentSun is not null) Board.Instance.theSun = ...`
-        // 会把数值直接应用到棋盘上 —— 这正是「未勾选时改数值也会应用」的根因。
-        if (!LockSun) return;
-        App.DataSync.Value.SendData(new InGameActions { CurrentSun = (int)NewSun });
+        // ★ 2026-09-26 修复（用户反馈「无法点击修改阳光」）：
+        //   原实现是 `if (!LockSun) return;` ⇒ **没勾「锁定阳光」时点这个按钮完全没反应**
+        //   （按钮看着可点、实际静默返回，且插件侧也要求 LockSun，双保险变成了双重失效）。
+        //   现在按按钮名字的语义分开处理：
+        //     · 勾了「锁定阳光」→ 下发 CurrentSun（由插件持续维持该数值）；
+        //     · 没勾           → 下发 ApplySunNow（**一次性**改一次，之后交回游戏正常加减）。
+        //   两种情况下按钮都真的会生效。
+        App.DataSync.Value.SendData(LockSun
+            ? new InGameActions { CurrentSun = (int)NewSun }
+            : new InGameActions { CurrentSun = (int)NewSun, ApplySunNow = true });
     }
 
     /// <summary>

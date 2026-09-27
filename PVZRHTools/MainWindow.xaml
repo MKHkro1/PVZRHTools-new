@@ -2213,10 +2213,29 @@
                                                        TextWrapping="Wrap" />
                                         </Grid>
                                     </Border>
-                                    <Button Content="{DynamicResource About.Title}"
-                                            Command="{Binding ShowAboutCommand}"
-                                            HorizontalAlignment="Left"
-                                            Height="30" Padding="14,0" Margin="0,0,0,8" />
+                                    <!-- ★ 2026-09-26 新增：关于/下载/反馈 三按钮并排。
+                                         用 hc:ElementGroup（工程既有写法，见诸神进化页）保证等高对齐；
+                                         按钮走**隐式样式 + 主题令牌**（Background/Foreground/BorderBrush 全部
+                                         DynamicResource）⇒ 深色模式自动跟随，不需要额外适配。
+                                         两个链接按钮用 LinkForegroundBrush 作前景色，与正文里的链接色一致，
+                                         让"可点击跳转"的语义一眼可辨。 -->
+                                    <hc:ElementGroup Orientation="Horizontal" Layout="Stack"
+                                                     HorizontalAlignment="Left" Margin="0,0,0,8"
+                                                     Style="{DynamicResource ElementGroupSolid}">
+                                        <Button Content="{DynamicResource About.Title}"
+                                                Command="{Binding ShowAboutCommand}"
+                                                Height="30" Padding="14,0" />
+                                        <Button Content="{DynamicResource About.DownloadLatest}"
+                                                Command="{Binding OpenDownloadCommand}"
+                                                Height="30" Padding="14,0"
+                                                Foreground="{DynamicResource LinkForegroundBrush}"
+                                                ToolTip="{DynamicResource About.DownloadLatest.Tooltip}" />
+                                        <Button Content="{DynamicResource About.Feedback}"
+                                                Command="{Binding OpenFeedbackCommand}"
+                                                Height="30" Padding="14,0"
+                                                Foreground="{DynamicResource LinkForegroundBrush}"
+                                                ToolTip="{DynamicResource About.Feedback.Tooltip}" />
+                                    </hc:ElementGroup>
                                     <Expander Header="{DynamicResource Tab7.License}">
                                         <!-- 许可正文：主题化只读框 + 限高（旧版是裸 TextBox，深色下白底，且高度无约束） -->
                                         <TextBox IsReadOnly="True"
