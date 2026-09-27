@@ -2386,12 +2386,17 @@ public static class GlovePatchA
             if (Board.Instance != null && Board.Instance.boardTag.isShooting) return;
             __instance.gameObject.transform.GetChild(0).gameObject.SetActive(!GloveNoCD);
 
-            // 仅在主动开启「无CD」或用户指定了自定义 CD 时才覆盖 fullCD；
+            // 仅在主动开启「无CD」或用户指定了**正数**自定义 CD 时才覆盖 fullCD；
             // 否则一律交回游戏按模式实时计算 —— 否则会把陈旧的 OriginalGloveFullCD(可能为 0) 写回，
             // 导致没开无CD 时手套也变成无CD（即「僵尸手套无CD」）。
-            if (GloveNoCD || GloveFullCD >= 0)
+            // ★ 2026-09-27 修复（用户报「没开手套无CD，手套却一直无CD」）：
+            //   判据原为 `GloveFullCD >= 0`，而本类字段默认值是 `0` ⇒ `0 >= 0` 恒真 ⇒ 每帧把 fullCD 写成 0，
+            //   等于「默认就开着无CD」。本仓库同类工具的既定写法都是**严格大于 0**
+            //   （HammerPatchA:2454 `HammerFullCD > 0`、WheelPatchA:2514 `WheelFullCD > 0`），
+            //   手套这里对齐为 `> 0`：负值与 0 都表示「未指定自定义 CD」，交回游戏自己算。
+            if (GloveNoCD || GloveFullCD > 0)
             {
-                __instance.fullCD = GloveFullCD >= 0 ? (float)GloveFullCD : OriginalGloveFullCD;
+                __instance.fullCD = GloveFullCD > 0 ? (float)GloveFullCD : OriginalGloveFullCD;
                 if (GloveNoCD) __instance.CD = __instance.fullCD;
             }
 
@@ -6583,7 +6588,8 @@ public class PatchMgr : MonoBehaviour
     public static bool FreePlanting { get; set; } = false;
     public static GameModes GameModes { get; set; }
     public static bool GarlicDay { get; set; } = false;
-    public static double GloveFullCD { get; set; } = 0;
+    /// <summary>手套自定义冷却秒数（-1/0/负值 = 未指定；与 HammerFullCD/WheelFullCD 同一约定：> 0 才生效）</summary>
+    public static double GloveFullCD { get; set; } = -1;
     public static bool GloveNoCD { get; set; } = false;
     /// <summary>
     /// 手套冷却的「开局基线」。在 Glove.Start 采集一次，之后由 Mouse 的种植/放僵尸路径刷新。
