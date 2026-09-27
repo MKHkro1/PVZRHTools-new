@@ -24,6 +24,28 @@ $targets = @(
 $p = Get-Process PlantsVsZombiesRH -ErrorAction SilentlyContinue
 if ($p) { throw "游戏正在运行（PlantsVsZombiesRH）——请先关闭游戏再部署（插件 DLL 被占用）。" }
 
+# ★★ 2026-09-27 新增：拦截「构建还在写、部署已经开始」。
+#   事故经过：本脚本曾在 17:21:07 报「0 个差异 / 部署有效」，
+#   而 .release\PVZRHTools.dll 的内容直到 17:21:20 才变成新版 ——
+#   因为上一条命令把 build_release.ps1 的输出接到了 `| Select-Object -First N`，
+#   **Select-Object -First 会提前终止上游管道**，把构建掐断在半途，
+#   随后的 deploy 拿旧内容比对，自然"一致"。
+#   ⇒ 这里加一道时间闸：源目录里有文件是"刚刚"才写的 ⇒ 构建多半还在跑 ⇒ 直接拒绝。
+if (-not $WhatIfOnly) {
+    $fresh = @()
+    foreach ($t in $targets) {
+        if (-not (Test-Path $t.Src)) { continue }
+        $now = Get-Date
+        foreach ($f in Get-ChildItem $t.Src -File) {
+            if (($now - $f.LastWriteTime).TotalSeconds -lt 20) { $fresh += "$($f.Name)（$([int]($now - $f.LastWriteTime).TotalSeconds) 秒前）" }
+        }
+    }
+    if ($fresh.Count -gt 0) {
+        Write-Host "源目录有文件在 20 秒内刚被写入：$($fresh -join ', ')" -ForegroundColor Red
+        throw "构建似乎仍在进行中（或被管道提前掐断）——请等 build_release.ps1 完整跑完再部署。`n★ 切勿把构建输出接到 `| Select-Object -First N`，那会提前终止管道。"
+    }
+}
+
 function Sync-One([string]$name, [string]$src, [string]$dst) {
     Write-Host "== $name ==" -ForegroundColor Cyan
     Write-Host "   源: $src"

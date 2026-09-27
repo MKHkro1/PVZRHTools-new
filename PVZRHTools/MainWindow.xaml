@@ -1999,32 +1999,104 @@
                                       VerticalScrollBarVisibility="Disabled" x:Name="Hotkeys" Background="{DynamicResource ListBackgroundBrush}"
                                       AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                                       CanUserResizeRows="False" CanUserSortColumns="False" CanUserResizeColumns="False"
-                                      CanUserReorderColumns="False">
+                                      CanUserReorderColumns="False"
+                                      Style="{DynamicResource DataGrid.Hotkey}"
+                                      RowHeight="{x:Static sys:Double.NaN}">
+                                <!-- ★ 2026-09-27 两次修复（用户依次反馈「字看不见」→「UI 不好看」）：
+                                     ① 本 DataGrid 原先**没有指定 Style**，回落 HandyControl 默认皮肤，
+                                        而该皮肤烘死的 Foreground 在浅色背景上近似白色 ⇒ 功能名白字白底看不见。
+                                     ② 我先复用了 DataGrid.Small，能把字显示出来，但那是**词条页的紧凑样式**
+                                        （FontSize=13 / MinRowHeight=24），套在按键页上把行压得很扁、
+                                        下拉框挤成一坨 ⇒ 观感变差。
+                                     最终方案：改用**为按键页新写的 `DataGrid.Hotkey`**（字号 14、最小行高 44、
+                                     单元格留白 10,6、行间淡分隔线、斑马纹），并把四层 Foreground 一并覆盖；
+                                     `RowHeight=NaN` 保持自适应，避免裁掉 40px 高的 HotKeyBox。 -->
+                                <!-- ★ 2026-09-27 列宽修复（第二轮修正，修我上一轮引入的两个缺陷）：
+                                     上一轮把功能名列写成 `Width="*"` + 没加 IsReadOnly，导致：
+                                       ① 功能名变成**可直接编辑**（DataGridTextColumn 默认可编辑）
+                                          —— 截图里「手套无CD」成了蓝底可输入的文本框；
+                                       ② `*` 吃掉全部剩余宽度 ⇒ 键位框被推到最右边、紧贴「清空」按钮，
+                                          与功能名之间隔了一大片空白，"看不出来是给哪一行设置的"。
+                                     定稿（第二轮修正）：
+                                       · 功能名列 **固定 380 + IsReadOnly="True"**（最长项实测需 326px）；
+                                       · 键位列 170、清空列 **`*`**。
+                                     ★ 为什么把 `*` 放在**最后一列**（清空）而不是功能名列：
+                                       DataGrid 会把「剩余空间」分给 star 列。上一轮把 `*` 给功能名 ⇒
+                                       功能名被撑到 658px、把键位框一路推到最右边（用户反馈「跑到最右边」）。
+                                       把 `*` 挪到最后一列后，多出来的空间全部落在「清空」右侧的空白里，
+                                       「功能名 → 键位框」始终相邻，读起来才是完整的一行。
+                                       （实测：改前功能名列 658px，改后 380px、键位框紧邻其右。） -->
+                                <!-- ★★ 2026-09-27（第五轮·定稿）：**放弃多列方案，改用单列 + 内部 Grid**。
+                                     前四轮（DataGridTextColumn Width / ElementStyle / TemplateColumn Width /
+                                     列宽 380·170·* 各种组合）全部失败：UIA 与像素实测都显示
+                                     「功能名」列始终被撑到约 1000px，键位框被推到 x≈1380，
+                                     与标签之间留下约 1000px 空白（用户反馈「快捷键按钮跑到最右边挡住了」）。
+                                     根因：这个 DataGrid 在 `ViewportWidth` 绑定下宽度很大，
+                                     它会把多余空间**分给列**，而列级 Width 压不住这种再分配。
+                                     改用**一列承载整行**：列宽 `*`（占满），行内用 Grid 三段
+                                     `Auto(功能名) + 固定(键位) + *(剩余空白)` ——
+                                     功能名与键位框天然相邻，多余空白全部落在最右边，
+                                     与页面宽度无关、稳定可控。 -->
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Binding="{Binding Text}" />
-                                    <DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Width="*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate DataType="local:HotkeyUIVM">
-                                                <fh:HotKeyBox
-                                                    CurrentKeyA="{Binding CurrentKeyA, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                    CurrentKeyB="{Binding CurrentKeyB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                    Width="150" Height="40" VerticalAlignment="Center"
-                                                    HorizontalAlignment="Left" Padding="0,10,0,10"
-                                                    Foreground="{DynamicResource TextForegroundBrush}"
-                                                    IsManipulationEnabled="True">
-                                                    <hc:Interaction.Triggers>
-                                                        <hc:EventTrigger EventName="Handler">
-                                                            <hc:InvokeCommandAction Command="{Binding Command}" />
-                                                        </hc:EventTrigger>
-                                                    </hc:Interaction.Triggers>
-                                                </fh:HotKeyBox>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn>
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <Button Content="清空" Command="{Binding Clear}" />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <!-- 功能名：按内容宽度，留一点右间距 -->
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <!-- ★ 第十轮：键位列改为 `*` —— 占满剩余宽度、随修改器窗口自适应 -->
+                                                        <ColumnDefinition Width="*" />
+                                                        <!-- 清空按钮：按内容宽度，贴行尾 -->
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Text}"
+                                                               VerticalAlignment="Center" Margin="0,0,24,0"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <!-- ★★ 2026-09-27（第十轮·定稿，取代第九轮的 Left 方案）：ContentAlignment 改回 **Stretch**。
+                                                         第九轮为「让可见框不要横跨整行」把它设成 Left ⇒ 内容按需求尺寸收缩，
+                                                         可见框缩到键位文字那么宽（空键位时只剩一条细竖线）
+                                                         —— 这正是用户本次反馈「快捷键键入的地方太短」的直接原因。
+                                                         ★ 拉不宽的真根因（最小 WPF 探针程序实测，不是猜）：
+                                                           FastHotKeyForWPF 2.4.0 的 HotKeyBox **在自己的 BAML 里给实例写死了 `Width=440`**
+                                                           （控件 ctor → InitializeComponent → LoadComponent 时就设上了）
+                                                           ⇒ 无论外层列多宽、HorizontalAlignment 设成什么，控件都只有 440 DIP 宽，
+                                                              多出来的空间被「居中留白」吃掉 —— 这就是框拉不宽的原因。
+                                                           修法：`Loaded="HotKeyBox_Loaded"` → code-behind 里 `box.Width = double.NaN;`
+                                                           （写本地值覆盖它；本地值 > 样式 Setter，样式写法无效）。
+                                                           ★ 为什么不用 XAML 属性 `Width="{x:Static sys:Double.NaN}"`：
+                                                             WPF 的 XAML 编译器会把「赋成属性默认值的赋值」**直接省略** ——
+                                                             实测产物 BAML 里搜不到该 NaN、运行时宽度仍是 440
+                                                             （同写法在 XamlReader.Parse 里生效 ⇒ 是**编译期省略**，不是运行时被覆盖）。
+                                                           覆盖后实测内部全链同步拉伸：
+                                                             Border(模板根) → ContentPresenter → BackGrid → Edge → FocusGet，W 全为 NaN / Stretch。
+                                                           · **列宽**决定控件槽位（第十轮：键位列 `*`、清空列 Auto）；
+                                                           · `HorizontalContentAlignment` 必须是 **Stretch**（Left 会让内容按需求尺寸收缩）；
+                                                           · `ActualText` 自身 HAlign=Center（控件自带）⇒ 键位文字在框内居中显示。
+                                                           ⇒ 外层 Border 只留 ClipToBounds 作兜底，不再写固定宽度。 -->
+                                                    <Border Grid.Column="1" Margin="0,0,16,0"
+                                                            ClipToBounds="True"
+                                                            HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                                        <fh:HotKeyBox
+                                                            Loaded="HotKeyBox_Loaded"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            VerticalContentAlignment="Center"
+                                                            CurrentKeyA="{Binding CurrentKeyA, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                            CurrentKeyB="{Binding CurrentKeyB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                            Height="40" VerticalAlignment="Center"
+                                                            HorizontalAlignment="Stretch" Padding="0,10,0,10"
+                                                            Foreground="{DynamicResource TextForegroundBrush}"
+                                                            IsManipulationEnabled="True">
+                                                            <hc:Interaction.Triggers>
+                                                                <hc:EventTrigger EventName="Handler">
+                                                                    <hc:InvokeCommandAction Command="{Binding Command}" />
+                                                                </hc:EventTrigger>
+                                                            </hc:Interaction.Triggers>
+                                                        </fh:HotKeyBox>
+                                                    </Border>
+                                                    <Button Grid.Column="2" Content="清空" Command="{Binding Clear}"
+                                                            HorizontalAlignment="Right" />
+                                                </Grid>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -2053,10 +2125,27 @@
                                       VerticalScrollBarVisibility="Disabled" x:Name="InGameHotkeys"
  AutoGenerateColumns="False" CanUserAddRows="False"
                                       CanUserDeleteRows="False" CanUserResizeRows="False" CanUserSortColumns="False"
-                                      CanUserResizeColumns="False" CanUserReorderColumns="False">
+                                      CanUserResizeColumns="False" CanUserReorderColumns="False"
+                                      Style="{DynamicResource DataGrid.Hotkey}"
+                                      RowHeight="{x:Static sys:Double.NaN}">
+                                <!-- ★ 2026-09-27：与上面 Hotkeys 同款处理 ——
+                                     ① 原先没写 Style ⇒ 功能名列白字白底看不见；
+                                     ② 中途复用 DataGrid.Small 把行压扁、下拉框挤成一坨（用户反馈「UI 不好看」）；
+                                     ③ 最终改用按键页专用的 DataGrid.Hotkey（行高 44 / 字号 14 / 单元格留白 10,6）。
+                                     RowHeight=NaN 让行高自适应 ComboBox 的实际高度。 -->
+                                <!-- ★ 2026-09-27 列宽修复（用户反馈「有部分被按钮box挡住了 ——
+                                     图鉴种植：僵尸是否魅惑 AlmanacZombieMindCtrl」）：
+                                     原先**两列都没写 Width** ⇒ DataGrid 按内容自动分配，
+                                     长标签会一直顶到下拉框边缘、与 ComboBox 之间**没有任何间隙**，
+                                     视觉上就像"被下拉框挡住了"（最长的 AlmanacZombieMindCtrl 尤其明显）。
+                                     修法：
+                                       · 功能名列 Width="*"  —— 吃掉剩余宽度，长标签也放得下；
+                                       · 键位列 Width="180" —— 固定宽度，不再随内容挤压左列；
+                                         ComboBox 自身再留 MinWidth，避免窄窗口下被压扁。 -->
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn IsReadOnly="True" Binding="{Binding InGameHotkeyUI.KeyText}" />
-                                    <DataGridTemplateColumn>
+                                    <DataGridTextColumn IsReadOnly="True" Width="400"
+                                                        Binding="{Binding InGameHotkeyUI.KeyText}" />
+                                    <DataGridTemplateColumn Width="190">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <!-- ★ 用标准 WPF ComboBox 而不是 hc:ComboBox（2026-09-24 第二轮）：
@@ -2066,10 +2155,25 @@
                                                      App/SimpleTheme 里已有标准 ComboBox 的主题化隐式样式
                                                      （Background=ContentBackgroundBrush 等），换成标准控件即可随主题走；
                                                      在此只做键位下拉，不依赖 HC 的附加特性（清空按钮等），语义等价。 -->
-                                                <ComboBox
-                                                    Style="{DynamicResource ComboBoxExtend}"
-                                                    ItemsSource="{Binding Source={StaticResource KeyCodeEnum}}"
-                                                    SelectedValue="{Binding KeyCode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                                                <!-- ★ 2026-09-27 宽度约束（用户反馈「有部分被按钮box挡住了」）：
+                                                     问题链：① 两列都没写 Width ⇒ 长标签顶住下拉框、无间隙；
+                                                             ② 只给「列」设宽**不够** —— 本工程与 HandyControl 都没有给
+                                                                ComboBox 设任何 Width/MinWidth（已 grep 确认），
+                                                                它的宽度由**内容**决定：KeyCodeEnum 有 144 个枚举名，
+                                                                最长项把控件撑到约 300px，在 DataGridCell 里**溢出单元格**，
+                                                                右端（下拉箭头所在处）被裁到窗口外（UIA 实测 x=1237 宽=298 ⇒ 右缘 1535 > 窗口 1440）。
+                                                     修法：在单元格里套一层 **Grid（Width 由列决定）**，让 ComboBox 填满这个 Grid
+                                                     —— 由容器给出宽度，控件就无法按内容撑开。
+                                                     ⚠ 直接给 ComboBox 写 `MinWidth="0"` 会让默认模板的下拉箭头与边框整个消失
+                                                        （实测退化成裸文本）；`Width`/`MaxWidth` 写死同样被模板忽略。
+                                                        唯一有效的是「由外部容器限定」。 -->
+                                                <Grid>
+                                                    <ComboBox
+                                                        Style="{DynamicResource ComboBoxExtend}"
+                                                        HorizontalAlignment="Stretch"
+                                                        ItemsSource="{Binding Source={StaticResource KeyCodeEnum}}"
+                                                        SelectedValue="{Binding KeyCode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>

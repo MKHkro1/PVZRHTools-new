@@ -24,6 +24,15 @@
             </ResourceDictionary.MergedDictionaries>
             <Style TargetType="{x:Type fh:HotKeyBox}">
                 <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                <!-- ★ 2026-09-27 修复（用户反馈「输入框里的按键字看不清」）：
+                     FastHotKeyForWPF 的 HotKeyBox **根本不看 `Foreground`** ——
+                     它自己的模板用 `TextBrush` / `HoverTextBrush` 两个依赖属性来画键位文字，
+                     而这两个的**默认值分别是 `Brushes.White` 与 `Brushes.Cyan`**（Cecil 读 cctor 实证）。
+                     所以在浅色背景上键位文字就是**白字白底**，只有鼠标悬停时才变青色可见 ——
+                     这正是"框里字看不清"的根因；只设 Foreground 完全无效。
+                     修法：显式把 TextBrush 指向主题前景色、HoverTextBrush 指向强调色。 -->
+                <Setter Property="TextBrush" Value="{DynamicResource TextForegroundBrush}" />
+                <Setter Property="HoverTextBrush" Value="{DynamicResource LabelForegroundBrush}" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

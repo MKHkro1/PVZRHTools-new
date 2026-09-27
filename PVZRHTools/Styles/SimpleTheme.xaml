@@ -246,6 +246,57 @@
         </Style.Resources>
     </Style>
 
+    <!-- ★ 2026-09-27 新增：按键绑定页专用表格样式（DataGrid.Hotkey）
+         背景：两个按键页（全局按键绑定 / 游戏内按键绑定）原先**没有自己的样式**，
+               我先让它们复用 DataGrid.Small —— 那样式是为**词条页的密集勾选列表**设计的
+               （FontSize=13、MinRowHeight=24），套到按键页上会把行压得很扁、下拉框挤成一坨
+               （用户反馈「游戏内按键绑定的 UI 改得不好看了」）。
+         定位差异：
+           · 词条页 = 几百行密集列表，追求**单位屏幕显示更多行** ⇒ 紧凑；
+           · 按键页 = 十几行「功能名 + 键位控件」，追求**看得清、点得准** ⇒ 宽松。
+         所以这里独立一个样式：行更高、字号回到正常、留白更足、行间有淡分隔线。
+         注意：**取消虚拟化**不必要 —— 这两个表只有 39/9 行，保留默认虚拟化即可；
+               但仍显式给 Foreground 四层（DataGrid/Cell/Row/TextBlock），
+               否则会重蹈"回落 HandyColor 皮肤 ⇒ 白字白底"的老路（本项目第 3 次同类缺陷）。 -->
+    <Style x:Key="DataGrid.Hotkey" TargetType="{x:Type DataGrid}">
+        <Setter Property="FontSize" Value="14" />
+        <!-- 行高：给足呼吸感（下拉框本身约 30px + 上下留白） -->
+        <Setter Property="MinRowHeight" Value="44" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ContentBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <!-- 斑马纹：用极淡的次表面色，帮助横向对齐阅读 -->
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource HoverSurfaceBrush}" />
+        <!-- 行间横向分隔线（按键页需要"表格感"） -->
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="RowHeaderWidth" Value="0" />
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Style.Resources>
+            <Style TargetType="{x:Type DataGridCell}">
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <!-- 单元格留白：左 10 / 上下 6，让文字不贴格子边 -->
+                <Setter Property="Padding" Value="10,6" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+            <Style TargetType="{x:Type DataGridRow}">
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+            </Style>
+            <Style TargetType="{x:Type TextBlock}">
+                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+        </Style.Resources>
+    </Style>
+
     <!-- ★ 2026-09-26 玻璃高光条：卡片**内部最顶层**的一条 1px 亮线，模拟玻璃上沿受光。
          为什么单独做成一个样式而不是塞进 SettingsCard 的模板：
            SettingsCard 是 Border，Border 只有一个 Child，塞进去会挤掉页面内容；

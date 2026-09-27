@@ -1956,6 +1956,20 @@ namespace PVZRHTools
             e.Handled = false;
         }
 
+        // ★ 2026-09-27（第十轮）：把 FastHotKeyForWPF 的 HotKeyBox 从「写死的 440 DIP 宽」改回「跟随外层列宽」。
+        //   根因（最小 WPF 探针实测）：该控件**在自己的 BAML 里给实例写了本地值 Width=440**
+        //   （构造函数 → InitializeComponent → LoadComponent 时就设上），本地值优先级高于样式 Setter，
+        //   所以只能从外部再写一次本地值把它覆盖掉。
+        //   ★ 为什么不用 XAML 属性 `Width="{x:Static sys:Double.NaN}"`：WPF 的 XAML 编译器会把
+        //     「赋成属性默认值的属性赋值」**直接省略**——实测产物 BAML 里既搜不到该 NaN、运行时宽度仍是 440
+        //     （同一份写法在 XamlReader.Parse 里却生效，可见是**编译期省略**而非运行时被覆盖）。
+        //     故改用 Loaded 钩子以代码赋值；覆盖后内部全链（Border→ContentPresenter→BackGrid→Edge→FocusGet）
+        //     会一起 Stretch，键位框右缘即随窗口贴到「清空」左侧（Tab5/Tab6 共用这段模板的只有 Tab5）。
+        private void HotKeyBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is FastHotKeyForWPF.HotKeyBox box) box.Width = double.NaN;   // NaN = 由外层列宽决定（Stretch）
+        }
+
         // 丝滑滚动 - 小幅度 + 平滑插值
         private readonly Dictionary<System.Windows.Controls.ScrollViewer, double> _targetOffsets = new();
         private System.Windows.Threading.DispatcherTimer? _scrollTimer;
